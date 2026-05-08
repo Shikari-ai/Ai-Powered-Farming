@@ -14,9 +14,9 @@ export const FALLBACK_LOC = {
 };
 
 export const GPS_OPTIONS = {
-  enableHighAccuracy: true,
-  maximumAge: 60000,
-  timeout: 6000,
+  enableHighAccuracy: false,
+  maximumAge: 300000,
+  timeout: 3000,
 };
 
 export function persistLocationDetails(loc) {
