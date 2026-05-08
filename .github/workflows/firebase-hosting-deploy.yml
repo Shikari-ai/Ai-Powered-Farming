@@ -1,13 +1,9 @@
-# Deploy to Firebase Hosting (https://<project>.web.app) on every push to main.
+# Deploy to https://agritech-4d1ba.web.app on push to main.
 #
-# One-time: GitHub repo → Settings → Secrets and variables → Actions → New repository secret
-#   Name:  FIREBASE_SERVICE_ACCOUNT
-#   Value: full JSON from Firebase Console → Project settings → Service accounts →
-#          Generate new private key (for project agritech-4d1ba)
+# Secret (repo → Settings → Secrets → Actions):
+#   FIREBASE_SERVICE_ACCOUNT = full JSON from Firebase → Project settings → Service accounts → Generate key
 #
-# Then: Firebase Console → Authentication → Settings → Authorized domains → add:
-#   agritech-4d1ba.web.app
-#   agritech-4d1ba.firebaseapp.com
+# Auth: add agritech-4d1ba.web.app + agritech-4d1ba.firebaseapp.com to Authorized domains.
 
 name: Deploy Firebase Hosting
 
@@ -15,16 +11,35 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId: agritech-4d1ba
-          channelId: live
+          node-version: "20"
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy Hosting
+        env:
+          SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -e
+          if [ -z "$SERVICE_ACCOUNT_JSON" ]; then
+            echo "Missing secret FIREBASE_SERVICE_ACCOUNT. Add it under Settings → Secrets → Actions."
+            exit 1
+          fi
+          echo "$SERVICE_ACCOUNT_JSON" > "${GITHUB_WORKSPACE}/serviceAccount.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="${GITHUB_WORKSPACE}/serviceAccount.json"
+          firebase deploy --only hosting --project agritech-4d1ba --non-interactive
