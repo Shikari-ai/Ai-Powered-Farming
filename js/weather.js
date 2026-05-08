@@ -1,7 +1,7 @@
 import { auth, db } from "./auth.js";
 import { doc, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { openDeviceMaps } from "./maps-link.js";
-import { resolveWeatherLocation } from "./weather-location.js";
+import { resolveWeatherLocation, FALLBACK_LOC } from "./weather-location.js";
 
 const STORAGE_IMD_KEY = "agri_imd_api_key";
 const STORAGE_IMD_PROXY = "agri_imd_proxy";
@@ -475,8 +475,7 @@ function bindImdSetup() {
   });
 }
 
-async function loadWeather() {
-  const loc = await resolveWeatherLocation();
+async function renderWeatherForLoc(loc) {
   lastWeatherLoc = loc;
   setLocationLines(loc);
 
@@ -589,6 +588,23 @@ async function loadWeather() {
       },
       { merge: true },
     );
+  }
+}
+
+async function loadWeather() {
+  // Show fallback data immediately so the page never looks blank.
+  // Then silently upgrade when GPS resolves (within 6 s) or keep fallback.
+  const fallback = { ...FALLBACK_LOC, source: "fallback" };
+  renderWeatherForLoc(fallback).catch(() => {});
+
+  try {
+    const loc = await resolveWeatherLocation();
+    // If we got a real GPS fix (not just the same fallback), re-render with better coords.
+    if (loc.source !== "fallback" && loc.source !== "insecure-context") {
+      await renderWeatherForLoc(loc);
+    }
+  } catch (e) {
+    console.error("GPS upgrade failed:", e);
   }
 }
 
