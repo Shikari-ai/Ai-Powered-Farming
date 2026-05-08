@@ -1,6 +1,8 @@
 # Deploy to https://agritech-4d1ba.web.app
-# Secret: FIREBASE_SERVICE_ACCOUNT = full JSON from Firebase Console → Project settings →
-# Service accounts → Generate new private key (paste whole file; one line or multiline is fine).
+#
+# Auth (pick one):
+# - FIREBASE_SERVICE_ACCOUNT: full JSON from Firebase → Project settings → Service accounts → Generate key
+# - FIREBASE_TOKEN (fallback): run locally: npx firebase-tools@13 login:ci   → paste token as secret
 
 name: Deploy Firebase Hosting
 
@@ -28,20 +30,71 @@ jobs:
         with:
           node-version: "22"
 
-      # One shell: write SA key, export GOOGLE_APPLICATION_CREDENTIALS, install CLI, deploy.
-      # Split steps sometimes lose ADC for firebase-tools; composite actions also break env chaining.
       - name: Deploy Hosting
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
-          set -euo pipefail
-          if [ -z "${FIREBASE_SERVICE_ACCOUNT:-}" ]; then
-            echo "::error::Add repository secret FIREBASE_SERVICE_ACCOUNT (service account JSON key)."
-            exit 1
-          fi
-          CREDS="${GITHUB_WORKSPACE}/firebase-ci-sa.json"
-          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$CREDS"
-          python3 -c "import json,sys; d=json.load(open(sys.argv[1],encoding='utf-8')); assert d.get('type')=='service_account', 'Secret must be a service account JSON key'; assert d.get('private_key'); print('Using service account:', d.get('client_email',''))" "$CREDS"
-          export GOOGLE_APPLICATION_CREDENTIALS="$CREDS"
-          npm install -g firebase-tools
-          firebase deploy --only hosting --project agritech-4d1ba --non-interactive
+          python3 << 'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+
+          def fail(msg: str) -> None:
+              print(f"::error::{msg}")
+              sys.exit(1)
+
+          workspace = os.environ["GITHUB_WORKSPACE"]
+          token = (os.environ.get("FIREBASE_TOKEN") or "").strip()
+          raw = (os.environ.get("FIREBASE_SERVICE_ACCOUNT") or "").lstrip("\ufeff").strip()
+
+          env = os.environ.copy()
+          project = "agritech-4d1ba"
+
+          # Prefer service account JSON; use FIREBASE_TOKEN only if SA is unset (stale tokens break deploy).
+          if raw:
+              try:
+                  data = json.loads(raw)
+              except json.JSONDecodeError as e:
+                  fail(f"FIREBASE_SERVICE_ACCOUNT is not valid JSON ({e}). Minify the key file to one line if needed.")
+              if data.get("type") != "service_account":
+                  fail("FIREBASE_SERVICE_ACCOUNT must be a service account key JSON (type: service_account).")
+              pid = data.get("project_id")
+              if pid and pid != project:
+                  print(f"::warning::Key project_id is '{pid}' (deploy target is '{project}'). Wrong key?")
+              path = os.path.join(workspace, "firebase-ci-sa.json")
+              with open(path, "w", encoding="utf-8") as f:
+                  json.dump(data, f)
+              env["GOOGLE_APPLICATION_CREDENTIALS"] = path
+              env.pop("FIREBASE_TOKEN", None)
+              print("Auth: service account", data.get("client_email", ""))
+          elif token:
+              print("Auth: FIREBASE_TOKEN (from firebase login:ci)")
+              env["FIREBASE_TOKEN"] = token
+          else:
+              fail(
+                  "No credentials: add GitHub secret FIREBASE_SERVICE_ACCOUNT "
+                  "(service account JSON), or FIREBASE_TOKEN from `firebase login:ci`."
+              )
+
+          print("Installing firebase-tools …")
+          subprocess.run(
+              ["npm", "install", "-g", "firebase-tools@13"],
+              check=True,
+              env=env,
+          )
+
+          cmd = [
+              "firebase",
+              "deploy",
+              "--only",
+              "hosting",
+              "--project",
+              project,
+              "--non-interactive",
+          ]
+          print("Running:", " ".join(cmd))
+          r = subprocess.run(cmd, env=env)
+          raise SystemExit(r.returncode)
+          PY
