@@ -123,17 +123,18 @@ async function refreshLocationAndWeather() {
 window.refreshLocationAndWeather = refreshLocationAndWeather;
 
 function checkLocationPrompt() {
-    const lastAskedDate = localStorage.getItem('agri_location_asked_date');
-    const today = new Date().toDateString();
-    const modal = document.getElementById('location-modal');
+    // Always load weather (falls back to Bhopal if GPS denied/unavailable).
+    refreshLocationAndWeather();
 
-    if (localStorage.getItem('agri_location_granted') === 'true') {
-        refreshLocationAndWeather();
-        return;
-    }
-
-    if (lastAskedDate !== today && modal) {
-        setTimeout(() => modal.classList.remove('hidden'), 800);
+    // Show the "Allow location" modal once per day if the user hasn't granted yet,
+    // so they understand why GPS improves accuracy — but don't block weather on it.
+    if (localStorage.getItem('agri_location_granted') !== 'true') {
+        const lastAskedDate = localStorage.getItem('agri_location_asked_date');
+        const today = new Date().toDateString();
+        const modal = document.getElementById('location-modal');
+        if (lastAskedDate !== today && modal) {
+            setTimeout(() => modal.classList.remove('hidden'), 1200);
+        }
     }
 }
 
