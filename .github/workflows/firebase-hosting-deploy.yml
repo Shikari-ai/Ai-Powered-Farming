@@ -1,8 +1,9 @@
 # Deploy to https://agritech-4d1ba.web.app
 #
-# Auth (pick one):
-# - FIREBASE_SERVICE_ACCOUNT: full JSON from Firebase → Project settings → Service accounts → Generate key
-# - FIREBASE_TOKEN (fallback): run locally: npx firebase-tools@13 login:ci   → paste token as secret
+# Credentials: ONLY GitHub Actions → Settings → Secrets → FIREBASE_SERVICE_ACCOUNT
+# (paste the entire JSON of the downloaded key). Do NOT commit the key file to git.
+#
+# Optional fallback: FIREBASE_TOKEN from `npx firebase-tools@13 login:ci` if you cannot use a SA key.
 
 name: Deploy Firebase Hosting
 
