@@ -148,9 +148,11 @@ function wireStatic() {
   /* change password */
   el("change-pw-btn")?.addEventListener("click", async () => {
     const user = auth.currentUser;
-    if (!user?.email) return toast("No email", "Cannot reset a non-email account.");
-    await sendPasswordResetEmail(auth, user.email);
-    snack("Reset link sent to " + user.email);
+    if (!user?.email) { snack("No email on this account.", true); return; }
+    try {
+      await sendPasswordResetEmail(auth, user.email);
+      snack("Reset link sent to " + user.email);
+    } catch(e) { snack("Error: " + e.message, true); }
   });
 
   /* AI prefs save */
@@ -289,26 +291,36 @@ function attachUser(user) {
 
   /* ── edit profile save ── */
   const doSaveProfile = async () => {
-    const name  = el("ep-name")?.value.trim();
-    const phone = el("ep-phone")?.value.trim();
-    const loc   = el("ep-location")?.value.trim();
+    const name  = (el("ep-name")?.value  || "").trim();
+    const phone = (el("ep-phone")?.value || "").trim();
+    const loc   = (el("ep-location")?.value || "").trim();
     if (!name) { snack("Please enter your name.", true); return; }
 
     const btn = el("ep-save-btn");
-    if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+    const hdrBtn = el("ep-save-hdr-btn");
+    const setBusy = (v) => {
+      if (btn) { btn.disabled = v; btn.textContent = v ? "Saving…" : "Save Changes"; }
+      if (hdrBtn) hdrBtn.style.opacity = v ? ".4" : "1";
+    };
+    setBusy(true);
     try {
+      // Write to Firestore
       await setDoc(
         doc(db, "users", user.uid),
         { name, phone, village: loc, updatedAt: serverTimestamp() },
         { merge: true }
       );
-      await updateProfile(user, { displayName: name });
+      // Update Auth display name — ignore failure, it's cosmetic
+      try { await updateProfile(user, { displayName: name }); } catch (_) {}
+
+      // Show feedback and close panel
       snack("Profile saved!");
-      closePanel("panel-edit-profile");
+      window.closePanel?.("panel-edit-profile");
     } catch (e) {
-      snack("Save failed: " + e.message, true);
+      console.error("Save profile error:", e);
+      snack("Save failed: " + (e.message || e.code || "unknown error"), true);
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = "Save Changes"; }
+      setBusy(false);
     }
   };
   el("ep-save-btn")?.addEventListener("click",     doSaveProfile);

@@ -843,21 +843,6 @@
 
 
   <!-- ════════════════════════════════════════
-       SNACKBAR TOAST
-  ════════════════════════════════════════ -->
-  <div id="snackbar" style="
-    position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);
-    background:#1E2D3D;border:1px solid rgba(16,185,129,.3);border-radius:12px;
-    padding:12px 20px;font-size:13px;color:#F8FAFC;
-    display:flex;align-items:center;gap:8px;
-    box-shadow:0 8px 32px rgba(0,0,0,.5);
-    z-index:1100;opacity:0;transition:opacity .25s,transform .25s;
-    pointer-events:none;max-width:320px;text-align:center;white-space:nowrap;">
-    <i id="snackbar-icon" class="ri-checkbox-circle-fill" style="color:#10B981;font-size:16px;"></i>
-    <span id="snackbar-msg">Saved</span>
-  </div>
-
-  <!-- ════════════════════════════════════════
        LOGOUT CONFIRM SHEET
   ════════════════════════════════════════ -->
   <div id="logout-sheet-backdrop" style="
@@ -903,6 +888,19 @@
   </nav>
 
 </div><!-- /shell -->
+
+<!-- snackbar lives OUTSIDE .shell so overflow:hidden never clips it -->
+<div id="snackbar" style="
+  position:fixed;bottom:96px;left:50%;transform:translateX(-50%) translateY(24px);
+  background:#1A2E3A;border:1px solid rgba(16,185,129,.35);border-radius:14px;
+  padding:13px 22px;font-size:13px;color:#F8FAFC;font-family:'Outfit',sans-serif;
+  display:flex;align-items:center;gap:9px;
+  box-shadow:0 10px 36px rgba(0,0,0,.6);
+  z-index:2000;opacity:0;transition:opacity .28s,transform .28s;
+  pointer-events:none;max-width:340px;white-space:nowrap;">
+  <i id="snackbar-icon" class="ri-checkbox-circle-fill" style="color:#10B981;font-size:17px;flex-shrink:0;"></i>
+  <span id="snackbar-msg">Saved</span>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
