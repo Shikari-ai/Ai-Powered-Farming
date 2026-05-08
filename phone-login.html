@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phone Login - AgriTech AI</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        .input-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; text-align: left; }
+        .input-group label { font-size: 13px; color: rgba(255,255,255,0.8); margin-left: 4px; }
+        .input-group input { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; color: white; font-family: 'Outfit', sans-serif; font-size: 16px; outline: none; transition: border-color 0.2s; letter-spacing: 2px; }
+        .input-group input:focus { border-color: var(--accent-green); }
+        .hidden { display: none; }
+    </style>
+</head>
+<body class="dark-theme flex-center">
+    <div class="mobile-container login-mode">
+        
+        <button onclick="window.history.back()" class="icon-btn" style="position: absolute; top: 20px; left: 20px; z-index: 10;">
+            <i class="ri-arrow-left-line" style="font-size: 24px;"></i>
+        </button>
+
+        <div class="login-wrapper slide-up" style="margin-top: 20px;">
+            <div class="logo-area">
+                <div class="logo-icon pulse" style="margin-bottom: 24px;">
+                    <i class="ri-smartphone-line"></i>
+                </div>
+                <h2 style="font-size: 28px;">Phone Verification</h2>
+                <p>We'll send you an SMS code</p>
+            </div>
+            
+            <div class="login-panel glass-panel" style="padding: 32px 24px;">
+                
+                <!-- Step 1: Phone Number -->
+                <form id="phone-form" onsubmit="event.preventDefault(); handleSendOTP();">
+                    <div class="input-group">
+                        <label>Phone Number (with Country Code)</label>
+                        <input type="tel" id="su-phone" required placeholder="+1 555 123 4567">
+                    </div>
+                    
+                    <!-- Firebase Recaptcha Container -->
+                    <div id="recaptcha-container"></div>
+                    
+                    <button type="submit" class="primary-btn" style="width: 100%; margin-top: 10px;" id="send-otp-btn">Send OTP Code</button>
+                </form>
+
+                <!-- Step 2: OTP Code -->
+                <form id="otp-form" class="hidden" onsubmit="event.preventDefault(); handleVerifyOTP();">
+                    <div class="input-group">
+                        <label>Enter 6-digit OTP Code</label>
+                        <input type="text" id="su-otp" required placeholder="123456" maxlength="6" style="text-align: center; letter-spacing: 8px; font-size: 20px;">
+                    </div>
+                    
+                    <button type="submit" class="primary-btn" style="width: 100%; margin-top: 10px; background: var(--accent-blue);">Verify & Login</button>
+                </form>
+
+            </div>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { setupRecaptcha, sendOTP, verifyOTP } from './js/auth.js';
+        
+        // Initialize invisible recaptcha on load
+        window.onload = () => {
+            setupRecaptcha('send-otp-btn');
+        };
+
+        window.handleSendOTP = async () => {
+            const phone = document.getElementById('su-phone').value;
+            document.getElementById('send-otp-btn').textContent = "Sending...";
+            
+            const success = await sendOTP(phone);
+            if (success) {
+                document.getElementById('phone-form').classList.add('hidden');
+                document.getElementById('otp-form').classList.remove('hidden');
+            } else {
+                document.getElementById('send-otp-btn').textContent = "Send OTP Code";
+            }
+        };
+
+        window.handleVerifyOTP = () => {
+            const code = document.getElementById('su-otp').value;
+            verifyOTP(code);
+        };
+    </script>
+</body>
+</html>

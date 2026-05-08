@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Authentication - AgriTech AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --emerald: #34d399;
+            --neon-green: #10b981;
+            --neon-glow: rgba(16, 185, 129, 0.4);
+            --dark-glass: rgba(15, 23, 42, 0.6);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+        
+        body {
+            background-color: #020617;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            overflow-x: hidden;
+        }
+
+        /* Cinematic Background */
+        .auth-bg {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: url('https://images.unsplash.com/photo-1625246333195-78d9c38ad449?q=80&w=1080&auto=format&fit=crop') center/cover;
+            z-index: 0;
+            filter: brightness(0.8) contrast(1.1);
+        }
+
+        /* Depth Blur Overlay */
+        .auth-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(180deg, rgba(2,6,23,0.1) 0%, rgba(2,6,23,0.8) 40%, #020617 100%);
+            z-index: 1;
+        }
+
+        /* Ambient Particles (Fireflies/Spores) */
+        .particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+        .particle {
+            position: absolute; width: 3px; height: 3px; background: var(--emerald); border-radius: 50%;
+            box-shadow: 0 0 10px 2px var(--neon-glow);
+            animation: float 10s infinite ease-in-out; opacity: 0;
+        }
+        @keyframes float {
+            0% { transform: translateY(0) translateX(0); opacity: 0; }
+            50% { opacity: 0.8; }
+            100% { transform: translateY(-100px) translateX(20px); opacity: 0; }
+        }
+
+        .auth-container {
+            position: relative; z-index: 10;
+            width: 100%; max-width: 440px;
+            min-height: 100vh;
+            display: flex; flex-direction: column;
+            padding: 40px 24px;
+        }
+
+        /* Branding Top */
+        .auth-header {
+            display: flex; flex-direction: column; align-items: center; text-align: center;
+            margin-bottom: 40px; animation: slideDown 1s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .logo-ring {
+            width: 72px; height: 72px;
+            border-radius: 50%;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 30px var(--neon-glow), inset 0 0 20px rgba(16,185,129,0.2);
+            margin-bottom: 16px;
+            position: relative;
+        }
+        .logo-ring::after {
+            content: ''; position: absolute; top: -5px; left: -5px; right: -5px; bottom: -5px;
+            border-radius: 50%; border: 1px dashed rgba(16,185,129,0.4);
+            animation: spin 20s linear infinite;
+        }
+        .logo-ring i { font-size: 36px; color: var(--emerald); filter: drop-shadow(0 0 8px var(--emerald)); }
+        
+        .auth-header h1 { font-size: 28px; font-weight: 500; letter-spacing: -0.5px; margin-bottom: 4px; }
+        .auth-header h1 span { color: var(--emerald); font-weight: 600; }
+        .auth-header p { font-size: 13px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; }
+
+        /* The Glass Card */
+        .glass-card {
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--border-glass);
+            border-radius: 32px;
+            padding: 32px 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+            position: relative; overflow: hidden;
+            animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        /* Inner Glow */
+        .glass-card::before {
+            content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+            width: 60%; height: 1px; background: linear-gradient(90deg, transparent, var(--emerald), transparent);
+            opacity: 0.5;
+        }
+
+        .welcome-text { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+        .sub-text { font-size: 14px; color: var(--text-dim); margin-bottom: 32px; }
+
+        /* Tabs */
+        .auth-tabs {
+            display: flex; position: relative; margin-bottom: 32px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .tab-btn {
+            flex: 1; background: none; border: none; padding: 12px 0;
+            color: var(--text-dim); font-size: 14px; font-weight: 600; letter-spacing: 1px;
+            cursor: pointer; transition: color 0.3s;
+        }
+        .tab-btn.active { color: white; }
+        .tab-indicator {
+            position: absolute; bottom: -1px; left: 0; width: 50%; height: 2px;
+            background: var(--neon-green); box-shadow: 0 0 10px var(--neon-green);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Input Fields */
+        .input-group {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 12px 16px;
+            display: flex; align-items: center; gap: 16px;
+            margin-bottom: 16px;
+            transition: all 0.3s ease;
+        }
+        .input-group:focus-within {
+            border-color: rgba(16, 185, 129, 0.5);
+            background: rgba(0,0,0,0.5);
+            box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.2);
+        }
+        .input-icon { color: var(--text-dim); font-size: 20px; transition: color 0.3s; }
+        .input-group:focus-within .input-icon { color: var(--emerald); }
+        
+        .input-content { flex: 1; display: flex; flex-direction: column; }
+        .input-content label { font-size: 11px; color: var(--text-dim); margin-bottom: 2px; }
+        .input-content input {
+            background: transparent; border: none; color: white; font-size: 15px; outline: none; width: 100%;
+        }
+        .input-content input::placeholder { color: rgba(255,255,255,0.2); }
+
+        .forgot-link {
+            display: block; text-align: right; font-size: 12px; color: var(--emerald);
+            text-decoration: none; margin-top: -4px; margin-bottom: 24px; font-weight: 500;
+        }
+
+        /* Primary Button */
+        .primary-btn {
+            width: 100%; background: linear-gradient(90deg, #059669, #10b981);
+            border: none; border-radius: 16px; padding: 4px 4px 4px 24px;
+            display: flex; align-items: center; justify-content: space-between;
+            color: white; font-size: 16px; font-weight: 600; cursor: pointer;
+            box-shadow: 0 10px 25px rgba(16,185,129,0.3);
+            transition: all 0.3s; position: relative; overflow: hidden;
+        }
+        .primary-btn::after {
+            content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transform: skewX(-20deg); transition: 0.5s;
+        }
+        .primary-btn:hover::after { left: 150%; }
+        .primary-btn:hover { transform: translateY(-2px); box-shadow: 0 15px 30px rgba(16,185,129,0.4); }
+        .btn-arrow {
+            width: 44px; height: 44px; background: white; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            color: #059669; font-size: 20px;
+        }
+
+        /* Divider */
+        .divider {
+            display: flex; align-items: center; text-align: center; margin: 24px 0; color: var(--text-dim); font-size: 12px;
+        }
+        .divider::before, .divider::after {
+            content: ''; flex: 1; border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .divider::before { margin-right: 12px; }
+        .divider::after { margin-left: 12px; }
+
+        /* Social Buttons */
+        .social-btn {
+            width: 100%; background: white; border: none; border-radius: 16px; padding: 14px;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            color: #0f172a; font-size: 15px; font-weight: 600; cursor: pointer;
+            margin-bottom: 12px; transition: transform 0.2s;
+        }
+        .social-btn:hover { transform: scale(0.98); }
+        .social-btn.apple { background: #020617; color: white; border: 1px solid rgba(255,255,255,0.1); }
+
+        /* Security Badge */
+        .security-badge {
+            margin-top: 32px; padding: 16px; border-radius: 16px;
+            background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.1);
+            display: flex; align-items: center; gap: 16px;
+            animation: slideUp 1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards;
+        }
+        .sec-icon { width: 40px; height: 40px; border-radius: 10px; background: rgba(16, 185, 129, 0.1); display: flex; align-items: center; justify-content: center; color: var(--emerald); font-size: 20px; border: 1px solid rgba(16, 185, 129, 0.2); }
+        .sec-text h4 { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+        .sec-text p { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+
+        /* Form Visibility */
+        .form-section { display: none; animation: fadeIn 0.4s ease; }
+        .form-section.active { display: block; }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-40px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div class="auth-bg"></div>
+    <div class="auth-overlay"></div>
+    <div class="particles" id="particles"></div>
+
+    <div class="auth-container">
+        
+        <div class="auth-header">
+            <div class="logo-ring"><i class="ri-leaf-fill"></i></div>
+            <h1>Smart <span>Farming</span></h1>
+            <p>AI Powered Agriculture</p>
+        </div>
+
+        <div class="glass-card">
+            <!-- Dynamic Welcome Text -->
+            <div id="dynamic-header">
+                <h2 class="welcome-text">Welcome Back!</h2>
+                <p class="sub-text">Sign in to continue your smart farming journey</p>
+            </div>
+
+            <!-- Tabs -->
+            <div class="auth-tabs">
+                <button class="tab-btn active" onclick="switchTab('signin')">SIGN IN</button>
+                <button class="tab-btn" onclick="switchTab('signup')">SIGN UP</button>
+                <div class="tab-indicator" id="tab-indicator"></div>
+            </div>
+
+            <!-- SIGN IN FORM -->
+            <div id="signin-section" class="form-section active">
+                <form onsubmit="event.preventDefault(); submitSignIn();">
+                    <div class="input-group">
+                        <i class="ri-user-line input-icon"></i>
+                        <div class="input-content">
+                            <label>Email Address</label>
+                            <input type="email" id="si-email" required placeholder="Enter your email address">
+                        </div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <i class="ri-lock-2-line input-icon"></i>
+                        <div class="input-content">
+                            <label>Password</label>
+                            <input type="password" id="si-password" required placeholder="Enter your password">
+                        </div>
+                        <i class="ri-eye-off-line input-icon" style="cursor:pointer;" onclick="togglePwd('si-password', this)"></i>
+                    </div>
+
+                    <a href="#" class="forgot-link">Forgot Password?</a>
+
+                    <button type="submit" class="primary-btn" id="si-btn">
+                        Sign In 
+                        <div class="btn-arrow"><i class="ri-arrow-right-line"></i></div>
+                    </button>
+                </form>
+            </div>
+
+            <!-- SIGN UP FORM -->
+            <div id="signup-section" class="form-section">
+                <form onsubmit="event.preventDefault(); submitSignUp();">
+                    <div class="input-group">
+                        <i class="ri-user-line input-icon"></i>
+                        <div class="input-content">
+                            <label>Full Name</label>
+                            <input type="text" id="su-name" required placeholder="Enter your full name">
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <i class="ri-mail-line input-icon"></i>
+                        <div class="input-content">
+                            <label>Email Address</label>
+                            <input type="email" id="su-email" required placeholder="Enter your email address">
+                        </div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <i class="ri-lock-2-line input-icon"></i>
+                        <div class="input-content">
+                            <label>Password</label>
+                            <input type="password" id="su-password" required placeholder="Create a strong password">
+                        </div>
+                        <i class="ri-eye-off-line input-icon" style="cursor:pointer;" onclick="togglePwd('su-password', this)"></i>
+                    </div>
+
+                    <div style="display:flex; gap:10px; align-items:flex-start; margin-bottom:24px; font-size:12px; color:var(--text-dim);">
+                        <input type="checkbox" required id="su-terms" style="accent-color:var(--neon-green); margin-top:2px;">
+                        <label for="su-terms">I agree to the <span style="color:var(--emerald);">Terms of Service</span> and <span style="color:var(--emerald);">Privacy Policy</span></label>
+                    </div>
+
+                    <button type="submit" class="primary-btn" id="su-btn">
+                        Create Account 
+                        <div class="btn-arrow"><i class="ri-arrow-right-line"></i></div>
+                    </button>
+                </form>
+            </div>
+
+            <div class="divider">or continue with</div>
+
+            <button type="button" class="social-btn" onclick="handleGoogleLogin()">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="G" style="width:20px;">
+                Continue with Google
+            </button>
+            <button type="button" class="social-btn apple" onclick="handleGoogleLogin()">
+                <i class="ri-apple-fill" style="font-size:22px;"></i>
+                Continue with Apple
+            </button>
+
+        </div>
+
+        <!-- Trust Badge -->
+        <div class="security-badge">
+            <div class="sec-icon"><i class="ri-shield-check-fill"></i></div>
+            <div class="sec-text">
+                <h4>Your data is 100% secure</h4>
+                <p>We use advanced military-grade encryption to protect your farm's sensitive information.</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { loginWithEmailPwd, signUpWithEmail, loginWithGoogle } from './js/auth.js';
+
+        // Particle generation
+        const pContainer = document.getElementById('particles');
+        for(let i=0; i<15; i++) {
+            let p = document.createElement('div');
+            p.className = 'particle';
+            p.style.left = Math.random() * 100 + '%';
+            p.style.top = Math.random() * 100 + '%';
+            p.style.animationDelay = Math.random() * 10 + 's';
+            p.style.opacity = Math.random();
+            pContainer.appendChild(p);
+        }
+
+        // Tab Switching Logic
+        window.switchTab = (tab) => {
+            const btns = document.querySelectorAll('.tab-btn');
+            btns.forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
+            
+            const indicator = document.getElementById('tab-indicator');
+            const header = document.getElementById('dynamic-header');
+
+            if(tab === 'signin') {
+                btns[0].classList.add('active');
+                indicator.style.transform = 'translateX(0)';
+                document.getElementById('signin-section').classList.add('active');
+                header.innerHTML = `
+                    <h2 class="welcome-text">Welcome Back!</h2>
+                    <p class="sub-text">Sign in to continue your smart farming journey</p>
+                `;
+            } else {
+                btns[1].classList.add('active');
+                indicator.style.transform = 'translateX(100%)';
+                document.getElementById('signup-section').classList.add('active');
+                header.innerHTML = `
+                    <h2 class="welcome-text">Create Your Account</h2>
+                    <p class="sub-text">Start your smart farming journey today</p>
+                `;
+            }
+        };
+
+        // Password Visibility
+        window.togglePwd = (id, iconEl) => {
+            const el = document.getElementById(id);
+            if(el.type === 'password') {
+                el.type = 'text';
+                iconEl.classList.replace('ri-eye-off-line', 'ri-eye-line');
+            } else {
+                el.type = 'password';
+                iconEl.classList.replace('ri-eye-line', 'ri-eye-off-line');
+            }
+        };
+
+        // Firebase Auth Triggers
+        window.submitSignIn = () => {
+            const email = document.getElementById('si-email').value;
+            const pwd = document.getElementById('si-password').value;
+            const btn = document.getElementById('si-btn');
+            btn.innerHTML = `<i class="ri-loader-4-line spin" style="margin:auto;"></i>`;
+            loginWithEmailPwd(email, pwd).catch(() => {
+                btn.innerHTML = `Sign In <div class="btn-arrow"><i class="ri-arrow-right-line"></i></div>`;
+            });
+        };
+
+        window.submitSignUp = () => {
+            const name = document.getElementById('su-name').value;
+            const email = document.getElementById('su-email').value;
+            const pwd = document.getElementById('su-password').value;
+            const btn = document.getElementById('su-btn');
+            btn.innerHTML = `<i class="ri-loader-4-line spin" style="margin:auto;"></i>`;
+            signUpWithEmail(email, pwd, name).catch(() => {
+                btn.innerHTML = `Create Account <div class="btn-arrow"><i class="ri-arrow-right-line"></i></div>`;
+            });
+        };
+
+        window.handleGoogleLogin = () => {
+            loginWithGoogle();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Field Detail - Smart Farming</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #000000;
+      --glass: rgba(12, 18, 14, 0.72);
+      --neon: #39ff14;
+      --neon-dim: rgba(57, 255, 20, 0.35);
+      --text: #f4fff4;
+      --dim: #8b9d8b;
+      --border: rgba(57, 255, 20, 0.18);
+      --danger: #ff4d4d;
+      --warn: #fbbf24;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Outfit", sans-serif; }
+    body { background: var(--bg); color: var(--text); min-height: 100vh; -webkit-tap-highlight-color: transparent; }
+    .app { max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: 100px; position: relative; }
+    .particles {
+      pointer-events: none; position: fixed; inset: 0; max-width: 480px; margin: 0 auto;
+      background-image: radial-gradient(circle at 20% 30%, var(--neon-dim) 0, transparent 2px),
+        radial-gradient(circle at 70% 60%, rgba(57,255,20,0.12) 0, transparent 2px);
+      background-size: 120px 120px, 180px 180px;
+      opacity: 0.4; z-index: 0;
+    }
+
+    .hero {
+      position: relative; height: 200px; overflow: hidden;
+      border-bottom: 1px solid var(--border);
+    }
+    .hero-img {
+      width: 100%; height: 100%; object-fit: cover;
+      filter: brightness(0.55) saturate(1.1);
+    }
+    .hero-fallback {
+      width: 100%; height: 100%;
+      background: linear-gradient(145deg, rgba(57,255,20,0.15), #050805 55%, #000);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .hero-fallback i { font-size: 56px; color: var(--neon); opacity: 0.5; text-shadow: 0 0 40px var(--neon-dim); }
+    .hero-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(180deg, transparent 30%, rgba(0,0,0,0.92) 100%);
+      pointer-events: none;
+    }
+    .hero-top {
+      position: absolute; top: 0; left: 0; right: 0; padding: 14px 16px;
+      display: flex; justify-content: space-between; align-items: center; z-index: 2;
+    }
+    .icon-round {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--glass); border: 1px solid var(--border);
+      backdrop-filter: blur(12px); color: var(--neon);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; text-decoration: none; font-size: 18px;
+      box-shadow: 0 0 20px var(--neon-dim);
+    }
+    .hero-title {
+      position: absolute; bottom: 16px; left: 16px; right: 16px; z-index: 2;
+    }
+    .hero-title h1 { font-size: 22px; font-weight: 600; text-shadow: 0 0 24px rgba(0,0,0,0.8); }
+    .hero-title p { font-size: 12px; color: var(--dim); margin-top: 4px; }
+
+    .tabs {
+      display: flex; gap: 4px; padding: 12px 12px 0;
+      background: rgba(0,0,0,0.5); border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 10; backdrop-filter: blur(16px);
+    }
+    .tab {
+      flex: 1; text-align: center; padding: 10px 6px; font-size: 11px;
+      border-radius: 12px 12px 0 0; cursor: pointer; color: var(--dim);
+      border: 1px solid transparent; transition: 0.22s ease;
+    }
+    .tab.active {
+      color: #000; background: var(--neon); font-weight: 600;
+      box-shadow: 0 -4px 24px var(--neon-dim);
+    }
+
+    .panel { display: none; padding: 16px; animation: fadeIn 0.35s ease; }
+    .panel.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    .glass {
+      background: var(--glass); border: 1px solid var(--border);
+      border-radius: 18px; padding: 14px; margin-bottom: 12px;
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(57,255,20,0.06);
+    }
+    .glass h3 { font-size: 13px; color: var(--neon); margin-bottom: 10px; font-weight: 600; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .metric .k { font-size: 10px; color: var(--dim); }
+    .metric .v { font-size: 18px; margin-top: 4px; font-weight: 500; }
+
+    .spark-wrap { height: 72px; margin-top: 8px; }
+    .spark-wrap svg { width: 100%; height: 100%; }
+
+    .insight-row {
+      display: flex; gap: 10px; align-items: flex-start; padding: 10px;
+      border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px;
+      background: rgba(57,255,20,0.04); font-size: 12px;
+    }
+    .insight-row i { color: var(--neon); margin-top: 2px; }
+    .insight-row.warn { border-color: rgba(251,191,36,0.35); }
+    .insight-row.bad { border-color: rgba(255,77,77,0.35); }
+
+    label { font-size: 10px; color: var(--dim); display: block; margin-bottom: 4px; }
+    input, select, textarea {
+      width: 100%; padding: 11px 12px; border-radius: 12px;
+      border: 1px solid var(--border); background: rgba(0,0,0,0.45);
+      color: var(--text); font-size: 13px; outline: none; margin-bottom: 10px;
+    }
+    textarea { min-height: 72px; resize: vertical; }
+    .btn-neon {
+      width: 100%; padding: 12px; border-radius: 14px; border: none;
+      background: var(--neon); color: #000; font-weight: 600; font-size: 13px;
+      cursor: pointer; box-shadow: 0 0 28px var(--neon-dim); margin-top: 6px;
+    }
+    .btn-neon:disabled { opacity: 0.5; }
+    .btn-ghost {
+      width: 100%; padding: 11px; border-radius: 14px;
+      border: 1px solid var(--border); background: transparent; color: var(--text);
+      font-size: 12px; cursor: pointer; margin-top: 8px;
+    }
+    .btn-danger {
+      border-color: rgba(255,77,77,0.5); color: var(--danger);
+    }
+
+    .activity-item {
+      padding: 10px 0; border-bottom: 1px solid rgba(57,255,20,0.08);
+      font-size: 12px;
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-item .t { color: var(--dim); font-size: 10px; margin-top: 4px; }
+
+    .scan-card {
+      padding: 10px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px;
+      font-size: 12px;
+    }
+    .scan-card .score { color: var(--neon); font-weight: 600; }
+
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 480px;
+      background: rgba(0,0,0,0.92); border-top: 1px solid var(--border);
+      display: flex; justify-content: space-around; padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+      z-index: 100;
+    }
+    .bottom-nav a { color: var(--dim); text-decoration: none; font-size: 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .bottom-nav a i { font-size: 22px; }
+    .bottom-nav a.active { color: var(--neon); }
+
+    .hidden { display: none !important; }
+    .empty { text-align: center; color: var(--dim); font-size: 12px; padding: 24px 12px; }
+  </style>
+</head>
+<body>
+  <div class="particles"></div>
+  <div class="app">
+    <div class="hero" id="fd-hero">
+      <div class="hero-fallback" id="fd-hero-fallback"><i class="ri-landscape-line"></i></div>
+      <img class="hero-img hidden" id="fd-hero-img" alt="" />
+      <div class="hero-overlay"></div>
+      <div class="hero-top">
+        <a href="fields.html" class="icon-round" aria-label="Back"><i class="ri-arrow-left-line"></i></a>
+        <button type="button" class="icon-round" id="fd-edit-map-btn" title="Edit in Fields"><i class="ri-map-pin-line"></i></button>
+      </div>
+      <div class="hero-title">
+        <h1 id="fd-name">—</h1>
+        <p id="fd-sub">—</p>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <div class="tab active" data-tab="overview" role="tab">Overview</div>
+      <div class="tab" data-tab="crops" role="tab">Crops</div>
+      <div class="tab" data-tab="health" role="tab">Health</div>
+      <div class="tab" data-tab="activity" role="tab">Activity</div>
+    </div>
+
+    <div id="panel-overview" class="panel active">
+      <div class="glass">
+        <h3>Live metrics</h3>
+        <div class="grid2">
+          <div class="metric"><div class="k">Area</div><div class="v" id="fd-area">—</div></div>
+          <div class="metric"><div class="k">Health score</div><div class="v" id="fd-health">—</div></div>
+          <div class="metric"><div class="k">Soil moisture (est.)</div><div class="v" id="fd-moisture">—</div></div>
+          <div class="metric"><div class="k">Pest risk (from scans)</div><div class="v" id="fd-pest">—</div></div>
+        </div>
+      </div>
+      <div class="glass">
+        <h3>Health trend</h3>
+        <p style="font-size:11px;color:var(--dim);margin-bottom:6px;">From your saved crop scans for this field</p>
+        <div class="spark-wrap" id="fd-sparkline"><div class="empty" style="padding:12px;">No scan history yet</div></div>
+      </div>
+      <div class="glass">
+        <h3>Edit field</h3>
+        <label for="fd-in-name">Name</label>
+        <input id="fd-in-name" autocomplete="off" />
+        <label for="fd-in-crop">Crop type</label>
+        <input id="fd-in-crop" list="fd-crop-list" />
+        <datalist id="fd-crop-list">
+          <option value="Wheat" /><option value="Rice" /><option value="Maize" /><option value="Cotton" />
+          <option value="Soybean" /><option value="Sugarcane" /><option value="Pulses" /><option value="Vegetables" />
+        </datalist>
+        <div class="grid2">
+          <div>
+            <label for="fd-in-soil">Soil type</label>
+            <select id="fd-in-soil">
+              <option value="">— Select —</option>
+              <option value="Loamy">Loamy</option>
+              <option value="Clay">Clay</option>
+              <option value="Sandy">Sandy</option>
+              <option value="Silty">Silty</option>
+              <option value="Peaty">Peaty</option>
+              <option value="Chalky">Chalky</option>
+            </select>
+          </div>
+          <div>
+            <label for="fd-in-irr">Irrigation</label>
+            <select id="fd-in-irr">
+              <option value="">— Select —</option>
+              <option value="Drip">Drip</option>
+              <option value="Sprinkler">Sprinkler</option>
+              <option value="Flood">Flood</option>
+              <option value="Rain-fed">Rain-fed</option>
+              <option value="Center pivot">Center pivot</option>
+            </select>
+          </div>
+        </div>
+        <label for="fd-in-area">Area (acres)</label>
+        <input id="fd-in-area" inputmode="decimal" />
+        <label for="fd-in-planted">Planted date</label>
+        <input id="fd-in-planted" type="date" />
+        <label for="fd-in-notes">Notes</label>
+        <textarea id="fd-in-notes" placeholder="Irrigation schedule, observations…"></textarea>
+        <label>Cover image</label>
+        <input type="file" id="fd-cover-file" accept="image/*" />
+        <button type="button" class="btn-neon" id="fd-save-meta">Save changes</button>
+        <button type="button" class="btn-ghost btn-danger" id="fd-delete-field">Delete field</button>
+      </div>
+    </div>
+
+    <div id="panel-crops" class="panel">
+      <div class="glass">
+        <h3>Crop profile</h3>
+        <p id="fd-crop-summary" class="empty" style="padding:0;text-align:left;color:var(--text);">—</p>
+      </div>
+      <div class="glass">
+        <h3>AI recommendations</h3>
+        <div id="fd-recs-list"><div class="empty">No recommendations yet. Run a scan linked to this field.</div></div>
+      </div>
+    </div>
+
+    <div id="panel-health" class="panel">
+      <div class="glass">
+        <h3>Latest assessment</h3>
+        <div id="fd-latest-scan"><div class="empty">No scans for this field yet.</div></div>
+      </div>
+      <div class="glass">
+        <h3>Field intelligence</h3>
+        <div id="fd-insights"><div class="empty">Insights appear after scans and weather sync.</div></div>
+      </div>
+    </div>
+
+    <div id="panel-activity" class="panel">
+      <div class="glass">
+        <h3>Timeline</h3>
+        <div id="fd-activity-list"><div class="empty">No activity yet.</div></div>
+      </div>
+      <div class="glass">
+        <h3>Scan history</h3>
+        <div id="fd-scans-list"><div class="empty">No scans yet.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="index.html"><i class="ri-home-5-line"></i>Home</a>
+    <a href="fields.html" class="active"><i class="ri-leaf-fill"></i>Fields</a>
+    <a href="scanner.html"><i class="ri-camera-lens-line"></i>Scan</a>
+    <a href="assistant.html"><i class="ri-sparkling-line"></i>AI</a>
+    <a href="profile.html"><i class="ri-user-smile-line"></i>Profile</a>
+  </nav>
+
+  <script type="module" src="js/field-detail.js?v=1"></script>
+  <script type="module" src="js/interaction-engine.js?v=1"></script>
+</body>
+</html>

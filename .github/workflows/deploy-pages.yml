@@ -1,0 +1,44 @@
+# Serves the repo root as a static site on GitHub Pages (HTTPS).
+#
+# After first push, set: Settings → Pages → Build and deployment → Source: GitHub Actions
+# Firebase Auth: Settings → Authorized domains → add <your-login>.github.io
+# Project URL shape: https://<user>.github.io/<repo>/
+
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

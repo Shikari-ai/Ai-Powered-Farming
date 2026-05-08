@@ -1,0 +1,101 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isUid(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+    function isOwnerByField(field) {
+      return signedIn()
+        && resource.data[field] == request.auth.uid;
+    }
+    function isOwnerNewByField(field) {
+      return signedIn()
+        && request.resource.data[field] == request.auth.uid;
+    }
+    function userIdUnchanged(field) {
+      return !(field in resource.data) || request.resource.data[field] == resource.data[field];
+    }
+
+    // Users: isolated per UID
+    match /users/{uid} {
+      allow read, create, update: if isUid(uid);
+      allow delete: if false; // prefer account deletion workflows via Auth + backend cleanup
+    }
+
+    // Generic collections that carry userId on each document.
+    match /fields/{docId} {
+      allow create: if isOwnerNewByField("userId");
+      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow delete: if isOwnerByField("userId");
+    }
+
+    match /crop_scans/{docId} {
+      allow create: if isOwnerNewByField("userId");
+      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow delete: if isOwnerByField("userId");
+    }
+
+    match /analytics/{docId} {
+      allow create: if isOwnerNewByField("userId");
+      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow delete: if isOwnerByField("userId");
+    }
+
+    match /ai_recommendations/{docId} {
+      allow create: if isOwnerNewByField("userId");
+      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow delete: if isOwnerByField("userId");
+    }
+
+    match /pest_predictions/{docId} {
+      allow create: if isOwnerNewByField("userId");
+      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow delete: if isOwnerByField("userId");
+    }
+
+    match /weather_logs/{docId} {
+      allow create: if isOwnerNewByField("userId");
+      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow delete: if isOwnerByField("userId");
+    }
+
+    match /activity_history/{docId} {
+      allow create: if isOwnerNewByField("userId");
+      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow delete: if isOwnerByField("userId");
+    }
+
+    match /notifications/{docId} {
+      allow create: if isOwnerNewByField("userId");
+      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow delete: if isOwnerByField("userId");
+    }
+
+    match /profile_metrics/{docId} {
+      allow create: if isOwnerNewByField("userId");
+      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow delete: if isOwnerByField("userId");
+    }
+
+    match /environmental_data/{docId} {
+      allow create: if isOwnerNewByField("userId");
+      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow delete: if isOwnerByField("userId");
+    }
+
+    match /assistant_messages/{docId} {
+      allow create: if isOwnerNewByField("userId");
+      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow delete: if isOwnerByField("userId");
+    }
+
+    // Default: deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

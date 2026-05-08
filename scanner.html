@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Crop Scanner</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+</head>
+<body class="dark-theme">
+    <div class="mobile-container scanner-mode">
+        
+        <!-- Live Camera Background -->
+        <div class="camera-feed" id="camera-feed">
+            <!-- Video element will be injected by JS, fallback styling used -->
+            <video id="videoElement" autoplay playsinline></video>
+            <div class="scan-line"></div>
+        </div>
+
+        <!-- Scanner UI Overlay -->
+        <header class="scanner-header glass-panel">
+            <a href="index.html" class="icon-btn"><i class="ri-arrow-left-line"></i></a>
+            <h2>AI Vision Scanner</h2>
+            <button class="icon-btn" id="flip-camera"><i class="ri-camera-switch-line"></i></button>
+        </header>
+
+        <div class="scanner-instructions">
+            <p>Point camera at the affected crop leaves...</p>
+        </div>
+
+        <!-- Analysis Results Bottom Sheet -->
+        <div class="bottom-sheet glass-panel" id="analysis-sheet">
+            <div class="drag-handle"></div>
+            
+            <!-- Ready / Capture -->
+            <div id="ready-state">
+                <h3>Capture a crop photo</h3>
+                <p>Your results will only appear after you capture and save a real scan.</p>
+                <div style="display:flex; gap:10px; margin-top:14px;">
+                    <button class="primary-btn" id="capture-btn" style="flex:1; padding:14px; font-size:14px;">
+                        <i class="ri-camera-3-line" style="margin-right:8px;"></i> Capture
+                    </button>
+                    <label class="primary-btn" style="flex:1; padding:14px; font-size:14px; text-align:center; background: rgba(255,255,255,0.08); box-shadow:none;">
+                        <input type="file" id="upload-input" accept="image/*" capture="environment" style="display:none;">
+                        <i class="ri-upload-2-line" style="margin-right:8px;"></i> Upload
+                    </label>
+                </div>
+            </div>
+
+            <!-- Analyze (user-driven, no fake AI) -->
+            <div id="analyze-state" class="hidden">
+                <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
+                    <img id="scan-preview" alt="Scan preview" style="width:72px; height:72px; border-radius:16px; object-fit:cover; border:1px solid rgba(255,255,255,0.12);" />
+                    <div style="flex:1;">
+                        <h3 style="margin-bottom:4px;">Scan details</h3>
+                        <p style="opacity:0.8;">Tell us what you’re seeing. We’ll generate recommendations from your inputs and saved history.</p>
+                    </div>
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <div>
+                        <label style="font-size:12px; opacity:0.8;">Field (optional)</label>
+                        <select id="scan-field" class="glass-panel" style="width:100%; padding:12px 14px; border-radius:16px; color:white; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.10);">
+                            <option value="">No field selected</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label style="font-size:12px; opacity:0.8;">Crop type</label>
+                        <select id="scan-crop" class="glass-panel" style="width:100%; padding:12px 14px; border-radius:16px; color:white; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.10);">
+                            <option value="">Select crop</option>
+                            <option>Tomato</option>
+                            <option>Wheat</option>
+                            <option>Cotton</option>
+                            <option>Corn</option>
+                            <option>Soybean</option>
+                            <option>Rice</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <label style="font-size:12px; opacity:0.8;">Observed symptoms</label>
+                            <span id="symptom-count" style="font-size:12px; opacity:0.7;">0 selected</span>
+                        </div>
+                        <div id="symptoms" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;">
+                            <!-- populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <button class="primary-btn" id="analyze-btn" style="margin-top:14px;">
+                    Generate recommendations
+                </button>
+                <button class="primary-btn" id="retake-btn" style="margin-top:10px; background: rgba(255,255,255,0.08); box-shadow:none;">
+                    Retake / Change photo
+                </button>
+            </div>
+
+            <!-- Results -->
+            <div id="result-state" class="hidden">
+                <div class="result-header">
+                    <div class="result-badge danger">
+                        <i class="ri-leaf-line"></i>
+                        <span id="result-title">Scan result</span>
+                    </div>
+                    <div class="health-score">
+                        <span class="score" id="result-health">--</span> Health
+                    </div>
+                </div>
+                
+                <div class="recommendations">
+                    <h4>Recommendations</h4>
+                    <ul class="rec-list">
+                        <li style="opacity:0.8;">No recommendations yet.</li>
+                    </ul>
+                </div>
+                
+                <button class="primary-btn" id="save-scan-btn">Save to Cloud & Exit</button>
+                <button class="primary-btn" id="back-to-edit-btn" style="margin-top:10px; background: rgba(255,255,255,0.08); box-shadow:none;">
+                    Back to edit
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="js/app.js"></script>
+    <script type="module" src="js/scanner-db.js"></script>
+    <script type="module" src="js/interaction-engine.js?v=1"></script>
+</body>
+</html>

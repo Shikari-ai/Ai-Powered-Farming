@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AgriTech AI - Smart Farming</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #030609;
+            --surface: #0A1118;
+            --surface-glass: rgba(10, 17, 24, 0.6);
+            --primary: #10B981;
+            --primary-glow: rgba(16, 185, 129, 0.4);
+            --accent-yellow: #F59E0B;
+            --accent-blue: #3B82F6;
+            --accent-purple: #8B5CF6;
+            --text-main: #F8FAFC;
+            --text-dim: #94A3B8;
+            --border-light: rgba(255, 255, 255, 0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+        
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Layout Constraints */
+        .app-layout {
+            min-height: 100vh;
+            max-width: 480px;
+            margin: 0 auto;
+            position: relative;
+            background: var(--bg-dark);
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            padding-bottom: 120px;
+        }
+
+        /* Top Header */
+        .header {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            padding: 24px 20px;
+            position: absolute; top: 0; left: 0; width: 100%; z-index: 100;
+            background: linear-gradient(180deg, rgba(3,6,9,0.9) 0%, transparent 100%);
+        }
+        
+        .header-left { display: flex; gap: 16px; align-items: center; }
+        .menu-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--surface-glass); border: 1px solid var(--border-light); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; transition: 0.3s; }
+        .greeting-text h2 { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+        .greeting-text p { font-size: 11px; color: var(--text-dim); margin: 2px 0 4px; }
+        .sys-status { font-size: 10px; color: var(--primary); display: flex; align-items: center; gap: 4px; font-weight: 500; }
+        .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 8px var(--primary); animation: pulse 2s infinite; }
+
+        .header-right { display: flex; gap: 12px; align-items: center; }
+        .notif-btn { position: relative; width: 40px; height: 40px; border-radius: 50%; background: var(--surface-glass); border: 1px solid var(--border-light); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; }
+        .badge { position: absolute; top: -2px; right: -2px; background: var(--primary); color: #000; font-size: 10px; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; border: 2px solid var(--bg-dark); }
+        .avatar-container { position: relative; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--primary); object-fit: cover; }
+        .status-dot { position: absolute; bottom: 0; right: 0; width: 10px; height: 10px; border-radius: 50%; background: var(--primary); border: 2px solid var(--bg-dark); }
+
+        /* Cinematic Hero Environment */
+        .hero-environment {
+            position: relative;
+            height: 480px;
+            width: 100%;
+            overflow: hidden;
+            mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+        }
+        .hero-bg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: url('https://images.unsplash.com/photo-1625246333195-78d9c38ad449?q=80&w=1600&auto=format&fit=crop') center/cover;
+            animation: panSlow 30s linear infinite alternate;
+        }
+        @keyframes panSlow { from { transform: scale(1.1) translateX(0); } to { transform: scale(1.1) translateX(-5%); } }
+        
+        .drone-layer {
+            position: absolute; top: 15%; left: 50%; transform: translateX(-50%);
+            width: 140px; z-index: 10;
+            animation: droneHoverFloat 4s ease-in-out infinite;
+            filter: drop-shadow(0 20px 20px rgba(0,0,0,0.8));
+        }
+        @keyframes droneHoverFloat {
+            0%, 100% { transform: translateX(-50%) translateY(0) rotate(0deg); }
+            50% { transform: translateX(-50%) translateY(-10px) rotate(1deg); }
+        }
+        .drone-img { width: 100%; filter: invert(1) brightness(1.5) contrast(1.2); }
+        
+        /* Ground Scanning Effect */
+        .ground-scan {
+            position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%) rotateX(70deg);
+            width: 200px; height: 200px; border-radius: 50%;
+            border: 2px solid rgba(16,185,129,0.3);
+            box-shadow: 0 0 50px rgba(16,185,129,0.2) inset;
+            animation: scanPulse 3s infinite;
+        }
+        .ground-scan::before {
+            content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 50px; height: 50px; border-radius: 50%; background: rgba(16,185,129,0.4);
+            box-shadow: 0 0 30px var(--primary); filter: blur(5px);
+        }
+        @keyframes scanPulse { 0% { transform: translateX(-50%) rotateX(70deg) scale(0.5); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateX(-50%) rotateX(70deg) scale(1.5); opacity: 0; } }
+
+        /* Holographic Drone UI */
+        .holo-panel {
+            position: absolute; top: 38%; left: 45%; transform: translateX(-50%);
+            background: rgba(16, 185, 129, 0.05); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+            border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px;
+            padding: 8px 12px; display: flex; flex-direction: column; gap: 4px;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.2); z-index: 15;
+            animation: holoFloat 3s ease-in-out infinite alternate;
+        }
+        @keyframes holoFloat { from { transform: translateX(-50%) translateY(0); } to { transform: translateX(-50%) translateY(-5px); } }
+        .holo-panel p { font-size: 8px; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
+        .holo-row { display: flex; align-items: center; gap: 8px; }
+        .holo-icon { width: 24px; height: 24px; background: rgba(16,185,129,0.2); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 14px; }
+        .holo-val { font-size: 16px; font-weight: 600; color: white; line-height: 1; }
+        .holo-sub { font-size: 9px; color: var(--primary); }
+        .holo-line { width: 60px; height: 15px; background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 100 30" xmlns="http://www.w3.org/2000/svg"><path d="M0,30 L20,15 L40,25 L60,10 L80,15 L100,5" fill="none" stroke="%2310B981" stroke-width="3"/></svg>') no-repeat center; background-size: contain; margin-left: auto; }
+
+        /* Floating Overlays */
+        .hero-overlays {
+            position: absolute; top: 110px; left: 20px;
+            display: flex; gap: 12px; z-index: 20; width: calc(100% - 40px);
+        }
+        .float-card {
+            background: rgba(10, 17, 24, 0.4); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 16px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 10px 30px rgba(0,0,0,0.5);
+            position: relative; overflow: hidden; width: 200px;
+        }
+        .float-card::before { content:''; position:absolute; top:0; left:0; width:100%; height:1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent); }
+
+        /* Weather Float */
+        .w-header { font-size: 11px; color: var(--text-dim); margin-bottom: 8px; }
+        .w-main { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .w-main i { font-size: 40px; color: #FCD34D; filter: drop-shadow(0 0 10px rgba(252, 211, 77, 0.5)); }
+        .w-temp h2 { font-size: 32px; font-weight: 300; line-height: 1; margin-bottom: 2px; }
+        .w-temp p { font-size: 10px; color: var(--text-dim); }
+        .w-stats { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; margin-bottom: 12px; }
+        .w-stat { display: flex; flex-direction: column; gap: 2px; }
+        .w-stat p { font-size: 9px; color: var(--text-dim); }
+        .w-stat span { font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+        .w-sunrise { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-dim); }
+        .w-sunrise i { color: var(--accent-yellow); font-size: 14px; }
+
+        /* Main Content Padding Fix */
+        .content-container { padding: 0 0 0 20px; position: relative; z-index: 30; margin-top: -60px; }
+
+        /* Premium Card Component */
+        .premium-card {
+            background: var(--surface); border: 1px solid var(--border-light);
+            border-radius: 24px; padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative; overflow: hidden;
+            transition: 0.3s;
+        }
+        
+        /* Horizontal Scroll Intelligence Cards */
+        .intel-scroll { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 20px; padding-right: 20px; scroll-snap-type: x mandatory; }
+        .intel-scroll::-webkit-scrollbar { display: none; }
+        
+        .mod-card {
+            background: var(--surface); border: 1px solid var(--border-light);
+            border-radius: 24px; padding: 20px; position: relative;
+            display: flex; flex-direction: column; min-width: 260px; height: 320px;
+            scroll-snap-align: start; flex-shrink: 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .mod-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .mod-title { font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+        
+        /* Crop Health Specifics */
+        .ch-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .ring-chart { position: relative; width: 120px; height: 120px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: conic-gradient(var(--primary) 85%, rgba(16,185,129,0.1) 0); box-shadow: 0 0 30px rgba(16,185,129,0.2); margin-bottom: 16px; }
+        .ring-inner { position: absolute; width: 100px; height: 100px; background: var(--surface); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 300; }
+        .ch-text { text-align: center; }
+        .ch-text p { font-size: 11px; color: var(--text-dim); margin-bottom: 2px; }
+        .ch-text h4 { font-size: 16px; font-weight: 500; color: var(--primary); }
+        .mini-line-chart { width: 100%; height: 40px; background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 100 30" xmlns="http://www.w3.org/2000/svg"><path d="M0,30 L10,20 L20,25 L30,10 L40,15 L50,5 L60,15 L70,10 L80,20 L90,5 L100,10 L100,30 Z" fill="rgba(16,185,129,0.1)" stroke="%2310B981" stroke-width="2"/></svg>') no-repeat bottom; background-size: cover; margin-top: auto; }
+
+        /* Pest Radar */
+        .radar-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .radar { position: relative; width: 120px; height: 120px; border-radius: 50%; border: 1px solid rgba(245,158,11,0.3); background: rgba(245,158,11,0.05); overflow: hidden; margin-bottom: 16px; box-shadow: inset 0 0 20px rgba(245,158,11,0.2); }
+        .radar::before { content:''; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:60px; height:60px; border-radius:50%; border:1px solid rgba(245,158,11,0.2); }
+        .radar::after { content:''; position:absolute; top:50%; left:0; width:100%; height:1px; background:rgba(245,158,11,0.2); }
+        .radar-v { position:absolute; top:0; left:50%; width:1px; height:100%; background:rgba(245,158,11,0.2); }
+        .radar-sweep { position:absolute; top:50%; left:50%; width:60px; height:60px; background: conic-gradient(rgba(245,158,11,0.5) 0deg, transparent 90deg); transform-origin: top left; animation: radarSpin 3s linear infinite; }
+        @keyframes radarSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .radar-dot { position:absolute; width:6px; height:6px; background:var(--accent-yellow); border-radius:50%; box-shadow:0 0 10px var(--accent-yellow); animation: pulse 2s infinite; }
+        .pest-stats { display: flex; justify-content: space-between; width: 100%; }
+        .ps-col p { font-size: 11px; color: var(--text-dim); margin-bottom: 2px; }
+        .ps-col h4 { font-size: 16px; font-weight: 500; }
+
+        /* AI Insights Specifics */
+        .ai-subtitle { font-size: 11px; color: var(--text-dim); margin-bottom: 16px; line-height: 1.4; }
+        .ai-list { display: flex; flex-direction: column; gap: 12px; flex: 1; }
+        .ai-item { background: linear-gradient(90deg, rgba(255,255,255,0.02), transparent); border: 1px solid var(--border-light); border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 12px; border-left: 2px solid; }
+        .ai-item i { font-size: 18px; }
+        .ai-item p { font-size: 11px; color: var(--text-main); }
+        
+        .mod-link { font-size: 11px; color: var(--text-dim); text-decoration: none; display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 16px; border-top: 1px solid var(--border-light); padding-top: 16px; transition: 0.3s; }
+        .mod-link:hover { color: var(--text-main); }
+
+        /* Farm Performance */
+        .perf-container { margin-right: 20px; margin-bottom: 24px; }
+        .perf-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .perf-title h3 { font-size: 16px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+        .perf-title p { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+        .perf-dropdown { font-size: 11px; color: var(--text-dim); display: flex; align-items: center; gap: 4px; }
+        
+        .perf-scroll { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 10px; }
+        .perf-scroll::-webkit-scrollbar { display: none; }
+        .perf-card { flex-shrink: 0; width: 140px; padding: 16px 0; border-right: 1px solid var(--border-light); position: relative; }
+        .perf-card:last-child { border-right: none; }
+        .pc-head { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); margin-bottom: 8px; }
+        .pc-val { font-size: 20px; font-weight: 300; margin-bottom: 12px; }
+        .pc-chart { width: 100%; height: 20px; }
+        
+        .chart-prod { background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 100 20" xmlns="http://www.w3.org/2000/svg"><path d="M0,20 L20,10 L40,15 L60,5 L80,10 L100,0" fill="none" stroke="%2310B981" stroke-width="2"/></svg>') no-repeat bottom; background-size: contain; }
+        .chart-yield { background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 100 20" xmlns="http://www.w3.org/2000/svg"><path d="M0,20 L20,15 L40,5 L60,10 L80,0 L100,5" fill="none" stroke="%2310B981" stroke-width="2"/></svg>') no-repeat bottom; background-size: contain; }
+        .chart-water { background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 100 20" xmlns="http://www.w3.org/2000/svg"><path d="M0,20 L20,15 L40,15 L60,10 L80,5 L100,0" fill="none" stroke="%233B82F6" stroke-width="2"/></svg>') no-repeat bottom; background-size: contain; }
+        .chart-sust { background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 100 20" xmlns="http://www.w3.org/2000/svg"><path d="M0,20 L20,10 L40,5 L60,5 L80,0 L100,0" fill="none" stroke="%2384CC16" stroke-width="2"/></svg>') no-repeat bottom; background-size: contain; }
+
+        /* Bottom Row Grid */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-right: 20px; margin-bottom: 24px; }
+        
+        /* Recent Alerts */
+        .alerts-card { display: flex; flex-direction: column; height: 240px; }
+        .al-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .alert-item { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .alert-item:last-child { margin-bottom: 0; }
+        .a-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .a-text { flex: 1; }
+        .a-text h5 { font-size: 11px; font-weight: 600; margin-bottom: 2px; }
+        .a-text p { font-size: 10px; color: var(--text-dim); }
+        .a-time { font-size: 9px; color: var(--text-dim); }
+
+        /* Farm Summary */
+        .summary-card { display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; height: 240px; background: linear-gradient(180deg, rgba(16,185,129,0.05), transparent); }
+        .s-icon-wrapper { position: relative; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+        .s-ring-1 { position: absolute; width: 100%; height: 100%; border: 1px dashed rgba(16,185,129,0.5); border-radius: 50%; animation: spinSlow 15s linear infinite; }
+        .s-ring-2 { position: absolute; width: 80%; height: 80%; border: 1px solid rgba(16,185,129,0.2); border-radius: 50%; }
+        .s-icon { font-size: 32px; color: var(--primary); text-shadow: 0 0 20px var(--primary); z-index: 2; }
+        .summary-card p { font-size: 11px; color: var(--text-dim); line-height: 1.5; margin-bottom: 16px; }
+        .btn-outline { width: 100%; padding: 10px; border: 1px solid var(--primary); border-radius: 12px; color: var(--primary); font-size: 11px; font-weight: 500; background: rgba(16,185,129,0.1); cursor: pointer; }
+
+        /* Mobile Bottom Nav */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 100%; max-width: 480px;
+            background: rgba(3, 6, 9, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            display: flex; justify-content: space-around; align-items: center;
+            padding: 8px 20px calc(8px + env(safe-area-inset-bottom, 16px));
+            z-index: 1000;
+        }
+        .b-nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-dim); text-decoration: none; transition: 0.3s; }
+        .b-nav-item i { font-size: 22px; }
+        .b-nav-item span { font-size: 9px; font-weight: 500; }
+        .b-nav-item.active { color: var(--primary); }
+        .b-nav-scan {
+            width: 64px; height: 64px; border-radius: 50%;
+            background: rgba(16,185,129,0.1); border: 1px solid var(--primary);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--primary); font-size: 32px;
+            transform: translateY(-24px); box-shadow: 0 0 30px rgba(16,185,129,0.2), inset 0 0 20px rgba(16,185,129,0.2);
+            position: relative;
+        }
+        .b-nav-scan::before {
+            content: ''; position: absolute; top: -8px; left: -8px; right: -8px; bottom: -8px;
+            border-radius: 50%; border: 1px dashed rgba(16,185,129,0.5); animation: spinSlow 10s linear infinite;
+        }
+        .b-nav-scan::after {
+            content: ''; position: absolute; top: -16px; left: -16px; right: -16px; bottom: -16px;
+            border-radius: 50%; border: 1px solid rgba(16,185,129,0.1); animation: pulse 3s infinite;
+        }
+
+        @keyframes spinSlow { 100% { transform: rotate(360deg); } }
+        @keyframes pulse { 0% { opacity: 1; transform: scale(0.95); } 50% { opacity: 0.5; transform: scale(1.05); } 100% { opacity: 1; transform: scale(0.95); } }
+        .hidden { display: none !important; }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); z-index: 2000; display: flex; align-items: center; justify-content: center; }
+    </style>
+</head>
+<body>
+
+    <div class="app-layout">
+        
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="menu-btn"><i class="ri-menu-2-line"></i></div>
+                <div class="greeting-text">
+                    <h2 id="dashboard-greeting">Good Morning, Rohit 👋</h2>
+                    <p>Your farm is <span style="color:var(--primary);">performing great</span> today.</p>
+                    <div class="sys-status"><div class="dot"></div> All Systems Active</div>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="notif-btn"><i class="ri-notification-3-line"></i><div class="badge hidden" id="notif-badge">0</div></div>
+                <div class="avatar-container" onclick="window.location.href='profile.html'">
+                    <img src="https://ui-avatars.com/api/?name=User&background=10B981&color=fff" class="avatar" id="dashboard-avatar">
+                    <div class="status-dot"></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Cinematic Hero -->
+        <div class="hero-environment">
+            <div class="hero-bg"></div>
+            
+            <div class="drone-layer">
+                <img src="https://cdn-icons-png.flaticon.com/512/9117/9117978.png" class="drone-img" alt="Drone">
+            </div>
+
+            <div class="ground-scan"></div>
+
+            <!-- Holographic UI -->
+            <div class="holo-panel">
+                <p>AI Scanning</p>
+                <div class="holo-sub" style="color:white; margin-bottom:4px;">Field Health</div>
+                <div class="holo-row">
+                    <div class="holo-icon"><i class="ri-leaf-fill"></i></div>
+                    <div>
+                        <div class="holo-val" id="dash-holo-health">--</div>
+                        <div class="holo-sub" id="dash-holo-label">Not active</div>
+                    </div>
+                    <div class="holo-line"></div>
+                </div>
+            </div>
+
+            <!-- Floating Weather Card -->
+            <div class="hero-overlays" id="weather-data-container">
+                <div class="float-card" id="weather-card" style="cursor:pointer;">
+                    <p class="w-header">Weather Now</p>
+                    <div class="w-main">
+                        <i class="ri-sun-cloudy-fill"></i>
+                        <div class="w-temp">
+                            <h2 id="w-temp">--</h2>
+                            <p id="w-desc">Enable location to sync weather</p>
+                        </div>
+                    </div>
+                    <div class="w-stats">
+                        <div class="w-stat"><p>Humidity</p><span id="w-hum"><i class="ri-drop-line"></i> --</span></div>
+                        <div class="w-stat"><p>Wind</p><span id="w-wind"><i class="ri-windy-line"></i> --</span></div>
+                        <div class="w-stat"><p>Rainfall</p><span id="w-rain"><i class="ri-showers-line"></i> --</span></div>
+                    </div>
+                    <div class="w-sunrise" id="w-sunrise"><i class="ri-sun-fill"></i> Sunrise --</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content-container">
+            
+            <!-- Horizontal Scroll Intelligence Cards -->
+            <div class="intel-scroll">
+                
+                <!-- Crop Health -->
+                <div class="mod-card">
+                    <div class="mod-header">
+                        <div class="mod-title" style="color:var(--primary);"><i class="ri-leaf-line"></i> Crop Health Monitor</div>
+                    </div>
+                    <div class="ch-center">
+                        <div class="ring-chart" id="dash-crophealth-ring" style="background: conic-gradient(rgba(16,185,129,0.12) 0%, rgba(16,185,129,0.1) 0); box-shadow: none;">
+                            <div class="ring-inner" id="dash-crophealth-score">--</div>
+                        </div>
+                        <div class="ch-text">
+                            <p>Overall Crop Health</p>
+                            <h4 id="dash-crophealth-status" style="color: var(--text-dim);">No crop scans yet</h4>
+                        </div>
+                    </div>
+                    <div class="mini-line-chart" id="dash-crophealth-sparkline" style="background: none;"></div>
+                    <a href="scanner.html" class="mod-link" id="dash-crophealth-cta">Start your first scan <i class="ri-arrow-right-s-line" style="font-size:16px;"></i></a>
+                </div>
+
+                <!-- Pest Prediction Engine -->
+                <div class="mod-card" style="border-color:rgba(245,158,11,0.2);">
+                    <div class="mod-header">
+                        <div class="mod-title" style="color:var(--accent-yellow);"><i class="ri-bug-line"></i> Pest Prediction Engine</div>
+                    </div>
+                    <div class="radar-center">
+                        <div class="radar">
+                            <div class="radar-v"></div>
+                            <div class="radar-sweep"></div>
+                            <i class="ri-bug-fill" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:rgba(245,158,11,0.5); font-size:24px;"></i>
+                        </div>
+                        <div class="pest-stats">
+                            <div class="ps-col"><p>Risk Level</p><h4 id="dash-pest-risk" style="color:var(--text-dim);">Not enough data</h4></div>
+                            <div class="ps-col" style="text-align:right;"><p>Probability</p><h4 id="dash-pest-prob" style="color:var(--text-dim);">--</h4></div>
+                        </div>
+                    </div>
+                    <a href="scanner.html" class="mod-link" id="dash-pest-cta">Start monitoring to activate <i class="ri-arrow-right-s-line" style="font-size:16px;"></i></a>
+                </div>
+
+                <!-- AI Insights -->
+                <div class="mod-card" style="border-color:rgba(139,92,246,0.2);">
+                    <div class="mod-header">
+                        <div class="mod-title" style="color:var(--accent-purple);"><i class="ri-brain-line"></i> AI Insights</div>
+                    </div>
+                    <p class="ai-subtitle">Here's what AI recommends for you</p>
+                    <div class="ai-list" id="dash-insights-list">
+                        <div class="ai-item" style="border-left-color:rgba(255,255,255,0.12);">
+                            <i class="ri-sparkling-line" style="color:var(--text-dim);"></i>
+                            <p style="color:var(--text-dim);">No insights yet. Insights appear after scans, fields, and assistant activity.</p>
+                        </div>
+                    </div>
+                    <a href="scanner.html" class="mod-link" id="dash-insights-cta">Generate insights with your first scan <i class="ri-arrow-right-s-line" style="font-size:16px;"></i></a>
+                </div>
+
+            </div>
+
+            <!-- Farm Performance -->
+            <div class="premium-card perf-container">
+                <div class="perf-header">
+                    <div class="perf-title">
+                        <h3><i class="ri-line-chart-line" style="color:var(--primary);"></i> Farm Performance</h3>
+                        <p>Your farm is doing better than last month</p>
+                    </div>
+                    <div class="perf-dropdown">vs last month <i class="ri-arrow-down-s-line"></i></div>
+                </div>
+                
+                <div class="perf-scroll">
+                    <div class="perf-card">
+                        <div class="pc-head"><i class="ri-leaf-fill" style="color:var(--primary);"></i> Productivity</div>
+                        <div class="pc-val" style="color:var(--text-dim);" id="dash-perf-productivity">--</div>
+                        <div class="pc-chart chart-prod"></div>
+                    </div>
+                    <div class="perf-card">
+                        <div class="pc-head"><i class="ri-plant-fill" style="color:var(--primary);"></i> Yield Potential</div>
+                        <div class="pc-val" style="color:var(--text-dim);" id="dash-perf-yield">--</div>
+                        <div class="pc-chart chart-yield"></div>
+                    </div>
+                    <div class="perf-card">
+                        <div class="pc-head"><i class="ri-drop-fill" style="color:var(--accent-blue);"></i> Water Efficiency</div>
+                        <div class="pc-val" style="color:var(--text-dim);" id="dash-perf-water">--</div>
+                        <div class="pc-chart chart-water"></div>
+                    </div>
+                    <div class="perf-card" style="border-right:none;">
+                        <div class="pc-head"><i class="ri-recycle-fill" style="color:#84CC16;"></i> Sustainability</div>
+                        <div class="pc-val" style="color:var(--text-dim);" id="dash-perf-sust">--</div>
+                        <div class="pc-chart chart-sust"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Row Grid -->
+            <div class="grid-2">
+                <!-- Recent Alerts -->
+                <div class="premium-card alerts-card">
+                    <div class="al-header">
+                        <h4>Recent Alerts</h4>
+                        <a href="#" style="font-size:10px; color:var(--primary); text-decoration:none;">View All <i class="ri-arrow-right-s-line"></i></a>
+                    </div>
+                    
+                    <div id="dash-alerts-list" style="display:flex; flex-direction:column; justify-content:space-between; flex:1;">
+                        <div class="empty-state" style="text-align:center; padding:24px; opacity:0.85;">
+                            <i class="ri-notification-off-line" style="font-size:28px; color:var(--text-dim);"></i>
+                            <p style="font-size:12px; color:var(--text-dim); margin-top:8px;">No alerts yet. Alerts appear from scans, monitoring and your notification settings.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Farm Summary -->
+                <div class="premium-card summary-card">
+                    <div style="align-self:flex-start; width:100%;">
+                        <h4 style="font-size:14px; margin-bottom:16px; text-align:left;">Farm Summary</h4>
+                    </div>
+                    <div class="s-icon-wrapper">
+                        <div class="s-ring-1"></div>
+                        <div class="s-ring-2"></div>
+                        <i class="ri-leaf-fill s-icon"></i>
+                    </div>
+                    <p id="dash-summary-text">Your ecosystem is inactive. Add fields and scans to unlock realtime intelligence.</p>
+                    <button class="btn-outline" id="dash-summary-cta" onclick="window.location.href='fields.html'">Add your first field</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Bottom Nav -->
+    <nav class="bottom-nav">
+        <a href="index.html" class="b-nav-item active">
+            <i class="ri-home-5-fill"></i>
+            <span>Home</span>
+        </a>
+        <a href="fields.html" class="b-nav-item">
+            <i class="ri-leaf-line"></i>
+            <span>Fields</span>
+        </a>
+        <a href="scanner.html" class="b-nav-scan">
+            <i class="ri-leaf-fill"></i>
+        </a>
+        <a href="assistant.html" class="b-nav-item">
+            <i class="ri-sparkling-line"></i>
+            <span>AI Assistant</span>
+        </a>
+        <a href="profile.html" class="b-nav-item">
+            <i class="ri-user-smile-line"></i>
+            <span>Profile</span>
+        </a>
+    </nav>
+
+    <!-- Hidden Modals required by app.js -->
+    <div id="location-modal" class="modal-overlay hidden">
+        <div class="premium-card" style="max-width:320px; text-align:center; z-index: 2001;">
+            <i class="ri-map-pin-user-fill" style="font-size:40px; color:var(--accent-blue); margin-bottom:16px;"></i>
+            <h3>Enable Location</h3>
+            <p style="font-size:13px; color:var(--text-dim); margin:8px 0 24px;">Allow AgriTech AI to access your location to provide highly accurate local weather.</p>
+            <div style="display:flex; gap:12px;">
+                <button style="flex:1; padding:12px; background:rgba(255,255,255,0.1); border:none; border-radius:12px; color:white; cursor:pointer;" onclick="closeLocationModal()">Not Now</button>
+                <button style="flex:1; padding:12px; background:var(--accent-blue); border:none; border-radius:12px; color:white; cursor:pointer;" onclick="acceptLocationRequest()">Allow</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/app.js?v=11"></script>
+    <script type="module" src="js/dashboard.js?v=7"></script>
+    <script type="module" src="js/interaction-engine.js?v=1"></script>
+</body>
+</html>

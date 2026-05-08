@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Profile - AgriTech AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #030609;
+            --surface: #0A1118;
+            --surface-glass: rgba(10, 17, 24, 0.6);
+            --primary: #10B981;
+            --primary-glow: rgba(16, 185, 129, 0.4);
+            --accent-yellow: #F59E0B;
+            --accent-blue: #3B82F6;
+            --accent-purple: #8B5CF6;
+            --accent-red: #EF4444;
+            --text-main: #F8FAFC;
+            --text-dim: #94A3B8;
+            --border-light: rgba(255, 255, 255, 0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+        
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .app-layout {
+            min-height: 100vh;
+            max-width: 480px;
+            margin: 0 auto;
+            position: relative;
+            background: var(--bg-dark);
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            padding-bottom: 120px;
+        }
+
+        /* Header */
+        .header {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            padding: 24px 20px 16px;
+            background: rgba(3, 6, 9, 0.9);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            position: sticky; top: 0; z-index: 100;
+            border-bottom: 1px solid rgba(255,255,255,0.02);
+        }
+        
+        .header-left { display: flex; gap: 16px; align-items: center; }
+        .menu-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--surface-glass); border: 1px solid var(--border-light); display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; transition: 0.3s; }
+        .greeting-text h2 { font-size: 22px; font-weight: 500; }
+        .greeting-text p { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+        .header-right { display: flex; gap: 12px; align-items: center; }
+        .icon-btn { position: relative; width: 40px; height: 40px; border-radius: 50%; background: var(--surface-glass); border: 1px solid var(--border-light); display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; color: inherit; text-decoration: none; }
+        .badge { position: absolute; top: -2px; right: -2px; background: var(--primary); color: #000; font-size: 10px; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; border: 2px solid var(--bg-dark); }
+
+        /* Profile Hero Section */
+        .profile-hero {
+            margin: 20px; border-radius: 24px; padding: 20px;
+            background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(10,17,24,1));
+            border: 1px solid rgba(16,185,129,0.3);
+            position: relative; overflow: hidden;
+            box-shadow: inset 0 0 40px rgba(16,185,129,0.1), 0 10px 30px rgba(0,0,0,0.5);
+            display: flex; gap: 16px; align-items: center;
+        }
+        .hero-bg-waves {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;
+            background: repeating-radial-gradient(circle at 0% 50%, transparent 0, transparent 20px, rgba(16,185,129,0.03) 21px, rgba(16,185,129,0.03) 22px);
+            animation: waveMotion 10s linear infinite alternate;
+        }
+        @keyframes waveMotion { from { background-position: 0 0; } to { background-position: 20px 0; } }
+        
+        .ph-avatar-wrap { position: relative; flex-shrink: 0; }
+        .ph-avatar {
+            width: 80px; height: 80px; border-radius: 50%;
+            border: 3px solid transparent; background-clip: padding-box;
+            background-image: url('https://ui-avatars.com/api/?name=User&background=10B981&color=fff');
+            background-size: cover; position: relative; z-index: 2;
+        }
+        .ph-ring {
+            position: absolute; top: -4px; left: -4px; right: -4px; bottom: -4px;
+            border-radius: 50%; border: 2px solid var(--primary); border-left-color: transparent; border-right-color: transparent;
+            animation: spinSlow 6s linear infinite; box-shadow: 0 0 20px var(--primary-glow); z-index: 1;
+        }
+        .ph-cam-btn {
+            position: absolute; bottom: 0; right: 0; width: 26px; height: 26px; border-radius: 50%;
+            background: var(--surface); border: 1px solid var(--primary); color: var(--primary);
+            display: flex; align-items: center; justify-content: center; font-size: 12px; z-index: 3;
+        }
+
+        .ph-info { flex: 1; z-index: 5; }
+        .ph-name { font-size: 18px; font-weight: 500; display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+        .ph-role { font-size: 11px; color: var(--primary); margin-bottom: 8px; font-weight: 500; }
+        .ph-contact { display: flex; flex-direction: column; gap: 4px; }
+        .ph-c-item { font-size: 9px; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
+        .ph-c-item i { color: var(--primary); }
+
+        .ph-level { display: flex; flex-direction: column; align-items: flex-end; z-index: 5; }
+        .ph-lvl-icon { font-size: 24px; color: var(--text-dim); margin-bottom: 4px; }
+        .ph-lvl-title { font-size: 9px; color: var(--text-dim); }
+        .ph-lvl-name { font-size: 14px; color: var(--primary); font-weight: 500; display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
+        .ph-xp { font-size: 9px; color: var(--text-dim); margin-bottom: 4px; }
+        .ph-bar-bg { width: 80px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+        .ph-bar-fill { width: 62%; height: 100%; background: var(--primary); box-shadow: 0 0 10px var(--primary); }
+
+        /* Farm Identity Stats */
+        .identity-stats {
+            display: flex; gap: 12px; padding: 0 20px; overflow-x: auto; margin-bottom: 20px;
+            scroll-snap-type: x mandatory;
+        }
+        .identity-stats::-webkit-scrollbar { display: none; }
+        .is-card {
+            background: var(--surface); border: 1px solid var(--border-light);
+            border-radius: 16px; padding: 12px; min-width: 90px; text-align: center;
+            scroll-snap-align: start; flex-shrink: 0; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .is-icon { font-size: 16px; margin-bottom: 6px; display: inline-block; }
+        .is-title { font-size: 9px; color: var(--text-dim); margin-bottom: 4px; }
+        .is-val { font-size: 20px; font-weight: 300; margin-bottom: 2px; }
+        .is-sub { font-size: 9px; color: var(--text-dim); }
+
+        /* Current Plan Card */
+        .plan-card {
+            margin: 0 20px 20px; background: var(--surface); border: 1px solid var(--border-light);
+            border-radius: 20px; padding: 20px; display: flex; align-items: center; justify-content: space-between;
+            position: relative; overflow: hidden;
+        }
+        .pc-left { z-index: 5; }
+        .pc-title { font-size: 10px; color: var(--text-dim); margin-bottom: 4px; }
+        .pc-plan { font-size: 16px; font-weight: 500; color: var(--primary); margin-bottom: 4px; }
+        .pc-valid { font-size: 9px; color: var(--text-dim); margin-bottom: 16px; }
+        .pc-btn { background: rgba(16,185,129,0.1); border: 1px solid var(--primary); padding: 8px 16px; border-radius: 10px; font-size: 11px; color: var(--primary); display: flex; align-items: center; gap: 4px; cursor: pointer; }
+
+        .pc-center { position: absolute; left: 50%; transform: translateX(-50%); width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; z-index: 1; pointer-events: none; }
+        .pc-ring-1 { position: absolute; width: 100%; height: 100%; border: 1px dashed rgba(16,185,129,0.4); border-radius: 50%; animation: spinSlow 15s linear infinite; }
+        .pc-ring-2 { position: absolute; width: 70%; height: 70%; border: 1px solid rgba(16,185,129,0.2); border-radius: 50%; background: rgba(16,185,129,0.05); }
+        .pc-icon { font-size: 32px; color: var(--primary); text-shadow: 0 0 20px var(--primary); z-index: 2; }
+
+        .pc-right { z-index: 5; display: flex; flex-direction: column; gap: 8px; }
+        .pc-feat { display: flex; align-items: center; gap: 12px; font-size: 9px; }
+        .pc-feat i { color: var(--primary); font-size: 12px; }
+        .pc-feat span:first-of-type { color: var(--text-dim); width: 100px; }
+        .pc-feat span:last-of-type { color: var(--text-main); font-weight: 500; text-align: right; flex: 1; }
+
+        /* Interactive Modules List */
+        .modules-list { margin: 0 20px; display: flex; flex-direction: column; gap: 12px; }
+        .module-item {
+            background: var(--surface); border: 1px solid var(--border-light);
+            border-radius: 16px; padding: 16px; display: flex; align-items: center; gap: 16px;
+            cursor: pointer; transition: 0.3s;
+            text-decoration: none; color: inherit;
+            -webkit-tap-highlight-color: rgba(16,185,129,.15);
+        }
+        .module-item:active { transform: scale(0.98); background: rgba(255,255,255,0.05); }
+        .module-item:focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+        }
+        .mi-icon { width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--primary); }
+        .mi-text { flex: 1; }
+        .mi-text h4 { font-size: 15px; font-weight: 400; margin-bottom: 4px; }
+        .mi-text p { font-size: 10px; color: var(--text-dim); }
+        
+        .mi-right { display: flex; align-items: center; gap: 8px; }
+        .team-avatars { display: flex; align-items: center; }
+        .team-avatars img { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--surface); margin-left: -8px; }
+        .team-avatars img:first-child { margin-left: 0; }
+        .add-btn { width: 24px; height: 24px; border-radius: 50%; border: 1px dashed var(--primary); display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--primary); margin-left: -8px; background: var(--surface); z-index: 5; }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 100%; max-width: 480px;
+            background: rgba(3, 6, 9, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            display: flex; justify-content: space-around; align-items: center;
+            padding: 8px 20px calc(8px + env(safe-area-inset-bottom, 16px));
+            z-index: 1000;
+        }
+        .b-nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-dim); text-decoration: none; transition: 0.3s; }
+        .b-nav-item i { font-size: 22px; }
+        .b-nav-item span { font-size: 9px; font-weight: 500; }
+        .b-nav-item.active { color: var(--primary); }
+
+        @keyframes spinSlow { 100% { transform: rotate(360deg); } }
+        
+        /* Utility */
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div class="app-layout">
+        
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="menu-btn" onclick="window.location.href='index.html'"><i class="ri-menu-2-line"></i></div>
+                <div class="greeting-text">
+                    <h2>Profile</h2>
+                    <p>Manage your account and farm preferences</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <a href="index.html" class="icon-btn" title="Alerts on home" id="profile-notif-btn"><i class="ri-notification-3-line"></i><div class="badge hidden" id="profile-notif-badge">0</div></a>
+                <a href="weather.html" class="icon-btn" title="Weather &amp; location"><i class="ri-settings-4-line"></i></a>
+            </div>
+        </header>
+
+        <!-- Profile Hero -->
+        <div class="profile-hero">
+            <div class="hero-bg-waves"></div>
+            
+            <div class="ph-avatar-wrap">
+                <div class="ph-avatar" id="profile-picture"></div>
+                <div class="ph-ring"></div>
+                <div class="ph-cam-btn"><i class="ri-camera-fill"></i></div>
+            </div>
+            
+            <div class="ph-info">
+                <div class="ph-name"><span id="user-display-name">--</span> <i class="ri-checkbox-circle-fill hidden" id="verified-badge" style="color:var(--primary); font-size:16px;"></i></div>
+                <div class="ph-role">Farm Owner</div>
+                <div class="ph-contact">
+                    <div class="ph-c-item"><i class="ri-map-pin-line"></i> <span id="profile-location" style="color:var(--text-dim);">Location not set</span></div>
+                    <div class="ph-c-item"><i class="ri-phone-line"></i> <span id="profile-phone" style="color:var(--text-dim);">Phone not set</span></div>
+                    <div class="ph-c-item"><i class="ri-mail-line"></i> <span id="user-email-display" style="color:var(--text-dim);">--</span></div>
+                </div>
+            </div>
+
+            <div class="ph-level">
+                <i class="ri-vip-diamond-line ph-lvl-icon"></i>
+                <div class="ph-lvl-title">Farm Level</div>
+                <div class="ph-lvl-name"><span id="profile-level-name">Getting started</span> <i class="ri-arrow-right-s-line" style="color:var(--text-dim); font-size:16px;"></i></div>
+                <div class="ph-xp" id="profile-xp-text">XP --</div>
+                <div class="ph-bar-bg"><div class="ph-bar-fill" id="profile-xp-fill" style="width: 0%;"></div></div>
+            </div>
+        </div>
+
+        <!-- Identity Stats -->
+        <div class="identity-stats">
+            <div class="is-card">
+                <div class="is-icon" style="color:var(--primary);"><i class="ri-layout-grid-fill"></i></div>
+                <div class="is-title">Total Fields</div>
+                <div class="is-val" id="profile-stat-fields">--</div>
+                <div class="is-sub" id="profile-stat-fields-sub">—</div>
+            </div>
+            <div class="is-card">
+                <div class="is-icon" style="color:var(--accent-purple);"><i class="ri-map-pin-fill"></i></div>
+                <div class="is-title">Total Area</div>
+                <div class="is-val" id="profile-stat-area">--</div>
+                <div class="is-sub">acres</div>
+            </div>
+            <div class="is-card">
+                <div class="is-icon" style="color:#84CC16;"><i class="ri-bar-chart-box-fill"></i></div>
+                <div class="is-title">Productivity</div>
+                <div class="is-val" id="profile-stat-productivity">--</div>
+                <div class="is-sub" id="profile-stat-productivity-sub">—</div>
+            </div>
+            <div class="is-card">
+                <div class="is-icon" style="color:var(--primary);"><i class="ri-recycle-fill"></i></div>
+                <div class="is-title">Sustainability</div>
+                <div class="is-val" id="profile-stat-sust">--</div>
+                <div class="is-sub" id="profile-stat-sust-sub">—</div>
+            </div>
+            <div class="is-card">
+                <div class="is-icon" style="color:var(--accent-blue);"><i class="ri-brain-fill"></i></div>
+                <div class="is-title">AI Score</div>
+                <div class="is-val" id="profile-stat-ai">--</div>
+                <div class="is-sub" id="profile-stat-ai-sub">—</div>
+            </div>
+        </div>
+
+        <!-- Current Plan -->
+        <div class="plan-card">
+            <div class="pc-left">
+                <div class="pc-title">Current Plan</div>
+                <div class="pc-plan" id="profile-plan-name">Plan not connected</div>
+                <div class="pc-valid" id="profile-plan-valid">Connect billing to see plan details</div>
+                <div class="pc-btn" id="profile-plan-cta">Manage <i class="ri-arrow-right-s-line"></i></div>
+            </div>
+            <div class="pc-center">
+                <div class="pc-ring-1"></div>
+                <div class="pc-ring-2"></div>
+                <i class="ri-leaf-fill pc-icon"></i>
+            </div>
+            <div class="pc-right">
+                <div class="pc-feat"><i class="ri-information-line"></i> <span>AI Recommendations</span> <span id="profile-plan-ai">—</span></div>
+                <div class="pc-feat"><i class="ri-information-line"></i> <span>Cloud Storage</span> <span id="profile-plan-storage">—</span></div>
+                <div class="pc-feat"><i class="ri-information-line"></i> <span>Data History</span> <span id="profile-plan-history">—</span></div>
+                <div class="pc-feat"><i class="ri-information-line"></i> <span>Support</span> <span id="profile-plan-support">—</span></div>
+            </div>
+        </div>
+
+        <!-- Modules -->
+        <div class="modules-list">
+            
+            <a href="fields.html" class="module-item">
+                <div class="mi-icon"><i class="ri-user-settings-line"></i></div>
+                <div class="mi-text">
+                    <h4>Farm Team</h4>
+                    <p>Manage fields &amp; mapped land</p>
+                </div>
+                <div class="mi-right">
+                    <div class="team-avatars">
+                        <span style="font-size:10px; color:var(--text-dim); margin-right:8px;">Open Fields</span>
+                        <span class="add-btn" title="Add field"><i class="ri-add-line"></i></span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="weather.html" class="module-item">
+                <div class="mi-icon" style="color:var(--accent-yellow);"><i class="ri-equalizer-line"></i></div>
+                <div class="mi-text">
+                    <h4>Preferences</h4>
+                    <p>Location, weather &amp; environment (opens Weather)</p>
+                </div>
+                <i class="ri-arrow-right-s-line" style="color:var(--text-dim); font-size:20px;"></i>
+            </a>
+
+            <button type="button" class="module-item" id="profile-security-btn" style="width:100%; border:none; font:inherit; text-align:left;">
+                <div class="mi-icon" style="color:var(--primary);"><i class="ri-shield-check-line"></i></div>
+                <div class="mi-text">
+                    <h4>Security</h4>
+                    <p>Sign-in, password &amp; session</p>
+                </div>
+                <i class="ri-arrow-right-s-line" style="color:var(--text-dim); font-size:20px;"></i>
+            </button>
+
+            <button type="button" class="module-item" id="profile-backup-info" style="width:100%; border:none; font:inherit; text-align:left;">
+                <div class="mi-icon" style="color:#84CC16;"><i class="ri-cloud-upload-line"></i></div>
+                <div class="mi-text">
+                    <h4>Data Backup</h4>
+                    <p>How your farm data stays synced</p>
+                </div>
+                <i class="ri-arrow-right-s-line" style="color:var(--text-dim); font-size:20px;"></i>
+            </button>
+
+            <a href="assistant.html" class="module-item">
+                <div class="mi-icon" style="color:var(--accent-purple);"><i class="ri-links-line"></i></div>
+                <div class="mi-text">
+                    <h4>Integrations</h4>
+                    <p>AI assistant &amp; smart recommendations</p>
+                </div>
+                <i class="ri-arrow-right-s-line" style="color:var(--text-dim); font-size:20px;"></i>
+            </a>
+
+            <button type="button" class="module-item" id="profile-help-btn" style="width:100%; border:none; font:inherit; text-align:left;">
+                <div class="mi-icon" style="color:var(--text-main);"><i class="ri-question-line"></i></div>
+                <div class="mi-text">
+                    <h4>Help &amp; Support</h4>
+                    <p>Quick tips for this app</p>
+                </div>
+                <i class="ri-arrow-right-s-line" style="color:var(--text-dim); font-size:20px;"></i>
+            </button>
+            
+            <button type="button" class="module-item" id="logout-btn-trigger" data-no-tilt="true" style="margin-top: 10px; border-color: rgba(239, 68, 68, 0.3); width:100%; font:inherit; text-align:left;">
+                <div class="mi-icon" style="color: var(--accent-red); background: rgba(239, 68, 68, 0.1);"><i class="ri-logout-box-r-line"></i></div>
+                <div class="mi-text">
+                    <h4 style="color: var(--accent-red);">Logout</h4>
+                    <p>Sign out of your smart farm</p>
+                </div>
+            </button>
+
+        </div>
+
+    </div>
+
+    <!-- Bottom Nav -->
+    <nav class="bottom-nav">
+        <a href="index.html" class="b-nav-item">
+            <i class="ri-home-5-line"></i>
+            <span>Home</span>
+        </a>
+        <a href="fields.html" class="b-nav-item">
+            <i class="ri-leaf-line"></i>
+            <span>Fields</span>
+        </a>
+        <a href="assistant.html" class="b-nav-item" style="transform: translateY(-5px);">
+            <i class="ri-sparkling-line" style="font-size:28px;"></i>
+            <span>AI Assistant</span>
+        </a>
+        <a href="profile.html" class="b-nav-item active">
+            <i class="ri-user-smile-fill"></i>
+            <span>Profile</span>
+        </a>
+    </nav>
+    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Scripts -->
+    <script type="module" src="js/auth.js?v=7"></script>
+    <script type="module" src="js/profile.js?v=10"></script>
+    <script type="module" src="js/interaction-engine.js?v=1"></script>
+</body>
+</html>

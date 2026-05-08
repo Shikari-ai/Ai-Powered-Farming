@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Weather Intelligence - AgriTech AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #030609;
+      --surface: rgba(10, 17, 24, 0.72);
+      --border: rgba(255, 255, 255, 0.1);
+      --text: #f8fafc;
+      --dim: #94a3b8;
+      --primary: #10b981;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --blue: #3b82f6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Outfit", sans-serif; }
+    body { background: var(--bg); color: var(--text); overflow-x: hidden; }
+    .app { min-height: 100vh; max-width: 480px; margin: 0 auto; position: relative; padding-bottom: 120px; background: #02070b; box-shadow: 0 0 50px rgba(0,0,0,.7); }
+    .env {
+      position: fixed; inset: 0;
+      pointer-events: none;
+      background: radial-gradient(1000px 500px at 50% -10%, rgba(59,130,246,.2), transparent 65%);
+      transition: background .6s ease;
+    }
+    .stars, .rain, .fog, .storm {
+      position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .6s ease;
+    }
+    .stars::before {
+      content: "";
+      position: absolute; inset: 0;
+      background-image: radial-gradient(2px 2px at 10% 20%, rgba(255,255,255,.9), transparent 60%),
+                        radial-gradient(2px 2px at 80% 35%, rgba(255,255,255,.8), transparent 60%),
+                        radial-gradient(2px 2px at 45% 15%, rgba(255,255,255,.75), transparent 60%),
+                        radial-gradient(1.5px 1.5px at 65% 55%, rgba(255,255,255,.85), transparent 60%);
+      opacity: .55;
+      animation: twinkle 4s linear infinite alternate;
+    }
+    @keyframes twinkle { to { opacity: .35; } }
+    .rain::before {
+      content: "";
+      position: absolute; inset: -10% 0 0 0;
+      background-image: repeating-linear-gradient(
+        to bottom,
+        rgba(180,220,255,.7) 0px,
+        rgba(180,220,255,.7) 2px,
+        transparent 2px,
+        transparent 12px
+      );
+      background-size: 2px 24px;
+      animation: rainFall .6s linear infinite;
+      filter: blur(.15px);
+      opacity: .5;
+    }
+    @keyframes rainFall { to { transform: translateY(20px); } }
+    .fog::before {
+      content: "";
+      position: absolute; inset: 0;
+      background: radial-gradient(circle at 20% 30%, rgba(230,240,255,.24), transparent 45%),
+                  radial-gradient(circle at 70% 55%, rgba(230,240,255,.18), transparent 45%);
+      filter: blur(22px);
+      animation: fogMove 9s ease-in-out infinite alternate;
+    }
+    @keyframes fogMove { to { transform: translateX(8px) translateY(6px); } }
+    .storm::before {
+      content: "";
+      position: absolute; inset: 0;
+      background: linear-gradient(160deg, transparent 25%, rgba(255,255,255,.35) 27%, transparent 29%);
+      opacity: 0;
+      animation: lightning 6s infinite;
+    }
+    @keyframes lightning {
+      0%, 94%, 100% { opacity: 0; }
+      95% { opacity: .26; }
+      96% { opacity: .05; }
+      97% { opacity: .22; }
+    }
+
+    .header {
+      position: sticky; top: 0; z-index: 20;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 16px;
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      background: rgba(2,7,11,.65);
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .icon-btn {
+      width: 40px; height: 40px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(255,255,255,.06); border: 1px solid var(--border); color: #fff;
+      cursor: pointer;
+    }
+    .title h1 { font-size: 16px; font-weight: 600; }
+    .title p { font-size: 11px; color: var(--dim); margin-top: 2px; }
+    .title .coords { font-size: 10px; color: rgba(148,163,184,.95); margin-top: 3px; font-variant-numeric: tabular-nums; }
+    .title .source-tag { font-size: 10px; color: var(--primary); margin-top: 4px; opacity: .9; }
+    details.imd-setup { font-size: 11px; color: var(--dim); }
+    details.imd-setup summary { cursor: pointer; color: rgba(255,255,255,.75); padding: 4px 0; }
+    details.imd-setup .imd-fields { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+    details.imd-setup input {
+      width: 100%; padding: 10px 12px; border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); color: var(--text); font-size: 12px;
+    }
+    details.imd-setup .imd-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    details.imd-setup button {
+      padding: 8px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,.12);
+      background: rgba(16,185,129,.15); color: var(--text); font-size: 12px; cursor: pointer;
+    }
+    .content { padding: 14px 14px 0; display: flex; flex-direction: column; gap: 12px; }
+    .hero {
+      background: linear-gradient(140deg, rgba(59,130,246,.18), rgba(16,185,129,.08));
+      border: 1px solid var(--border);
+      border-radius: 22px; padding: 18px;
+      backdrop-filter: blur(12px);
+    }
+    .hero-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .hero-temp { font-size: 54px; line-height: 1; font-weight: 300; }
+    .hero-desc { font-size: 13px; color: rgba(255,255,255,.94); margin-top: 4px; }
+    .hero-sub { font-size: 11px; color: var(--dim); margin-top: 5px; }
+    .chip-row { display: flex; gap: 8px; overflow-x: auto; margin-top: 14px; padding-bottom: 2px; }
+    .chip-row::-webkit-scrollbar { display: none; }
+    .chip {
+      min-width: 100px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 12px;
+      padding: 8px 10px;
+      font-size: 11px;
+    }
+    .chip .val { font-size: 15px; margin-top: 3px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 14px;
+      backdrop-filter: blur(10px);
+    }
+    .card h3 { font-size: 13px; margin-bottom: 10px; color: rgba(255,255,255,.95); }
+    .hourly { display: flex; gap: 10px; overflow-x: auto; }
+    .hourly::-webkit-scrollbar { display: none; }
+    .hour {
+      min-width: 74px; text-align: center; padding: 10px 8px;
+      border-radius: 12px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.04);
+    }
+    .hour .t { font-size: 11px; color: var(--dim); }
+    .hour .v { font-size: 16px; margin-top: 4px; }
+    .hour .r { font-size: 10px; color: #93c5fd; margin-top: 4px; }
+
+    .days { display: flex; flex-direction: column; gap: 8px; }
+    .day {
+      display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center;
+      padding: 9px 10px;
+      border-radius: 12px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03);
+      font-size: 12px;
+    }
+    .day .d { color: var(--dim); }
+    .day .rng { color: rgba(255,255,255,.92); }
+    .day .pp { color: #93c5fd; font-size: 11px; }
+
+    .grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    }
+    .metric {
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03);
+      border-radius: 12px;
+      padding: 10px;
+    }
+    .metric .k { font-size: 10px; color: var(--dim); }
+    .metric .v { font-size: 18px; margin-top: 4px; }
+    .metric .s { font-size: 10px; color: var(--dim); margin-top: 2px; }
+
+    .insight {
+      display: flex; gap: 10px; align-items: flex-start;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03);
+      border-radius: 12px; padding: 10px;
+      font-size: 12px;
+    }
+    .insight i { margin-top: 2px; }
+    .warn { color: var(--warn); }
+    .ok { color: var(--primary); }
+    .bad { color: var(--danger); }
+    .info { color: var(--blue); }
+    .empty { color: var(--dim); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="env" id="env"></div>
+  <div class="stars" id="stars"></div>
+  <div class="rain" id="rain"></div>
+  <div class="fog" id="fog"></div>
+  <div class="storm" id="storm"></div>
+
+  <div class="app">
+    <header class="header">
+      <button class="icon-btn" onclick="window.location.href='index.html'"><i class="ri-arrow-left-line"></i></button>
+      <div class="title">
+        <h1>Weather Intelligence</h1>
+        <p id="loc-line">Syncing location...</p>
+        <p class="coords" id="loc-coords"></p>
+        <p class="source-tag" id="data-source-line"></p>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button type="button" class="icon-btn" id="maps-btn" title="Open this GPS spot in your phone maps (Samsung Maps, Google Maps, …)"><i class="ri-map-pin-line"></i></button>
+        <button type="button" class="icon-btn" id="refresh-btn"><i class="ri-refresh-line"></i></button>
+      </div>
+    </header>
+
+    <main class="content">
+      <section class="hero">
+        <div class="hero-top">
+          <div>
+            <div class="hero-temp" id="cur-temp">--</div>
+            <div class="hero-desc" id="cur-desc">Loading realtime weather...</div>
+            <div class="hero-sub" id="cur-meta">--</div>
+          </div>
+          <div style="font-size:40px; opacity:.9;" id="cur-icon"><i class="ri-sun-line"></i></div>
+        </div>
+        <div class="chip-row">
+          <div class="chip"><div>Humidity</div><div class="val" id="cur-hum">--</div></div>
+          <div class="chip"><div>Wind</div><div class="val" id="cur-wind">--</div></div>
+          <div class="chip"><div>Rain</div><div class="val" id="cur-rain">--</div></div>
+          <div class="chip"><div>UV</div><div class="val" id="cur-uv">--</div></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>Hourly Forecast</h3>
+        <div class="hourly" id="hourly-list"><div class="empty">Loading...</div></div>
+      </section>
+
+      <section class="card">
+        <h3>Farming Intelligence</h3>
+        <div style="display:flex; flex-direction:column; gap:8px;" id="insights-list">
+          <div class="empty">Waiting for weather sync...</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>10-Day Forecast</h3>
+        <div class="days" id="days-list"><div class="empty">Loading...</div></div>
+      </section>
+
+      <section class="card">
+        <h3>Realtime Metrics</h3>
+        <div class="grid">
+          <div class="metric"><div class="k">Visibility</div><div class="v" id="m-vis">--</div><div class="s">km</div></div>
+          <div class="metric"><div class="k">Air Quality PM2.5</div><div class="v" id="m-pm25">--</div><div class="s" id="m-aqi-label">--</div></div>
+          <div class="metric"><div class="k">Heat Index</div><div class="v" id="m-heat">--</div><div class="s">feels like</div></div>
+          <div class="metric"><div class="k">Soil Moisture Est.</div><div class="v" id="m-soil">--</div><div class="s">model estimate</div></div>
+        </div>
+      </section>
+
+      <details class="card imd-setup" id="imd-setup">
+        <summary>Official IMD forecast (API key)</summary>
+        <p class="empty" style="margin-top:6px;">
+          India Meteorological Department JSON APIs require registration at
+          <a href="https://api.imd.gov.in/public/login.php" target="_blank" rel="noopener" style="color:var(--blue);">api.imd.gov.in</a>.
+          Browsers usually need a small same-origin proxy (your backend) that attaches the key IMD issues, because the API does not send CORS headers.
+        </p>
+        <div class="imd-fields">
+          <input id="imd-proxy-input" type="url" autocomplete="off" placeholder="Proxy base URL (e.g. https://your.app/api/imd)" />
+          <input id="imd-key-input" type="password" autocomplete="off" placeholder="IMD API key (only if your proxy expects it in the client)" />
+          <div class="imd-actions">
+            <button type="button" id="imd-save-btn">Save</button>
+            <button type="button" id="imd-clear-btn" style="background:rgba(239,68,68,.12);">Clear saved</button>
+          </div>
+        </div>
+      </details>
+    </main>
+  </div>
+  <script type="module" src="js/weather.js?v=7"></script>
+  <script type="module" src="js/interaction-engine.js?v=1"></script>
+</body>
+</html>
+
