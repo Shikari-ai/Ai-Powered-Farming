@@ -216,14 +216,14 @@ function wireStatic() {
 
   /* help cards */
   el("help-center-btn")?.addEventListener("click", () =>
-    toast("Help Center", "Documentation and video guides coming soon.")
+    snack("Help Center — documentation and video guides coming soon.")
   );
   el("report-issue-btn")?.addEventListener("click", () =>
-    toast("Report an Issue", "Please email us at <a href='mailto:support@smartfarm.app' style='color:var(--primary)'>support@smartfarm.app</a>.")
+    snack("Email us at support@smartfarm.app")
   );
   el("feedback-btn")?.addEventListener("click", () =>
     swal({ title: "Rate your experience", html: "How is Smart Farming working for you?", input: "textarea", inputPlaceholder: "Your feedback...", confirmButtonText: "Send" })
-      .then(r => { if (r.isConfirmed && r.value) toast("Thank you!", "Your feedback was received."); })
+      .then(r => { if (r.isConfirmed && r.value) snack("Thank you! Your feedback was received."); })
   );
 }
 
@@ -313,9 +313,9 @@ function attachUser(user) {
       // Update Auth display name — ignore failure, it's cosmetic
       try { await updateProfile(user, { displayName: name }); } catch (_) {}
 
-      // Show feedback and close panel
+      // Show feedback, then close panel after snackbar is visible
       snack("Profile saved!");
-      window.closePanel?.("panel-edit-profile");
+      setTimeout(() => window.closePanel?.("panel-edit-profile"), 900);
     } catch (e) {
       console.error("Save profile error:", e);
       snack("Save failed: " + (e.message || e.code || "unknown error"), true);
