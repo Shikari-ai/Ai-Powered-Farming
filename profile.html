@@ -946,33 +946,28 @@
     sh.style.transform = 'translateY(100%)';
     setTimeout(function(){ document.getElementById('logout-sheet-backdrop').style.display='none'; }, 300);
   }
-  document.addEventListener('DOMContentLoaded', function() {
-    /* attach to all logout triggers */
-    ['logout-btn','as-logout-btn'].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) el.addEventListener('click', showLogoutSheet);
-    });
-    document.getElementById('logout-sheet-cancel')?.addEventListener('click', hideLogoutSheet);
-    document.getElementById('logout-sheet-backdrop')?.addEventListener('click', function(e){
-      if (e.target === this) hideLogoutSheet();
-    });
-    /* confirm: call logoutUser exposed from profile.js module */
-    document.getElementById('logout-sheet-confirm')?.addEventListener('click', function() {
-      var btn = this;
-      btn.textContent = 'Logging out…';
-      btn.disabled = true;
-      hideLogoutSheet();
-      /* wait a tick for sheet to animate away, then logout */
-      setTimeout(function() {
-        if (typeof window._profileLogout === 'function') {
-          window._profileLogout();
-        } else {
-          /* fallback: clear storage and hard-redirect */
-          localStorage.removeItem('agri_user');
-          window.location.href = 'login.html';
-        }
-      }, 320);
-    });
+  /* DOM is already parsed here (script is at bottom of body) — attach directly */
+  ['logout-btn','as-logout-btn'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('click', showLogoutSheet);
+  });
+  document.getElementById('logout-sheet-cancel').addEventListener('click', hideLogoutSheet);
+  document.getElementById('logout-sheet-backdrop').addEventListener('click', function(e){
+    if (e.target === this) hideLogoutSheet();
+  });
+  document.getElementById('logout-sheet-confirm').addEventListener('click', function() {
+    var btn = this;
+    btn.textContent = 'Logging out…';
+    btn.disabled = true;
+    hideLogoutSheet();
+    setTimeout(function() {
+      if (typeof window._profileLogout === 'function') {
+        window._profileLogout();
+      } else {
+        localStorage.removeItem('agri_user');
+        window.location.href = 'login.html';
+      }
+    }, 320);
   });
 
   /* swipe-back: drag right to close active panel */
