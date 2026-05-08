@@ -1,11 +1,7 @@
 # Copies the repo (minus .git / .github) into branch "gh-pages" for GitHub Pages.
 #
-# One-time setup:
-# 1. Settings → Actions → General → Workflow permissions → "Read and write permissions" → Save
-# 2. Settings → Pages → Source: Deploy from a branch → Branch: gh-pages, folder: / (root) → Save
-# 3. Push to main. Site: https://<account>.github.io/<repo>/
-#
-# Firebase: Authorized domains → add <account>.github.io
+# One-time: Actions → General → Workflow permissions → Read and write
+#           Settings → Pages → Deploy from branch gh-pages / (root)
 
 name: Deploy to gh-pages
 
@@ -29,9 +25,11 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Prepare site files (no .git / .github)
         run: |

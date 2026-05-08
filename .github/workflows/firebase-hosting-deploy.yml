@@ -1,9 +1,9 @@
 # Deploy to https://agritech-4d1ba.web.app on push to main.
 #
-# Secret (repo → Settings → Secrets → Actions):
-#   FIREBASE_SERVICE_ACCOUNT = full JSON from Firebase → Project settings → Service accounts → Generate key
+# Secret: FIREBASE_SERVICE_ACCOUNT (full JSON from Firebase → Project settings → Service accounts)
 #
-# Auth: add agritech-4d1ba.web.app + agritech-4d1ba.firebaseapp.com to Authorized domains.
+# If Actions still warns about "FirebaseExtended/action-hosting-deploy", delete any EXTRA workflow
+# Firebase may have added under .github/workflows/ (e.g. firebase-hosting-merge.yml) on GitHub.
 
 name: Deploy Firebase Hosting
 
@@ -13,7 +13,6 @@ on:
       - main
   workflow_dispatch:
 
-# Use Node 24 for JS-based actions (checkout, etc.) — see GitHub Actions runner changelog.
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -23,9 +22,11 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Node
         uses: actions/setup-node@v6
