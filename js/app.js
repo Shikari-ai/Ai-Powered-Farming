@@ -122,7 +122,10 @@ async function refreshLocationAndWeather() {
 
 window.refreshLocationAndWeather = refreshLocationAndWeather;
 
+let _weatherFetched = false;
 function checkLocationPrompt() {
+    if (_weatherFetched) return;
+    _weatherFetched = true;
     refreshLocationAndWeather();
 }
 
