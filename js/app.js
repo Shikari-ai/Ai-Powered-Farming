@@ -622,25 +622,15 @@ function closeWeatherDetails() {
     document.getElementById('weather-details-modal').classList.add('hidden');
 }
 
-// Instantly load home-screen weather: show Bhopal fallback in ~1s, upgrade to GPS silently.
+// Load home-screen weather using real GPS only. Stays at "--" until location is confirmed.
 async function loadHomeWeather() {
-    const BHOPAL = { city: "Bhopal", lat: 23.2599, lon: 77.4126 };
-
-    // Step 1: render fallback immediately so the card never looks blank
-    try {
-        await updateWeatherForLocation(BHOPAL.city, BHOPAL.lat, BHOPAL.lon);
-    } catch (e) {
-        console.warn("Home weather fallback failed:", e);
-    }
-
-    // Step 2: try to get real GPS (6 s max), then re-render if we got a better fix
     try {
         const mod = await import('./weather-location.js');
         const loc = await mod.resolveWeatherLocation();
+        // Only render if we got a real GPS fix — never show fallback/approximate data
+        if (loc.source === "fallback" || loc.source === "insecure-context") return;
         mod.persistLocationDetails(loc);
-        if (loc.source !== "fallback" && loc.source !== "insecure-context") {
-            await updateWeatherForLocation(loc.city, loc.lat, loc.lon);
-        }
+        await updateWeatherForLocation(loc.city, loc.lat, loc.lon);
         // Sync location to Firestore (fire-and-forget)
         import('./auth.js').then(({ auth, db }) => {
             if (!auth.currentUser) return;
@@ -653,7 +643,7 @@ async function loadHomeWeather() {
             });
         });
     } catch (e) {
-        console.warn("Home weather GPS upgrade failed:", e);
+        console.warn("Home weather load failed:", e);
     }
 }
 
