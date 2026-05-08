@@ -4,3 +4,5 @@ Thumbs.db
 .env.*
 *.local
 .firebase/
+firebase-ci-sa.json
+gha-creds-*.json
