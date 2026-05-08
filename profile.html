@@ -843,6 +843,41 @@
 
 
   <!-- ════════════════════════════════════════
+       LOGOUT CONFIRM SHEET
+  ════════════════════════════════════════ -->
+  <div id="logout-sheet-backdrop" style="
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);
+    backdrop-filter:blur(4px);z-index:900;align-items:flex-end;justify-content:center;">
+    <div id="logout-sheet" style="
+      background:#0E1822;border:1px solid rgba(255,255,255,.08);
+      border-radius:24px 24px 0 0;padding:24px 20px 36px;
+      width:100%;max-width:480px;
+      transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);">
+      <div style="width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.15);margin:0 auto 20px;"></div>
+      <div style="text-align:center;margin-bottom:20px;">
+        <div style="width:56px;height:56px;border-radius:50%;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);
+          display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+          <i class="ri-logout-box-r-line" style="font-size:24px;color:#EF4444;"></i>
+        </div>
+        <div style="font-size:17px;font-weight:600;margin-bottom:6px;">Log out?</div>
+        <div style="font-size:13px;color:#94A3B8;">You'll need to sign in again to access your farm data.</div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button id="logout-sheet-cancel" style="
+          flex:1;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,.1);
+          background:rgba(255,255,255,.05);color:#F8FAFC;font-size:15px;cursor:pointer;">
+          Cancel
+        </button>
+        <button id="logout-sheet-confirm" style="
+          flex:1;padding:14px;border-radius:12px;border:none;
+          background:#EF4444;color:#fff;font-size:15px;font-weight:600;cursor:pointer;">
+          Yes, Log out
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
        BOTTOM NAV
   ════════════════════════════════════════ -->
   <nav class="bnav">
@@ -865,6 +900,35 @@
     var el = document.getElementById(id);
     if (el) el.classList.remove('active');
   }
+  /* ── logout sheet ── */
+  function showLogoutSheet() {
+    var bd = document.getElementById('logout-sheet-backdrop');
+    var sh = document.getElementById('logout-sheet');
+    bd.style.display = 'flex';
+    requestAnimationFrame(function(){ sh.style.transform = 'translateY(0)'; });
+  }
+  function hideLogoutSheet() {
+    var sh = document.getElementById('logout-sheet');
+    sh.style.transform = 'translateY(100%)';
+    setTimeout(function(){ document.getElementById('logout-sheet-backdrop').style.display='none'; }, 300);
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    /* attach to all logout triggers */
+    ['logout-btn','as-logout-btn'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('click', showLogoutSheet);
+    });
+    document.getElementById('logout-sheet-cancel')?.addEventListener('click', hideLogoutSheet);
+    document.getElementById('logout-sheet-backdrop')?.addEventListener('click', function(e){
+      if (e.target === this) hideLogoutSheet();
+    });
+    /* confirm fires the module's logoutUser via a custom event */
+    document.getElementById('logout-sheet-confirm')?.addEventListener('click', function() {
+      hideLogoutSheet();
+      document.dispatchEvent(new CustomEvent('profile:logout'));
+    });
+  });
+
   /* swipe-back: drag right to close active panel */
   (function(){
     var startX, panel;

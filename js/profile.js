@@ -130,29 +130,15 @@ function timeAgo(ms) {
   return Math.round(d / 86400e3) + "d ago";
 }
 
-/* ─── logout helper ───────────────────── */
-async function doLogout() {
-  const r = await swal({
-    title: "Log out?",
-    text: "You will need to sign in again.",
-    icon: "question",
-    showCancelButton: true,
-    confirmButtonText: "Yes, log out",
-    cancelButtonText: "Cancel",
-    cancelButtonColor: "#64748b",
-    reverseButtons: true,
-  });
-  if (r.isConfirmed) await logoutUser();
-}
+/* ─── logout ─── fired by custom bottom-sheet confirm in HTML ── */
+document.addEventListener("profile:logout", () => logoutUser());
 
 /* ─── static UI wiring ────────────────── */
 function wireStatic() {
   /* main settings → account settings */
   el("main-settings-btn")?.addEventListener("click", () => openPanel("panel-account-settings"));
 
-  /* logout buttons */
-  el("logout-btn")?.addEventListener("click", doLogout);
-  el("as-logout-btn")?.addEventListener("click", doLogout);
+  /* logout buttons are wired to showLogoutSheet() in the inline script */
 
   /* change password */
   el("change-pw-btn")?.addEventListener("click", async () => {
