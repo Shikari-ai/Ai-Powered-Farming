@@ -24,12 +24,17 @@ function setAv(id, url) {
   const e = el(id);
   if (e) e.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
 }
-function swal(opts) {
-  return window.Swal ? window.Swal.fire({ confirmButtonColor:"#10b981", ...opts })
-                     : Promise.resolve({ isConfirmed: window.confirm(opts.title) });
+function snack(msg, isError) {
+  if (typeof window.showSnack === "function") window.showSnack(msg, isError);
+  else console.log(msg);
 }
-function toast(title, html) {
-  return swal({ title, html, icon:"info" });
+function swal(opts) {
+  return window.Swal
+    ? window.Swal.fire({
+        confirmButtonColor:"#10b981",
+        background:"#0E1822", color:"#F8FAFC",
+        ...opts })
+    : Promise.resolve({ isConfirmed: window.confirm(opts.title) });
 }
 
 /* openPanel / closePanel are defined inline in profile.html for onclick reliability */
@@ -145,7 +150,7 @@ function wireStatic() {
     const user = auth.currentUser;
     if (!user?.email) return toast("No email", "Cannot reset a non-email account.");
     await sendPasswordResetEmail(auth, user.email);
-    toast("Email sent", `Password reset link sent to <b>${user.email}</b>`);
+    snack("Reset link sent to " + user.email);
   });
 
   /* AI prefs save */
@@ -160,7 +165,7 @@ function wireStatic() {
       learn: el("ai-learn")?.checked,
     };
     localStorage.setItem("ai_prefs", JSON.stringify(prefs));
-    toast("Saved", "AI preferences updated.");
+    snack("AI preferences saved!");
   };
   el("ai-prefs-save-btn")?.addEventListener("click", saveAiPrefs);
   el("ai-prefs-save-main")?.addEventListener("click", saveAiPrefs);
@@ -190,7 +195,7 @@ function wireStatic() {
       quietEnd: el("n-quiet-end")?.value,
     };
     localStorage.setItem("notif_prefs", JSON.stringify(prefs));
-    toast("Saved", "Notification preferences updated.");
+    snack("Notification preferences saved!");
   };
   el("notif-save-btn")?.addEventListener("click", saveNotifPrefs);
   el("notif-save-main")?.addEventListener("click", saveNotifPrefs);
@@ -287,13 +292,24 @@ function attachUser(user) {
     const name  = el("ep-name")?.value.trim();
     const phone = el("ep-phone")?.value.trim();
     const loc   = el("ep-location")?.value.trim();
-    if (!name) { toast("Required", "Please enter your name."); return; }
+    if (!name) { snack("Please enter your name.", true); return; }
+
+    const btn = el("ep-save-btn");
+    if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
     try {
-      await setDoc(doc(db, "users", user.uid), { name, phone, village: loc, updatedAt: serverTimestamp() }, { merge: true });
+      await setDoc(
+        doc(db, "users", user.uid),
+        { name, phone, village: loc, updatedAt: serverTimestamp() },
+        { merge: true }
+      );
       await updateProfile(user, { displayName: name });
-      toast("Saved", "Profile updated successfully.");
+      snack("Profile saved!");
       closePanel("panel-edit-profile");
-    } catch (e) { toast("Error", e.message); }
+    } catch (e) {
+      snack("Save failed: " + e.message, true);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "Save Changes"; }
+    }
   };
   el("ep-save-btn")?.addEventListener("click",     doSaveProfile);
   el("ep-save-hdr-btn")?.addEventListener("click", doSaveProfile);

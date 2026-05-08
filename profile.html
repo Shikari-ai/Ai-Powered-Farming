@@ -843,6 +843,21 @@
 
 
   <!-- ════════════════════════════════════════
+       SNACKBAR TOAST
+  ════════════════════════════════════════ -->
+  <div id="snackbar" style="
+    position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:#1E2D3D;border:1px solid rgba(16,185,129,.3);border-radius:12px;
+    padding:12px 20px;font-size:13px;color:#F8FAFC;
+    display:flex;align-items:center;gap:8px;
+    box-shadow:0 8px 32px rgba(0,0,0,.5);
+    z-index:1100;opacity:0;transition:opacity .25s,transform .25s;
+    pointer-events:none;max-width:320px;text-align:center;white-space:nowrap;">
+    <i id="snackbar-icon" class="ri-checkbox-circle-fill" style="color:#10B981;font-size:16px;"></i>
+    <span id="snackbar-msg">Saved</span>
+  </div>
+
+  <!-- ════════════════════════════════════════
        LOGOUT CONFIRM SHEET
   ════════════════════════════════════════ -->
   <div id="logout-sheet-backdrop" style="
@@ -900,6 +915,25 @@
     var el = document.getElementById(id);
     if (el) el.classList.remove('active');
   }
+  /* ── snackbar ── */
+  var _snackTimer;
+  function showSnack(msg, isError) {
+    var sb  = document.getElementById('snackbar');
+    var ico = document.getElementById('snackbar-icon');
+    var txt = document.getElementById('snackbar-msg');
+    txt.textContent = msg;
+    ico.className   = isError ? 'ri-error-warning-fill' : 'ri-checkbox-circle-fill';
+    ico.style.color = isError ? '#EF4444' : '#10B981';
+    sb.style.transform = 'translateX(-50%) translateY(0)';
+    sb.style.opacity   = '1';
+    clearTimeout(_snackTimer);
+    _snackTimer = setTimeout(function(){
+      sb.style.opacity   = '0';
+      sb.style.transform = 'translateX(-50%) translateY(20px)';
+    }, 2800);
+  }
+  window.showSnack = showSnack;
+
   /* ── logout sheet ── */
   function showLogoutSheet() {
     var bd = document.getElementById('logout-sheet-backdrop');
