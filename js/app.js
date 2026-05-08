@@ -622,10 +622,43 @@ function closeWeatherDetails() {
     document.getElementById('weather-details-modal').classList.add('hidden');
 }
 
+// Instantly load home-screen weather: show Bhopal fallback in ~1s, upgrade to GPS silently.
+async function loadHomeWeather() {
+    const BHOPAL = { city: "Bhopal", lat: 23.2599, lon: 77.4126 };
+
+    // Step 1: render fallback immediately so the card never looks blank
+    try {
+        await updateWeatherForLocation(BHOPAL.city, BHOPAL.lat, BHOPAL.lon);
+    } catch (e) {
+        console.warn("Home weather fallback failed:", e);
+    }
+
+    // Step 2: try to get real GPS (6 s max), then re-render if we got a better fix
+    try {
+        const mod = await import('./weather-location.js');
+        const loc = await mod.resolveWeatherLocation();
+        mod.persistLocationDetails(loc);
+        if (loc.source !== "fallback" && loc.source !== "insecure-context") {
+            await updateWeatherForLocation(loc.city, loc.lat, loc.lon);
+        }
+        // Sync location to Firestore (fire-and-forget)
+        import('./auth.js').then(({ auth, db }) => {
+            if (!auth.currentUser) return;
+            import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js').then(({ doc, setDoc, serverTimestamp }) => {
+                setDoc(doc(db, "users", auth.currentUser.uid), {
+                    village: loc.city,
+                    locationDetails: { city: loc.city, lat: loc.lat, lon: loc.lon, source: loc.source },
+                    updatedAt: serverTimestamp(),
+                }, { merge: true }).catch(() => {});
+            });
+        });
+    } catch (e) {
+        console.warn("Home weather GPS upgrade failed:", e);
+    }
+}
+
 // Init core features on load
 document.addEventListener('DOMContentLoaded', () => {
-    // Legacy checkAuth removed; Firebase handles this in dashboard.js & auth.js
-    // If on scanner page, init camera
     if(window.location.pathname.includes('scanner.html')) {
         initCamera();
     }
@@ -635,5 +668,7 @@ document.addEventListener('DOMContentLoaded', () => {
         weatherCard.addEventListener("click", () => {
             window.location.href = "weather.html";
         });
+        // Start weather immediately — no modal, no auth wait
+        loadHomeWeather();
     }
 });
