@@ -363,7 +363,16 @@
     </div>
 
     <script type="module">
-        import { loginWithEmailPwd, signUpWithEmail, loginWithGoogle } from './js/auth.js';
+        import { auth, loginWithEmailPwd, signUpWithEmail, loginWithGoogle } from './js/auth.js';
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        // Redirect to app only when Firebase confirms a live session AND local key exists.
+        // After logout, agri_user is cleared so this guard won't fire even if Firebase cache is stale.
+        onAuthStateChanged(auth, (user) => {
+            if (user && localStorage.getItem('agri_user')) {
+                window.location.replace('index.html');
+            }
+        });
 
         // Particle generation
         const pContainer = document.getElementById('particles');

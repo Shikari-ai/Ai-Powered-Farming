@@ -50,26 +50,10 @@ enableIndexedDbPersistence(db).catch((err) => {
     console.warn("Firestore persistence unavailable:", err?.code || err);
 });
 
-// Check Session state automatically ONLY on initial load
-let isInitialLoad = true;
-onAuthStateChanged(auth, async (user) => {
-    if (!isInitialLoad) return; // Prevent redirecting mid-signup
-    isInitialLoad = false;
-    
-    const currentPath = window.location.pathname;
-    const isAuthPage = currentPath.includes('login.html') || currentPath.includes('signup.html');
-
-    if (user) {
-        // Check BEFORE writing — logoutUser clears this key, so if it's absent we just logged out
-        const hadSession = !!localStorage.getItem('agri_user');
-        localStorage.setItem('agri_user', JSON.stringify({name: user.displayName || user.email?.split('@')[0] || "Farmer", email: user.email}));
-
-        // Only bounce back to app if a real prior session existed (not a post-logout stale Firebase cache hit)
-        if (isAuthPage && hadSession) {
-            window.location.href = "index.html";
-        }
-    }
-});
+// Per-page scripts (profile.js, dashboard.js, etc.) each register their own
+// onAuthStateChanged and handle routing. No shared redirect listener here —
+// it caused post-logout bounce because Firebase's IndexedDB cache briefly
+// reports user as signed-in even after signOut.
 
 // 1. Google Auth
 export const loginWithGoogle = async () => {
