@@ -1,7 +1,7 @@
 import { auth, db } from "./auth.js";
 import { doc, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { openDeviceMaps } from "./maps-link.js";
-import { resolveWeatherLocation } from "./weather-location.js";
+import { resolveWeatherLocation, resolveLocationApprox } from "./weather-location.js";
 
 const STORAGE_IMD_KEY = "agri_imd_api_key";
 const STORAGE_IMD_PROXY = "agri_imd_proxy";
@@ -592,19 +592,23 @@ async function renderWeatherForLoc(loc) {
 }
 
 async function loadWeather() {
+  let gpsWon = false;
+
+  // Phase 1 — IP region weather, instant (~0.5s), no permission needed
+  resolveLocationApprox().then(async (loc) => {
+    if (gpsWon) return;
+    await renderWeatherForLoc({ ...loc, source: "ip" }).catch(() => {});
+  }).catch(() => {});
+
+  // Phase 2 — exact GPS, upgrades when ready (up to 3s)
   try {
     const loc = await resolveWeatherLocation();
-    if (loc.source === "fallback" || loc.source === "insecure-context") {
-      // No real GPS — keep page at "--", show a helpful message
-      const d = qs("cur-desc");
-      if (d) d.textContent = "Allow location access for live weather";
-      return;
+    if (loc.source !== "fallback" && loc.source !== "insecure-context") {
+      gpsWon = true;
+      await renderWeatherForLoc(loc);
     }
-    await renderWeatherForLoc(loc);
   } catch (e) {
-    console.error("Weather load failed:", e);
-    const d = qs("cur-desc");
-    if (d) d.textContent = "Unable to load weather right now";
+    console.error("Weather GPS upgrade failed:", e);
   }
 }
 

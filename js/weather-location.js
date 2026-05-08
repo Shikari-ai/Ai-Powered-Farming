@@ -35,6 +35,35 @@ export function isGeolocationSecureContext() {
   return globalThis.isSecureContext;
 }
 
+/**
+ * Instant region detection via IP — no permission needed, resolves in ~0.5s.
+ * Returns city-level accuracy (good enough for weather).
+ */
+export async function resolveLocationApprox() {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4000);
+  try {
+    const res = await fetch(
+      "https://ip-api.com/json?fields=status,city,regionName,country,lat,lon",
+      { signal: controller.signal }
+    );
+    const d = await res.json();
+    if (d.status !== "success") throw new Error("IP geo failed");
+    return {
+      city: d.city || d.regionName || "Your Region",
+      district: d.regionName || "",
+      state: d.regionName || "",
+      country: d.country || "",
+      lat: d.lat,
+      lon: d.lon,
+      source: "ip",
+      accuracyM: null,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Fresh GPS fix + Nominatim labels, else {@link FALLBACK_LOC}. */
 export async function resolveWeatherLocation() {
   try {
