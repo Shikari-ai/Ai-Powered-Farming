@@ -1,9 +1,5 @@
-# Deploy to https://agritech-4d1ba.web.app on push to main.
-#
-# Secret: FIREBASE_SERVICE_ACCOUNT (full JSON from Firebase → Project settings → Service accounts)
-#
-# If Actions still warns about "FirebaseExtended/action-hosting-deploy", delete any EXTRA workflow
-# Firebase may have added under .github/workflows/ (e.g. firebase-hosting-merge.yml) on GitHub.
+# Deploy to https://agritech-4d1ba.web.app
+# Secret: FIREBASE_SERVICE_ACCOUNT (Firebase Console → Project settings → Service accounts → Generate key)
 
 name: Deploy Firebase Hosting
 
@@ -25,13 +21,11 @@ jobs:
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v6
+      - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "22"
 
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
@@ -40,11 +34,11 @@ jobs:
         env:
           SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
-          set -e
-          if [ -z "$SERVICE_ACCOUNT_JSON" ]; then
-            echo "Missing secret FIREBASE_SERVICE_ACCOUNT. Add it under Settings → Secrets → Actions."
+          set -euo pipefail
+          if [ -z "${SERVICE_ACCOUNT_JSON:-}" ]; then
+            echo "::error::Missing Actions secret FIREBASE_SERVICE_ACCOUNT"
             exit 1
           fi
-          echo "$SERVICE_ACCOUNT_JSON" > "${GITHUB_WORKSPACE}/serviceAccount.json"
-          export GOOGLE_APPLICATION_CREDENTIALS="${GITHUB_WORKSPACE}/serviceAccount.json"
+          printf '%s' "$SERVICE_ACCOUNT_JSON" > "$GITHUB_WORKSPACE/serviceAccount.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$GITHUB_WORKSPACE/serviceAccount.json"
           firebase deploy --only hosting --project agritech-4d1ba --non-interactive
