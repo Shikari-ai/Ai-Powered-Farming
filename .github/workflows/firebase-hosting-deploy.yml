@@ -27,18 +27,15 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
       - name: Deploy Hosting
-        env:
-          SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
           set -euo pipefail
-          if [ -z "${SERVICE_ACCOUNT_JSON:-}" ]; then
-            echo "::error::Missing Actions secret FIREBASE_SERVICE_ACCOUNT"
-            exit 1
-          fi
-          printf '%s' "$SERVICE_ACCOUNT_JSON" > "$GITHUB_WORKSPACE/serviceAccount.json"
-          export GOOGLE_APPLICATION_CREDENTIALS="$GITHUB_WORKSPACE/serviceAccount.json"
           firebase deploy --only hosting --project agritech-4d1ba --non-interactive
