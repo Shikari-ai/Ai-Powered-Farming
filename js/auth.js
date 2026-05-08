@@ -60,11 +60,11 @@ onAuthStateChanged(auth, async (user) => {
     const isAuthPage = currentPath.includes('login.html') || currentPath.includes('signup.html');
 
     if (user) {
-        // Ensure local app state knows we are logged in to prevent app.js from kicking us out
         localStorage.setItem('agri_user', JSON.stringify({name: user.displayName || user.email?.split('@')[0] || "Farmer", email: user.email}));
         
-        // If they open login/signup but are already authenticated, send to dashboard
-        if (isAuthPage) {
+        // Only redirect away from login/signup if we have a confirmed local session.
+        // If agri_user was just cleared by logoutUser(), skip — avoids post-logout bounce.
+        if (isAuthPage && localStorage.getItem('agri_user')) {
             window.location.href = "index.html";
         }
     }
@@ -177,9 +177,9 @@ export const verifyOTP = async (code) => {
 // 5. Logout
 export const logoutUser = async () => {
     try {
-        localStorage.removeItem('agri_user');
+        localStorage.removeItem('agri_user');  // cleared BEFORE signOut so auth guard won't bounce back
         await signOut(auth);
-        window.location.href = "login.html";
+        window.location.replace("login.html"); // replace() so back-button can't return to app
     } catch (error) {
         alert("Logout Error: " + error.message);
     }
