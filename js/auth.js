@@ -60,11 +60,12 @@ onAuthStateChanged(auth, async (user) => {
     const isAuthPage = currentPath.includes('login.html') || currentPath.includes('signup.html');
 
     if (user) {
+        // Check BEFORE writing — logoutUser clears this key, so if it's absent we just logged out
+        const hadSession = !!localStorage.getItem('agri_user');
         localStorage.setItem('agri_user', JSON.stringify({name: user.displayName || user.email?.split('@')[0] || "Farmer", email: user.email}));
-        
-        // Only redirect away from login/signup if we have a confirmed local session.
-        // If agri_user was just cleared by logoutUser(), skip — avoids post-logout bounce.
-        if (isAuthPage && localStorage.getItem('agri_user')) {
+
+        // Only bounce back to app if a real prior session existed (not a post-logout stale Firebase cache hit)
+        if (isAuthPage && hadSession) {
             window.location.href = "index.html";
         }
     }
