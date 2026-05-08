@@ -122,7 +122,12 @@
     .mi-body{flex:1;}
     .mi-body h4{font-size:14px;font-weight:400;margin-bottom:2px;}
     .mi-body p{font-size:10px;color:var(--dim);}
-    .mi-arr{color:var(--dim);font-size:19px;}
+    .mi-arr{
+      width:6px;height:6px;border-radius:50%;
+      background:rgba(16,185,129,.5);
+      box-shadow:0 0 8px var(--primary-glow);
+      flex-shrink:0;
+    }
 
     /* ── BOTTOM NAV ── */
     .bnav{
@@ -373,42 +378,42 @@
       <div class="menu-item" onclick="openPanel('panel-farm-overview')">
         <div class="mi-ic" style="color:var(--primary);"><i class="ri-home-4-line"></i></div>
         <div class="mi-body"><h4>Farm Overview</h4><p>Your farm at a glance</p></div>
-        <i class="mi-arr ri-arrow-right-s-line"></i>
+        <span class="mi-arr"></span>
       </div>
       <div class="menu-item" onclick="openPanel('panel-account-settings')">
         <div class="mi-ic" style="color:var(--blue);"><i class="ri-user-settings-line"></i></div>
         <div class="mi-body"><h4>Account Settings</h4><p>Manage your personal info</p></div>
-        <i class="mi-arr ri-arrow-right-s-line"></i>
+        <span class="mi-arr"></span>
       </div>
       <div class="menu-item" onclick="openPanel('panel-my-farms')">
         <div class="mi-ic" style="color:#84CC16;"><i class="ri-layout-grid-line"></i></div>
         <div class="mi-body"><h4>My Farms</h4><p>View and manage your farms</p></div>
-        <i class="mi-arr ri-arrow-right-s-line"></i>
+        <span class="mi-arr"></span>
       </div>
       <div class="menu-item" onclick="openPanel('panel-subscription')">
         <div class="mi-ic" style="color:var(--yellow);"><i class="ri-vip-crown-line"></i></div>
         <div class="mi-body"><h4>Subscription</h4><p>Manage your plan</p></div>
-        <i class="mi-arr ri-arrow-right-s-line"></i>
+        <span class="mi-arr"></span>
       </div>
       <div class="menu-item" onclick="openPanel('panel-ai-prefs')">
         <div class="mi-ic" style="color:var(--purple);"><i class="ri-brain-line"></i></div>
         <div class="mi-body"><h4>AI Preferences</h4><p>Customize AI recommendations</p></div>
-        <i class="mi-arr ri-arrow-right-s-line"></i>
+        <span class="mi-arr"></span>
       </div>
       <div class="menu-item" onclick="openPanel('panel-notifications')">
         <div class="mi-ic" style="color:var(--primary);"><i class="ri-notification-3-line"></i></div>
         <div class="mi-body"><h4>Notifications</h4><p>Manage alerts and updates</p></div>
-        <i class="mi-arr ri-arrow-right-s-line"></i>
+        <span class="mi-arr"></span>
       </div>
       <div class="menu-item" onclick="openPanel('panel-help')">
         <div class="mi-ic" style="color:var(--dim);"><i class="ri-question-line"></i></div>
         <div class="mi-body"><h4>Help &amp; Support</h4><p>Get help and contact support</p></div>
-        <i class="mi-arr ri-arrow-right-s-line"></i>
+        <span class="mi-arr"></span>
       </div>
       <div class="menu-item" onclick="openPanel('panel-about')">
         <div class="mi-ic" style="color:var(--primary);"><i class="ri-information-line"></i></div>
         <div class="mi-body"><h4>About Smart Farming</h4><p>App info and version</p></div>
-        <i class="mi-arr ri-arrow-right-s-line"></i>
+        <span class="mi-arr"></span>
       </div>
       <!-- logout -->
       <div class="menu-item" id="logout-btn" style="border-color:rgba(239,68,68,.25);">
@@ -848,7 +853,31 @@
 </div><!-- /shell -->
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+  /* panel router — inline so onclick attrs always find these */
+  function openPanel(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.add('active');
+  }
+  function closePanel(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  }
+  /* swipe-back: drag right to close active panel */
+  (function(){
+    var startX, panel;
+    document.addEventListener('touchstart', function(e){
+      startX = e.touches[0].clientX;
+      panel = document.querySelector('.panel.active');
+    }, {passive:true});
+    document.addEventListener('touchend', function(e){
+      if (!panel) return;
+      var dx = e.changedTouches[0].clientX - startX;
+      if (dx > 80 && startX < 60) panel.classList.remove('active');
+    }, {passive:true});
+  })();
+</script>
 <script type="module" src="js/auth.js?v=7"></script>
-<script type="module" src="js/profile.js?v=11"></script>
+<script type="module" src="js/profile.js?v=12"></script>
 </body>
 </html>

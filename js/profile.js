@@ -32,9 +32,7 @@ function toast(title, html) {
   return swal({ title, html, icon:"info" });
 }
 
-/* ─── panel router ────────────────────── */
-window.openPanel  = (id) => el(id)?.classList.add("active");
-window.closePanel = (id) => el(id)?.classList.remove("active");
+/* openPanel / closePanel are defined inline in profile.html for onclick reliability */
 
 /* ─── score helpers ───────────────────── */
 function computeScore({ fields, scans, msgs }) {
