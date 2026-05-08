@@ -2,7 +2,24 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <script src="js/gh-pages-base.js"></script>
+    <script>
+    (function () {
+      var h = location.hostname || "";
+      if (!h.endsWith("github.io")) return;
+      var path = location.pathname;
+      var parts = path.split("/").filter(Boolean);
+      var repo = parts[0];
+      if (!repo || repo.indexOf(".") !== -1) return;
+      if (path === "/" + repo) {
+        location.replace("/" + repo + "/" + location.search + location.hash);
+        return;
+      }
+      var b = document.createElement("base");
+      b.href = "/" + repo + "/";
+      var head = document.head || document.getElementsByTagName("head")[0];
+      if (head) head.insertBefore(b, head.firstChild);
+    })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Sign Up - AgriTech AI</title>
     <link rel="stylesheet" href="css/style.css">
