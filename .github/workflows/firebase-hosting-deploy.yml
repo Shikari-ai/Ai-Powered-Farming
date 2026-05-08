@@ -1,7 +1,8 @@
 # Deploy to https://agritech-4d1ba.web.app
 #
 # Credentials: ONLY GitHub Actions → Settings → Secrets → FIREBASE_SERVICE_ACCOUNT
-# (paste the entire JSON of the downloaded key). Do NOT commit the key file to git.
+# Optionally one line: python scripts/minify-firebase-key.py path/to/downloaded.json → copy output.
+# Do NOT commit the key file to git.
 #
 # Optional fallback: FIREBASE_TOKEN from `npx firebase-tools@13 login:ci` if you cannot use a SA key.
 
