@@ -135,8 +135,8 @@ function timeAgo(ms) {
   return Math.round(d / 86400e3) + "d ago";
 }
 
-/* ─── logout ─── fired by custom bottom-sheet confirm in HTML ── */
-document.addEventListener("profile:logout", () => logoutUser());
+/* ─── logout ─── expose directly so inline sheet button can call it ── */
+window._profileLogout = () => logoutUser();
 
 /* ─── static UI wiring ────────────────── */
 function wireStatic() {

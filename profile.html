@@ -956,10 +956,22 @@
     document.getElementById('logout-sheet-backdrop')?.addEventListener('click', function(e){
       if (e.target === this) hideLogoutSheet();
     });
-    /* confirm fires the module's logoutUser via a custom event */
+    /* confirm: call logoutUser exposed from profile.js module */
     document.getElementById('logout-sheet-confirm')?.addEventListener('click', function() {
+      var btn = this;
+      btn.textContent = 'Logging out…';
+      btn.disabled = true;
       hideLogoutSheet();
-      document.dispatchEvent(new CustomEvent('profile:logout'));
+      /* wait a tick for sheet to animate away, then logout */
+      setTimeout(function() {
+        if (typeof window._profileLogout === 'function') {
+          window._profileLogout();
+        } else {
+          /* fallback: clear storage and hard-redirect */
+          localStorage.removeItem('agri_user');
+          window.location.href = 'login.html';
+        }
+      }, 320);
     });
   });
 
