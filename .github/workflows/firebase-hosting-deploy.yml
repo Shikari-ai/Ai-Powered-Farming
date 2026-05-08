@@ -39,6 +39,7 @@ jobs:
           python3 << 'PY'
           import json
           import os
+          import re
           import subprocess
           import sys
 
@@ -46,19 +47,56 @@ jobs:
               print(f"::error::{msg}")
               sys.exit(1)
 
+          def normalize_sa_paste(s: str) -> str:
+              """Strip BOM, invisible chars, markdown fences, then take outermost { ... }."""
+              s = s.replace("\r\n", "\n").lstrip("\ufeff")
+              s = re.sub(r"^[\u200b\u200c\u200d\ufeff\u00a0\s]+", "", s)
+              s = re.sub(r"[\u200b\u200c\u200d\ufeff\u00a0\s]+$", "", s)
+              lines = s.splitlines()
+              while lines and lines[0].strip().startswith("```"):
+                  lines.pop(0)
+              while lines and lines[-1].strip().startswith("```"):
+                  lines.pop()
+              s = "\n".join(lines).strip()
+              i, j = s.find("{"), s.rfind("}")
+              if i != -1 and j != -1 and j > i:
+                  s = s[i : j + 1]
+              return s.strip()
+
           workspace = os.environ["GITHUB_WORKSPACE"]
           token = (os.environ.get("FIREBASE_TOKEN") or "").strip()
-          raw = (os.environ.get("FIREBASE_SERVICE_ACCOUNT") or "").lstrip("\ufeff").strip()
+          raw_in = os.environ.get("FIREBASE_SERVICE_ACCOUNT") or ""
+          raw = normalize_sa_paste(raw_in)
+          if (raw_in or "").strip() and not raw:
+              fail(
+                  "FIREBASE_SERVICE_ACCOUNT has text but no {...} object found. "
+                  "Paste the full file from Firebase (starts with {\"type\":\"service_account\")."
+              )
 
           env = os.environ.copy()
           project = "agritech-4d1ba"
 
           # Prefer service account JSON; use FIREBASE_TOKEN only if SA is unset (stale tokens break deploy).
           if raw:
+              if not raw.startswith("{"):
+                  fail(
+                      "Secret must be valid JSON starting with {. Open the .json key file in an editor, "
+                      "select all (Ctrl+A), copy, paste into FIREBASE_SERVICE_ACCOUNT — no quotes around the value in GitHub."
+                  )
               try:
                   data = json.loads(raw)
               except json.JSONDecodeError as e:
-                  fail(f"FIREBASE_SERVICE_ACCOUNT is not valid JSON ({e}). Minify the key file to one line if needed.")
+                  n = len(raw_in.strip())
+                  hint = ""
+                  if n == 0:
+                      hint = " Secret value is empty — re-create FIREBASE_SERVICE_ACCOUNT under Repo → Settings → Secrets → Actions."
+                  elif n < 50:
+                      hint = f" Only {n} characters received — paste the full multiline JSON file."
+                  fail(
+                      f"FIREBASE_SERVICE_ACCOUNT is not valid JSON ({e}).{hint} "
+                      "Use Repository secrets (exact name FIREBASE_SERVICE_ACCOUNT). "
+                      "If the secret is only in an Environment, add 'environment:' to the workflow job or move it to repo secrets."
+                  )
               if data.get("type") != "service_account":
                   fail("FIREBASE_SERVICE_ACCOUNT must be a service account key JSON (type: service_account).")
               pid = data.get("project_id")
