@@ -90,8 +90,8 @@
             width: 100%; max-width: 480px;
             background: rgba(3, 6, 9, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             border-top: 1px solid rgba(255,255,255,0.05);
-            display: flex; justify-content: space-around; align-items: center;
-            padding: 8px 20px calc(8px + env(safe-area-inset-bottom, 16px));
+            display: grid; grid-template-columns: repeat(5, 1fr); justify-items: center; align-items: center;
+            padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 16px));
             z-index: 1000;
         }
         .b-nav-item { display:flex; flex-direction:column; align-items:center; gap:4px; color: var(--text-dim); text-decoration:none; transition: 0.3s; }
@@ -108,7 +108,9 @@
             position: relative;
         }
         .b-nav-scan::before { content:''; position:absolute; top:-8px; left:-8px; right:-8px; bottom:-8px; border-radius:50%; border:1px dashed rgba(16,185,129,0.5); animation: spinSlow 10s linear infinite; }
+        .b-nav-scan::after { content:''; position:absolute; top:-16px; left:-16px; right:-16px; bottom:-16px; border-radius:50%; border:1px solid rgba(16,185,129,0.1); animation: pulse 3s infinite; }
         @keyframes spinSlow { 100% { transform: rotate(360deg); } }
+        @keyframes pulse { 0%{opacity:1;transform:scale(.95);}50%{opacity:.5;transform:scale(1.05);}100%{opacity:1;transform:scale(.95);} }
     </style>
 </head>
 <body>
@@ -153,16 +155,16 @@
             <i class="ri-home-5-line"></i>
             <span>Home</span>
         </a>
-        <a href="fields.html" class="b-nav-item">
-            <i class="ri-leaf-line"></i>
-            <span>Fields</span>
+        <a href="map.html" class="b-nav-item">
+            <i class="ri-map-2-line"></i>
+            <span>Map</span>
         </a>
-        <a href="scanner.html" class="b-nav-scan">
+        <a href="fields.html" class="b-nav-scan">
             <i class="ri-leaf-fill"></i>
         </a>
         <a href="assistant.html" class="b-nav-item active">
             <i class="ri-sparkling-line"></i>
-            <span>AI Assistant</span>
+            <span>AI</span>
         </a>
         <a href="profile.html" class="b-nav-item">
             <i class="ri-user-smile-line"></i>

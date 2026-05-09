@@ -165,12 +165,28 @@
       position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
       width: 100%; max-width: 480px;
       background: rgba(0,0,0,0.92); border-top: 1px solid var(--border);
-      display: flex; justify-content: space-around; padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+      display: flex; justify-content: space-around; align-items: center;
+      padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
       z-index: 100;
     }
-    .bottom-nav a { color: var(--dim); text-decoration: none; font-size: 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-    .bottom-nav a i { font-size: 22px; }
-    .bottom-nav a.active { color: var(--neon); }
+    .b-nav-item { display:flex; flex-direction:column; align-items:center; gap:4px; color:var(--dim); text-decoration:none; transition:.3s; }
+    .b-nav-item i { font-size:22px; }
+    .b-nav-item span { font-size:9px; font-weight:500; }
+    .b-nav-item.active { color:var(--neon); }
+    .b-nav-scan {
+      width:64px; height:64px; border-radius:50%;
+      background:rgba(16,185,129,0.1); border:1px solid var(--neon);
+      display:flex; align-items:center; justify-content:center;
+      color:var(--neon); font-size:32px; text-decoration:none;
+      transform:translateY(-24px);
+      box-shadow:0 0 30px rgba(16,185,129,0.2),inset 0 0 20px rgba(16,185,129,0.2);
+      position:relative;
+    }
+    .b-nav-scan::before { content:''; position:absolute; top:-8px; left:-8px; right:-8px; bottom:-8px; border-radius:50%; border:1px dashed rgba(16,185,129,0.5); animation:spinSlow 10s linear infinite; }
+    .b-nav-scan::after  { content:''; position:absolute; top:-16px; left:-16px; right:-16px; bottom:-16px; border-radius:50%; border:1px solid rgba(16,185,129,0.1); animation:fldPulse 3s infinite; }
+    .b-nav-scan.active-tab { background:var(--neon); color:#000; box-shadow:0 0 40px rgba(16,185,129,0.5); }
+    @keyframes spinSlow  { 100% { transform:rotate(360deg); } }
+    @keyframes fldPulse  { 0%{opacity:1;transform:scale(.95);}50%{opacity:.5;transform:scale(1.05);}100%{opacity:1;transform:scale(.95);} }
 
     .hidden { display: none !important; }
     .empty { text-align: center; color: var(--dim); font-size: 12px; padding: 24px 12px; }
@@ -298,11 +314,11 @@
   </div>
 
   <nav class="bottom-nav">
-    <a href="index.html"><i class="ri-home-5-line"></i>Home</a>
-    <a href="fields.html" class="active"><i class="ri-leaf-fill"></i>Fields</a>
-    <a href="scanner.html"><i class="ri-camera-lens-line"></i>Scan</a>
-    <a href="assistant.html"><i class="ri-sparkling-line"></i>AI</a>
-    <a href="profile.html"><i class="ri-user-smile-line"></i>Profile</a>
+    <a href="index.html" class="b-nav-item"><i class="ri-home-5-line"></i><span>Home</span></a>
+    <a href="map.html" class="b-nav-item"><i class="ri-map-2-line"></i><span>Map</span></a>
+    <a href="fields.html" class="b-nav-scan active-tab"><i class="ri-leaf-fill"></i></a>
+    <a href="assistant.html" class="b-nav-item"><i class="ri-sparkling-line"></i><span>AI</span></a>
+    <a href="profile.html" class="b-nav-item"><i class="ri-user-smile-line"></i><span>Profile</span></a>
   </nav>
 
   <script type="module" src="js/field-detail.js?v=1"></script>
