@@ -58,6 +58,12 @@
       height: 100dvh;
       background: var(--bg);
       overflow: hidden;
+      transition: opacity 0.22s ease;
+    }
+    /* Hide chrome until auth + onboarding gate finishes (no home → intro flash) */
+    body.dashboard-wait .app {
+      opacity: 0;
+      pointer-events: none;
     }
 
     /* ── HEADER ── pinned while dashboard scrolls */
@@ -785,7 +791,7 @@
     @keyframes rippleAnim { to { transform: scale(4); opacity: 0; } }
   </style>
 </head>
-<body>
+<body class="dashboard-wait">
 <div class="app">
 
   <!-- ════ MAIN SCROLL ════ -->
@@ -1227,7 +1233,7 @@
 </script>
 
 <script src="js/app.js?v=24"></script>
-<script type="module" src="js/dashboard.js?v=25"></script>
+<script type="module" src="js/dashboard.js?v=26"></script>
 <script type="module" src="js/i18n.js?v=2"></script>
 </body>
 </html>

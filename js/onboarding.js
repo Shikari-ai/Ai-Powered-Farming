@@ -2,7 +2,6 @@
  * One-time intro: slides → language → Firestore + redirect home.
  */
 import { auth, db } from "./auth.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
     doc,
     getDoc,
@@ -257,7 +256,9 @@ function initSlides() {
     renderSlide(0);
 }
 
-onAuthStateChanged(auth, async (user) => {
+async function bootOnboarding() {
+    await auth.authStateReady();
+    const user = auth.currentUser;
     if (!user) {
         window.location.replace("login.html");
         return;
@@ -274,7 +275,6 @@ onAuthStateChanged(auth, async (user) => {
 
     document.body.classList.add("ob-ready");
 
-    // First interaction unlocks audio (browser policy)
     const once = () => {
         unlockAudio();
         document.removeEventListener("touchstart", once);
@@ -285,4 +285,6 @@ onAuthStateChanged(auth, async (user) => {
 
     wireLanguages(user.uid);
     initSlides();
-});
+}
+
+bootOnboarding();

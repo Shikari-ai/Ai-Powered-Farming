@@ -72,7 +72,7 @@ export const loginWithGoogle = async () => {
 
         // Sync with local app logic
         localStorage.setItem('agri_user', JSON.stringify({name: user.displayName || "Farmer", email: user.email}));
-        window.location.href = "onboarding.html";
+        window.location.replace("onboarding.html");
     } catch (error) {
         alert("Google Login Error: " + error.message);
         throw error;
@@ -100,7 +100,7 @@ export const signUpWithEmail = async (email, password, name) => {
 
         // Sync with local app logic
         localStorage.setItem('agri_user', JSON.stringify({name: name, email: email}));
-        window.location.href = "onboarding.html";
+        window.location.replace("onboarding.html");
     } catch (error) {
         alert("Sign Up Error: " + error.message);
         throw error;
@@ -112,7 +112,7 @@ export const loginWithEmailPwd = async (email, password) => {
     try {
         const user = (await signInWithEmailAndPassword(auth, email, password)).user;
         localStorage.setItem('agri_user', JSON.stringify({name: user.displayName || email.split('@')[0], email: user.email}));
-        window.location.href = "onboarding.html";
+        window.location.replace("onboarding.html");
     } catch (error) {
         alert("Login Error: " + error.message);
         throw error;
@@ -153,7 +153,7 @@ export const verifyOTP = async (code) => {
         }, { merge: true });
 
         localStorage.setItem('agri_user', JSON.stringify({name: "Farmer", phone: user.phoneNumber}));
-        window.location.href = "onboarding.html";
+        window.location.replace("onboarding.html");
     } catch (error) {
         alert("Invalid OTP code");
     }

@@ -540,32 +540,43 @@ document.addEventListener("DOMContentLoaded", () => {
         );
     };
 
-    onAuthStateChanged(auth, (user) => {
-        homeUnsubs.forEach((u) => {
-            try { u(); } catch (_) {}
-        });
-        homeUnsubs = [];
+    const revealDashboard = () => {
+        document.body.classList.remove("dashboard-wait");
+    };
 
-        if (!user) {
-            window.location.href = "login.html";
-            return;
-        }
+    (async () => {
+        await auth.authStateReady();
 
-        const uref = doc(db, "users", user.uid);
-        getDoc(uref)
-            .then((snap) => {
-                const done = snap.exists() && snap.data()?.onboardingCompleted === true;
-                if (!done) {
-                    window.location.replace("onboarding.html");
-                    return;
-                }
-                mountHome(user);
-            })
-            .catch((e) => {
-                console.warn("[dashboard] onboarding gate:", e?.message || e);
-                mountHome(user);
+        onAuthStateChanged(auth, (user) => {
+            homeUnsubs.forEach((u) => {
+                try { u(); } catch (_) {}
             });
-    });
+            homeUnsubs = [];
+
+            if (!user) {
+                revealDashboard();
+                window.location.replace("login.html");
+                return;
+            }
+
+            const uref = doc(db, "users", user.uid);
+            getDoc(uref)
+                .then((snap) => {
+                    const done = snap.exists() && snap.data()?.onboardingCompleted === true;
+                    if (!done) {
+                        window.location.replace("onboarding.html");
+                        return;
+                    }
+                    revealDashboard();
+                    mountHome(user);
+                })
+                .catch((e) => {
+                    console.warn("[dashboard] onboarding gate:", e?.message || e);
+                    revealDashboard();
+                    mountHome(user);
+                });
+        });
+    })();
 });
 
 // ─── Pest card empty state ────────────────────────────────────────────────────
