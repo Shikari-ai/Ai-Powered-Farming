@@ -532,17 +532,17 @@
     /* ── NOTIFICATION PANEL ── */
     .notif-overlay {
       position: fixed; inset: 0;
-      background: rgba(0,0,0,0.55);
-      z-index: 190; opacity: 0; pointer-events: none;
+      background: rgba(0,0,0,0.6);
+      z-index: 1050; opacity: 0; pointer-events: none;
       transition: opacity 0.3s;
     }
     .notif-overlay.open { opacity: 1; pointer-events: all; }
     .notif-panel {
       position: fixed; top: 0; right: 0;
       width: min(88vw, 360px); height: 100vh; height: 100dvh;
-      background: #0D1610;
-      border-left: 1px solid rgba(255,255,255,0.08);
-      z-index: 200; display: flex; flex-direction: column;
+      background: #0B1410;
+      border-left: 1px solid rgba(255,255,255,0.1);
+      z-index: 1060; display: flex; flex-direction: column;
       transform: translateX(100%);
       transition: transform 0.32s cubic-bezier(0.4,0,0.2,1);
     }
@@ -718,7 +718,7 @@
           <span class="wcard-sunrise" id="wcard-sunrise">
             <i class="ri-sun-fill"></i> Sunrise --
           </span>
-          <span class="wcard-fcst" data-i18n="viewForecast">View Forecast <i class="ri-arrow-right-s-line"></i></span>
+          <span class="wcard-fcst"><span data-i18n="viewForecast">View Forecast</span> <i class="ri-arrow-right-s-line"></i></span>
         </div>
       </div>
     </div>
@@ -863,7 +863,7 @@
     <div class="mf-section" id="mf-section">
       <div class="mf-hdr">
         <h3 class="mf-ttl" data-i18n="myFields">My Fields</h3>
-        <a href="fields.html" class="mf-all" data-i18n="manageAll">Manage All <i class="ri-arrow-right-s-line"></i></a>
+        <a href="fields.html" class="mf-all"><span data-i18n="manageAll">Manage All</span> <i class="ri-arrow-right-s-line"></i></a>
       </div>
       <div class="mf-scroll" id="dash-fields-scroll">
         <div class="mf-empty" id="dash-fields-empty">

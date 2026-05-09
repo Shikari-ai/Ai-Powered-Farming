@@ -490,6 +490,7 @@ document.addEventListener("DOMContentLoaded", () => {
             query(
                 collection(db, "weather_logs"),
                 where("userId", "==", user.uid),
+                orderBy("fetchedAt", "desc"),
                 limit(1)
             ),
             (snap) => {

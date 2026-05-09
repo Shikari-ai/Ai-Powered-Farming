@@ -425,12 +425,27 @@ export function setLanguage(lang) {
   document.dispatchEvent(new CustomEvent("langchange", { detail: { lang } }));
 }
 
-/** Apply translations to all [data-i18n] elements */
+/** Apply translations to all [data-i18n] elements, preserving child icons */
 export function applyTranslations() {
   document.querySelectorAll("[data-i18n]").forEach((el) => {
     const key = el.getAttribute("data-i18n");
     const text = t(key);
-    if (text && text !== key) el.textContent = text;
+    if (!text || text === key) return;
+    // If element has child elements (icons), update only the first text node
+    if (el.children.length > 0) {
+      let updated = false;
+      for (const node of el.childNodes) {
+        if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+          node.textContent = text + " ";
+          updated = true;
+          break;
+        }
+      }
+      // If no text node found, prepend one
+      if (!updated) el.insertBefore(document.createTextNode(text + " "), el.firstChild);
+    } else {
+      el.textContent = text;
+    }
   });
 }
 

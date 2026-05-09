@@ -217,30 +217,40 @@ async function updateWeatherForLocation(city, lat, lon) {
             wCard.classList.add(bgClass);
         }
 
-        // Rain probability: closest hourly slot to the current timestamp (real data only)
+        // Rain probability: closest hourly slot (icon is in parent HTML — set text only)
         try {
             const hourly = weatherData.hourly;
             if (hourly && hourly.time && hourly.precipitation_probability && wRain) {
                 const nowIso = current.time || getLocalISOString(new Date());
                 let idx = hourly.time.indexOf(nowIso);
                 if (idx < 0) {
-                    // fallback: find first hour >= now
                     idx = hourly.time.findIndex(t => t >= nowIso);
                     if (idx < 0) idx = 0;
                 }
                 const prob = hourly.precipitation_probability[idx];
-                if (typeof prob === "number") wRain.innerHTML = `<i class="ri-showers-line"></i> ${Math.round(prob)}%`;
+                if (typeof prob === "number") {
+                    // wcard-rain is a <b> inside a span that already has the rain icon
+                    wRain.textContent = `${Math.round(prob)}%`;
+                }
             }
         } catch {}
 
-        // Sunrise (daily[0])
+        // Sunrise (daily[0]) — wcard-sunrise already has icon in HTML, update last text node
         try {
-            if (weatherData.daily && weatherData.daily.sunrise && weatherData.daily.sunrise[0] && wSunrise) {
+            if (weatherData.daily?.sunrise?.[0] && wSunrise) {
                 const sr = new Date(weatherData.daily.sunrise[0]);
                 const timeStr = sr.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-                // New premium card: plain text since icon is already in HTML
                 if (wSunrise.id === 'wcard-sunrise') {
-                    wSunrise.innerHTML = `<i class="ri-sun-fill"></i> Sunrise ${timeStr}`;
+                    // Replace the text node after the icon, preserve <i>
+                    let replaced = false;
+                    for (const node of wSunrise.childNodes) {
+                        if (node.nodeType === 3) {
+                            node.textContent = ` Sunrise ${timeStr}`;
+                            replaced = true;
+                            break;
+                        }
+                    }
+                    if (!replaced) wSunrise.innerHTML = `<i class="ri-sun-fill"></i> Sunrise ${timeStr}`;
                 } else {
                     wSunrise.innerHTML = `<i class="ri-sun-fill"></i> Sunrise ${timeStr}`;
                 }
