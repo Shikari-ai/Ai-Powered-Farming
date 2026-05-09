@@ -13,6 +13,55 @@ function el(id) {
     return document.getElementById(id);
 }
 
+function renderHomeFields(snap) {
+    const scroll = el("dash-fields-scroll");
+    const empty = el("dash-fields-empty");
+    if (!scroll) return;
+    const fields = [];
+    snap.forEach(d => fields.push({ id: d.id, ...d.data() }));
+    if (fields.length === 0) {
+        if (empty) empty.style.display = "flex";
+        return;
+    }
+    if (empty) empty.style.display = "none";
+    const healthColor = (h) => {
+        if (!h) return "rgba(255,255,255,0.2)";
+        const s = String(h).toLowerCase();
+        if (s === "critical") return "#EF4444";
+        if (s === "at risk" || s === "moderate") return "#F59E0B";
+        return "#10B981";
+    };
+    const existingCards = scroll.querySelectorAll(".dash-field-card");
+    existingCards.forEach(c => c.remove());
+    fields.forEach(f => {
+        const card = document.createElement("a");
+        card.href = `field-detail.html?id=${f.id}`;
+        card.className = "dash-field-card";
+        card.style.cssText = "min-width:160px;max-width:160px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:16px;padding:14px 12px;display:flex;flex-direction:column;gap:8px;text-decoration:none;flex-shrink:0;transition:background 0.2s;";
+        const hc = healthColor(f.health || f.status);
+        card.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div style="width:8px;height:8px;border-radius:50%;background:${hc};box-shadow:0 0 6px ${hc};"></div>
+            <span style="font-size:9px;color:rgba(255,255,255,0.35);">${f.area ? f.area + ' ac' : '--'}</span>
+          </div>
+          <div>
+            <div style="font-size:12px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.name || 'Unnamed'}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;">${f.crop || 'No crop set'}</div>
+          </div>
+          <div style="font-size:9px;padding:3px 8px;border-radius:6px;background:${hc}22;color:${hc};border:1px solid ${hc}44;align-self:flex-start;">${f.health || f.status || 'Unknown'}</div>`;
+        scroll.insertBefore(card, empty);
+    });
+    // Add "+ Add" card at end
+    if (!el("dash-fields-add-btn")) {
+        const addCard = document.createElement("a");
+        addCard.href = "fields.html";
+        addCard.id = "dash-fields-add-btn";
+        addCard.style.cssText = "min-width:80px;background:rgba(16,185,129,0.06);border:1px dashed rgba(16,185,129,0.3);border-radius:16px;padding:14px 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-decoration:none;flex-shrink:0;";
+        addCard.innerHTML = `<i class="ri-add-circle-line" style="font-size:22px;color:#10B981;"></i><span style="font-size:10px;color:#10B981;font-weight:500;">Add</span>`;
+        scroll.appendChild(addCard);
+    }
+}
+
 function tsToMs(ts) {
     if (!ts) return 0;
     if (typeof ts.toMillis === "function") return ts.toMillis();
@@ -181,19 +230,20 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
-        // 2) Fields count (used for summary + performance)
+        // 2) Fields count + My Fields section on home
         let fieldsCount = 0;
         onSnapshot(query(collection(db, "fields"), where("userId", "==", user.uid), limit(200)), (snap) => {
             fieldsCount = snap.size;
             const summaryText = el("dash-summary-text");
             const summaryCta = el("dash-summary-cta");
-            if (!summaryText || !summaryCta) return;
-            // Summary will be refined after scans listener runs
-            if (fieldsCount === 0) {
-                summaryText.textContent = "Your ecosystem is inactive. Add fields and scans to unlock realtime intelligence.";
-                summaryCta.textContent = "Add your first field";
-                summaryCta.onclick = () => (window.location.href = "fields.html");
+            if (summaryText && summaryCta) {
+                if (fieldsCount === 0) {
+                    summaryText.textContent = "Your ecosystem is inactive. Add fields and scans to unlock realtime intelligence.";
+                    summaryCta.textContent = "Add your first field";
+                    summaryCta.onclick = () => (window.location.href = "fields.html");
+                }
             }
+            renderHomeFields(snap);
         });
 
         // 3) Notifications (badge + alerts list)

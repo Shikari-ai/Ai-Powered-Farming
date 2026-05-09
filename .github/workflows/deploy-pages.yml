@@ -1,7 +1,4 @@
-# Copies the repo (minus .git / .github) into branch "gh-pages" for GitHub Pages.
-#
-# One-time: Actions → General → Workflow permissions → Read and write
-#           Settings → Pages → Deploy from branch gh-pages / (root)
+# Pushes static site to gh-pages branch for GitHub Pages.
 
 name: Deploy to gh-pages
 
@@ -28,15 +25,14 @@ jobs:
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
-      - name: Prepare site files (no .git / .github)
+      - name: Prepare site files
         run: |
           mkdir -p _site
           rsync -a --exclude='.git' --exclude='.github' ./ _site/
 
-      - name: Push to gh-pages branch
+      - name: Push to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

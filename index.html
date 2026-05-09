@@ -235,6 +235,7 @@
         
         .perf-scroll { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 10px; }
         .perf-scroll::-webkit-scrollbar { display: none; }
+        #dash-fields-scroll::-webkit-scrollbar { display: none; }
         .perf-card { flex-shrink: 0; width: 140px; padding: 16px 0; border-right: 1px solid var(--border-light); position: relative; }
         .perf-card:last-child { border-right: none; }
         .pc-head { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); margin-bottom: 8px; }
@@ -403,6 +404,22 @@
 
             </div>
 
+            <!-- My Fields -->
+            <div style="margin-bottom:16px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; padding:0 2px;">
+                    <h3 style="font-size:13px; font-weight:600; color:var(--text-primary);"><i class="ri-layout-grid-fill" style="color:var(--primary); margin-right:6px;"></i>My Fields</h3>
+                    <a href="fields.html" style="font-size:11px; color:var(--primary); text-decoration:none; font-weight:500;">Manage All <i class="ri-arrow-right-s-line"></i></a>
+                </div>
+                <div id="dash-fields-scroll" style="display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; -webkit-overflow-scrolling:touch; scrollbar-width:none;">
+                    <!-- Populated by dashboard.js; fallback below -->
+                    <div id="dash-fields-empty" style="min-width:220px; background:rgba(255,255,255,0.03); border:1px dashed rgba(255,255,255,0.1); border-radius:16px; padding:18px 16px; display:flex; flex-direction:column; align-items:center; gap:8px;">
+                        <i class="ri-map-pin-add-line" style="font-size:26px; color:var(--text-dim);"></i>
+                        <p style="font-size:11px; color:var(--text-dim); text-align:center; line-height:1.5;">No fields yet.<br>Add your first field to start monitoring.</p>
+                        <a href="fields.html" style="font-size:11px; color:var(--primary); text-decoration:none; font-weight:500; border:1px solid rgba(16,185,129,0.35); border-radius:8px; padding:5px 12px;">+ Add Field</a>
+                    </div>
+                </div>
+            </div>
+
             <!-- Farm Performance -->
             <div class="premium-card perf-container">
                 <div class="perf-header">
@@ -509,8 +526,8 @@
     </div>
 
     <!-- Scripts -->
-    <script src="js/app.js?v=17"></script>
-    <script type="module" src="js/dashboard.js?v=7"></script>
-    <script type="module" src="js/interaction-engine.js?v=1"></script>
+    <script src="js/app.js?v=20"></script>
+    <script type="module" src="js/dashboard.js?v=20"></script>
+    <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>

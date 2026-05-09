@@ -175,7 +175,7 @@ body.dark-theme {
     position: absolute; bottom: 0; left: 0; width: 100%;
     height: 80px; background: rgba(2, 6, 23, 0.9);
     backdrop-filter: blur(20px); border-top: 1px solid var(--glass-border);
-    display: flex; justify-content: space-around; align-items: center;
+    display: grid; grid-template-columns: repeat(5, 1fr); justify-items: center; align-items: center;
     padding-bottom: 10px; z-index: 100;
 }
 .nav-item {
@@ -442,7 +442,7 @@ body.dark-theme {
 .edit-camera-btn { position: absolute; bottom: 0; right: 0; width: 32px; height: 32px; background: white; color: black; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; }
 
 /* Updated Bottom Navigation matching the design */
-.premium-nav { display: flex; justify-content: space-around; align-items: center; padding: 10px 10px 25px; background: #0f1411; border-top: 1px solid rgba(255,255,255,0.05); position: fixed; bottom: 0; left: 0; width: 100%; z-index: 2000; }
+.premium-nav { display: grid; grid-template-columns: repeat(5, 1fr); justify-items: center; align-items: center; padding: 10px 10px 25px; background: #0f1411; border-top: 1px solid rgba(255,255,255,0.05); position: fixed; bottom: 0; left: 0; width: 100%; z-index: 2000; }
 .nav-item-p { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #64748b; text-decoration: none; cursor: pointer; }
 .nav-item-p i { font-size: 24px; }
 .nav-item-p span { font-size: 10px; font-weight: 500; }
