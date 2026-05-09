@@ -274,8 +274,8 @@
             width: 100%; max-width: 480px;
             background: rgba(3, 6, 9, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             border-top: 1px solid rgba(255,255,255,0.05);
-            display: flex; justify-content: space-around; align-items: center;
-            padding: 8px 20px calc(8px + env(safe-area-inset-bottom, 16px));
+            display: grid; grid-template-columns: repeat(5, 1fr); justify-items: center; align-items: center;
+            padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 16px));
             z-index: 1000;
         }
         .b-nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-dim); text-decoration: none; transition: 0.3s; }
@@ -314,7 +314,7 @@
             <div class="header-left">
                 <div class="menu-btn"><i class="ri-menu-2-line"></i></div>
                 <div class="greeting-text">
-                    <h2 id="dashboard-greeting">Good Morning, Rohit 👋</h2>
+                    <h2 id="dashboard-greeting"></h2>
                     <p>Your farm is <span style="color:var(--primary);">performing great</span> today.</p>
                     <div class="sys-status"><div class="dot"></div> All Systems Active</div>
                 </div>

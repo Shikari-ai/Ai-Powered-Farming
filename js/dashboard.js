@@ -136,7 +136,23 @@ function renderAlerts(container, notifs) {
     }
 }
 
+function timeGreeting(firstName) {
+    const h = new Date().getHours();
+    const salutation = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+    return `${salutation}, ${firstName} 👋`;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+    // Show name instantly from cache — no flash of placeholder text
+    try {
+        const cached = JSON.parse(localStorage.getItem("agri_user") || "null");
+        if (cached?.name) {
+            const firstName = String(cached.name).split(" ")[0];
+            const greet = el("dashboard-greeting");
+            if (greet) greet.textContent = timeGreeting(firstName);
+        }
+    } catch (_) {}
+
     onAuthStateChanged(auth, (user) => {
         if (!user) {
             window.location.href = "login.html";
@@ -150,7 +166,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const fullName = data?.name || user.displayName || (user.email ? user.email.split("@")[0] : "Farmer");
             const firstName = String(fullName).split(" ")[0] || "Farmer";
             const greeting = el("dashboard-greeting");
-            if (greeting) greeting.textContent = `Hello, ${firstName}`;
+            if (greeting) greeting.textContent = timeGreeting(firstName);
 
             const avatar = el("dashboard-avatar");
             if (avatar) {
