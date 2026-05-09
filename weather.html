@@ -41,7 +41,7 @@
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Outfit", sans-serif; }
     body { background: var(--bg); color: var(--text); overflow-x: hidden; }
-    .app { min-height: 100vh; max-width: 480px; margin: 0 auto; position: relative; padding-bottom: 120px; background: #02070b; box-shadow: 0 0 50px rgba(0,0,0,.7); }
+    .app { min-height: 100vh; max-width: 480px; margin: 0 auto; position: relative; padding: 72px 0 120px; background: #02070b; box-shadow: 0 0 50px rgba(0,0,0,.7); }
     .env {
       position: fixed; inset: 0;
       pointer-events: none;
@@ -102,12 +102,19 @@
     }
 
     .header {
-      position: sticky; top: 0; z-index: 20;
+      position: fixed;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 480px;
+      z-index: 20;
       display: flex; align-items: center; justify-content: space-between;
       padding: 16px 16px;
-      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      background: rgba(2,7,11,.65);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      background: rgba(2,7,11,.82);
       border-bottom: 1px solid rgba(255,255,255,.06);
+      box-shadow: 0 2px 24px rgba(0,0,0,.5);
     }
     .icon-btn {
       width: 40px; height: 40px; border-radius: 50%;
