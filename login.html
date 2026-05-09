@@ -483,6 +483,9 @@
         import { initI18n, startI18nObserver, t } from './js/i18n.js';
         import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
+        await initI18n();
+        startI18nObserver();
+
         function toast(msg, type = 'info', duration = 4000) {
             const el = document.getElementById('login-toast');
             el.textContent = msg;
@@ -563,89 +566,73 @@
             el.classList.add('shake');
         }
 
-        async function wireLoginPage() {
-            document.getElementById('tab-signin').addEventListener('click', () => switchTab('signin'));
-            document.getElementById('tab-signup').addEventListener('click', () => switchTab('signup'));
+        document.getElementById('tab-signin').addEventListener('click', () => switchTab('signin'));
+        document.getElementById('tab-signup').addEventListener('click', () => switchTab('signup'));
 
-            document.getElementById('form-signin').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const email = document.getElementById('si-email').value.trim();
-                const pwd = document.getElementById('si-password').value;
-                const btn = document.getElementById('si-btn');
-                btn.disabled = true;
-                btn.innerHTML = '<i class="ri-loader-4-line spin"></i>';
-                loginWithEmailPwd(email, pwd).catch((err) => {
-                    restoreSignInButton();
-                    shakeEl('signin-section');
-                    toast(String(err?.message || '').replace(/^Firebase:\s*/,'').replace(/\s*\(auth\/[^)]+\)\s*$/,'') || 'Sign in failed.', 'error');
-                });
+        document.getElementById('form-signin').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('si-email').value.trim();
+            const pwd = document.getElementById('si-password').value;
+            const btn = document.getElementById('si-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ri-loader-4-line spin"></i>';
+            loginWithEmailPwd(email, pwd).catch((err) => {
+                restoreSignInButton();
+                shakeEl('signin-section');
+                toast(String(err?.message || '').replace(/^Firebase:\s*/,'').replace(/\s*\(auth\/[^)]+\)\s*$/,'') || 'Sign in failed.', 'error');
             });
+        });
 
-            document.getElementById('su-password').addEventListener('input', (e) => checkStrength(e.target.value));
+        document.getElementById('su-password').addEventListener('input', (e) => checkStrength(e.target.value));
 
-            document.getElementById('form-signup').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const name = document.getElementById('su-name').value.trim();
-                const email = document.getElementById('su-email').value.trim();
-                const pwd = document.getElementById('su-password').value;
-                const btn = document.getElementById('su-btn');
-                btn.disabled = true;
-                btn.innerHTML = '<i class="ri-loader-4-line spin"></i>';
-                signUpWithEmail(email, pwd, name).catch((err) => {
-                    restoreSignUpButton();
-                    shakeEl('signup-section');
-                    toast(String(err?.message || '').replace(/^Firebase:\s*/,'').replace(/\s*\(auth\/[^)]+\)\s*$/,'') || 'Sign up failed.', 'error');
-                });
+        document.getElementById('form-signup').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('su-name').value.trim();
+            const email = document.getElementById('su-email').value.trim();
+            const pwd = document.getElementById('su-password').value;
+            const btn = document.getElementById('su-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ri-loader-4-line spin"></i>';
+            signUpWithEmail(email, pwd, name).catch((err) => {
+                restoreSignUpButton();
+                shakeEl('signup-section');
+                toast(String(err?.message || '').replace(/^Firebase:\s*/,'').replace(/\s*\(auth\/[^)]+\)\s*$/,'') || 'Sign up failed.', 'error');
             });
+        });
 
-            document.getElementById('btn-google').addEventListener('click', () => loginWithGoogle());
-            document.getElementById('btn-apple').addEventListener('click', () => loginWithGoogle());
+        document.getElementById('btn-google').addEventListener('click', () => loginWithGoogle());
+        document.getElementById('btn-apple').addEventListener('click', () => loginWithGoogle());
 
-            document.getElementById('forgot-link').addEventListener('click', async (e) => {
-                e.preventDefault();
-                const email = document.getElementById('si-email').value.trim();
-                if (!email) {
-                    toast(t('auth.error_email') || 'Enter your email first.', 'info');
-                    return;
-                }
-                try {
-                    await sendPasswordResetEmail(auth, email);
-                    toast('Reset link sent to ' + email, 'success');
-                } catch (err) {
-                    toast(String(err?.message || 'Could not send reset email.'), 'error');
-                }
-            });
-
-            wirePwdToggle('si-password', 'si-eye');
-            wirePwdToggle('su-password', 'su-eye');
-
-            document.getElementById('su-terms-label').innerHTML = t('auth.terms_text');
-            window.switchTab = switchTab;
-
-            try {
-                await auth.authStateReady();
-                const path = location.pathname || '';
-                if (/login\.html$/i.test(path) && auth.currentUser) {
-                    try {
-                        const u = auth.currentUser;
-                        const name = u.displayName || (u.email ? u.email.split('@')[0] : 'Farmer');
-                        localStorage.setItem('agri_user', JSON.stringify({ name, email: u.email || '' }));
-                    } catch (_) {}
-                    window.location.replace('index.html');
-                }
-            } catch (_) {}
-        }
-
-        (async function boot() {
-            try {
-                await initI18n();
-            } catch (err) {
-                console.error('[login] initI18n failed', err);
-                toast('Could not load translations. Check your connection and refresh.', 'error', 8000);
+        document.getElementById('forgot-link').addEventListener('click', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('si-email').value.trim();
+            if (!email) {
+                toast(t('auth.error_email') || 'Enter your email first.', 'info');
+                return;
             }
-            startI18nObserver();
-            await wireLoginPage();
-        })();
+            try {
+                await sendPasswordResetEmail(auth, email);
+                toast('Reset link sent to ' + email, 'success');
+            } catch (err) {
+                toast(String(err?.message || 'Could not send reset email.'), 'error');
+            }
+        });
+
+        wirePwdToggle('si-password', 'si-eye');
+        wirePwdToggle('su-password', 'su-eye');
+
+        document.getElementById('su-terms-label').innerHTML = t('auth.terms_text');
+
+        await auth.authStateReady();
+        const path = location.pathname || '';
+        if (/login\.html$/i.test(path) && auth.currentUser) {
+            try {
+                const u = auth.currentUser;
+                const name = u.displayName || (u.email ? u.email.split('@')[0] : 'Farmer');
+                localStorage.setItem('agri_user', JSON.stringify({ name, email: u.email || '' }));
+            } catch (_) {}
+            window.location.replace('index.html');
+        }
     </script>
 </body>
 </html>
