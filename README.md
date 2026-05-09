@@ -14,9 +14,12 @@ From the repo root (requires Node.js):
 
 ```bash
 node scripts/verify.mjs
+node scripts/production-smoke.mjs
 ```
 
-This validates all `js/i18n/*.json` files and runs `node --check` on every `js/*.js` module.
+`verify.mjs` validates all `js/i18n/*.json` files and runs `node --check` on every `js/*.js` module. `production-smoke.mjs` checks the live site at `agritech-4d1ba.web.app`.
+
+See **[TESTING.md](TESTING.md)** for the production URL, QA test account setup, and CI notes.
 
 ## Local preview
 

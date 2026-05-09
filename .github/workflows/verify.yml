@@ -21,3 +21,6 @@ jobs:
 
       - name: Run static checks
         run: node scripts/verify.mjs
+
+      - name: Production smoke (Firebase Hosting)
+        run: node scripts/production-smoke.mjs
