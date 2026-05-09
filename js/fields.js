@@ -285,22 +285,29 @@ function mountFieldsPage(user) {
      FULL-SCREEN MAP OVERLAY FUNCTIONS
   ══════════════════════════════════════════════════ */
 
-  function openFmsMap() {
+  async function openFmsMap() {
     el("add-field-modal")?.classList.add("hidden");
     el("field-map-fullscreen")?.classList.remove("hidden");
-    initMapIfNeeded();
-    setTimeout(() => {
-      map?.invalidateSize();
-      if (drawingPoints.length >= 1) {
-        redrawDrawing();
-        try {
-          map?.fitBounds(window.L.latLngBounds(drawingPoints), { padding: [60, 60], maxZoom: 17 });
-        } catch (_) {}
+
+    await initMapIfNeeded();
+    map.resize(); // tell MapLibre the container is now visible
+
+    if (drawingPoints.length >= 1) {
+      redrawDrawing();
+      if (drawingPoints.length === 1) {
+        map.flyTo({ center: [drawingPoints[0][1], drawingPoints[0][0]], zoom: 16 });
       } else {
-        // First time: center on user GPS
-        centerOnGPSHighAccuracy(true); // silent = just center, no badge
+        const lngs = drawingPoints.map(([, lng]) => lng);
+        const lats = drawingPoints.map(([lat]) => lat);
+        map.fitBounds(
+          [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+          { padding: 80, maxZoom: 17, animate: true }
+        );
       }
-    }, 180);
+    } else {
+      centerOnGPSHighAccuracy(true);
+    }
+
     updateFmsPointsLabel();
     if (!fmsUiBound) initFmsBindings();
   }
@@ -334,47 +341,58 @@ function mountFieldsPage(user) {
   }
 
   function centerOnGPSHighAccuracy(silent = false) {
-    const badge = el("fms-gps-badge");
+    const badge   = el("fms-gps-badge");
     const accText = el("fms-accuracy-text");
-    if (!silent && badge) badge.style.display = "block";
-    if (!silent && accText) accText.textContent = "Locating…";
+    const btn     = el("fms-gps-btn");
+
+    if (!silent && badge)   { badge.style.display = "block"; }
+    if (!silent && accText) { accText.textContent = "Locating…"; }
+    if (btn) btn.classList.add("active");
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude: lat, longitude: lng, accuracy: acc } = pos.coords;
+        if (btn) btn.classList.remove("active");
         if (!map) return;
-        map.setView([lat, lng], acc < 50 ? 19 : acc < 200 ? 17 : 15);
 
-        if (accuracyCircle) { map.removeLayer(accuracyCircle); accuracyCircle = null; }
-        if (accuracyMarker) { map.removeLayer(accuracyMarker); accuracyMarker = null; }
+        const zoom = acc < 20 ? 19 : acc < 100 ? 17 : acc < 500 ? 15 : 13;
 
-        accuracyCircle = window.L.circle([lat, lng], {
-          radius: acc, color: "#0A84FF", weight: 1.5,
-          fillColor: "#0A84FF", fillOpacity: 0.07,
-        }).addTo(map);
+        // Smooth fly-to with MapLibre
+        map.flyTo({ center: [lng, lat], zoom, essential: true, speed: 1.4 });
 
-        accuracyMarker = window.L.circleMarker([lat, lng], {
-          radius: 8, color: "#fff", fillColor: "#0A84FF",
-          fillOpacity: 1, weight: 2.5,
-        }).bindTooltip("You are here", { permanent: false }).addTo(map);
+        // GPS dot marker (MapLibre DOM marker)
+        if (_gpsMLMarker) { _gpsMLMarker.remove(); _gpsMLMarker = null; }
+        const dotEl = document.createElement("div");
+        dotEl.style.cssText = [
+          "width:20px", "height:20px", "border-radius:50%",
+          "background:#0A84FF", "border:3px solid #fff",
+          "box-shadow:0 2px 12px rgba(10,132,255,0.55)",
+          "animation:gpsPulse 1.8s ease-in-out infinite",
+        ].join(";");
+        _gpsMLMarker = new maplibregl.Marker({ element: dotEl })
+          .setLngLat([lng, lat])
+          .addTo(map);
+
+        // Accuracy circle via GeoJSON source
+        const accSrc = map.getSource("fms-gps-acc");
+        if (accSrc) {
+          accSrc.setData({ type: "FeatureCollection", features: [circleFeature(lat, lng, acc)] });
+        }
 
         if (!silent) {
-          if (badge) badge.style.display = "block";
+          if (badge)   badge.style.display = "block";
           if (accText) accText.textContent = `±${Math.round(acc)} m`;
-          fmsToast(`Located! Accuracy: ±${Math.round(acc)} m`);
+          fmsToast(`Located · ±${Math.round(acc)} m accuracy`);
         }
       },
       (err) => {
+        if (btn) btn.classList.remove("active");
         if (!silent) {
           if (badge) badge.style.display = "none";
-          fmsToast("GPS unavailable: " + err.message);
+          fmsToast("GPS unavailable — " + err.message);
         }
-        // Fallback center
-        getLiveDeviceCenter().then(([lat, lng]) => {
-          if (map && !accuracyMarker) map.setView([lat, lng], 15);
-        });
       },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 14000, maximumAge: 0 }
     );
   }
 
@@ -406,45 +424,50 @@ function mountFieldsPage(user) {
   function setupFmsSearch() {
     let searchDebounce;
     let srFocusIdx = -1;
+    const inp     = el("fms-search-input");
+    const clearBtn = el("fms-search-clear");
+    const dd      = el("fms-search-results");
 
     function hideFmsDropdown() {
-      const dd = el("fms-search-results");
       if (dd) dd.style.display = "none";
       srFocusIdx = -1;
     }
 
-    function selectFmsResult(lat, lon, label) {
-      if (!map) return;
-      map.setView([parseFloat(lat), parseFloat(lon)], 17);
-      const inp = el("fms-search-input");
-      if (inp) inp.value = label;
-      hideFmsDropdown();
+    function updateClearBtn() {
+      if (clearBtn) clearBtn.style.display = inp?.value ? "flex" : "none";
     }
 
-    async function fetchFmsSuggestions(q) {
-      try {
-        // Add viewbox bias from current map center
-        let url = `https://nominatim.openstreetmap.org/search?format=json&limit=8&q=${encodeURIComponent(q)}&addressdetails=1&namedetails=1`;
-        const center = map?.getCenter();
-        if (center) {
-          const d = 6;
-          url += `&viewbox=${center.lng - d},${center.lat + d},${center.lng + d},${center.lat - d}&bounded=0`;
-        }
-        const res = await fetch(url, { headers: { "Accept-Language": "en" } });
-        const data = await res.json();
-        const dd = el("fms-search-results");
-        if (!dd) return;
-        if (!data.length) { dd.style.display = "none"; fmsToast("No results found"); return; }
+    function flyToResult(lng, lat, name) {
+      if (!map) return;
+      map.flyTo({ center: [lng, lat], zoom: 17, essential: true, speed: 1.6 });
+      if (inp) inp.value = name;
+      hideFmsDropdown();
+      updateClearBtn();
+    }
 
-        dd.innerHTML = data.map((r) => {
-          const parts = r.display_name.split(", ");
-          const name = parts.slice(0, 2).join(", ");
-          const addr = parts.slice(2, 5).join(", ");
-          return `<div class="sr-item" data-lat="${r.lat}" data-lon="${r.lon}" data-name="${name}">
+    /* Photon — free, no API key, returns OSM-backed autocomplete results */
+    async function fetchPhoton(q) {
+      try {
+        const c = map?.getCenter();
+        let url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=8&lang=en`;
+        if (c) url += `&lat=${c.lat.toFixed(4)}&lon=${c.lng.toFixed(4)}`;
+
+        const res  = await fetch(url);
+        const data = await res.json();
+
+        if (!dd) return;
+        if (!data.features?.length) { hideFmsDropdown(); fmsToast("No results found"); return; }
+
+        dd.innerHTML = data.features.map((f) => {
+          const p    = f.properties;
+          const name = p.name || p.city || p.country || "Unknown";
+          const sub  = [p.city, p.state, p.country].filter(Boolean).join(", ");
+          const [lng, lat] = f.geometry.coordinates;
+          return `<div class="sr-item" data-lat="${lat}" data-lng="${lng}" data-name="${name}">
             <i class="ri-map-pin-2-line"></i>
             <div>
               <div class="sr-name">${name}</div>
-              ${addr ? `<div class="sr-addr">${addr}</div>` : ""}
+              ${sub ? `<div class="sr-addr">${sub}</div>` : ""}
             </div>
           </div>`;
         }).join("");
@@ -452,21 +475,13 @@ function mountFieldsPage(user) {
 
         dd.querySelectorAll(".sr-item").forEach((item) => {
           item.addEventListener("mousedown", (e) => e.preventDefault());
-          item.addEventListener("click", () => {
-            selectFmsResult(item.dataset.lat, item.dataset.lon, item.dataset.name);
-          });
+          item.addEventListener("click", () =>
+            flyToResult(parseFloat(item.dataset.lng), parseFloat(item.dataset.lat), item.dataset.name)
+          );
         });
-      } catch (e) {
-        console.warn("Search error", e);
+      } catch (_) {
         fmsToast("Search failed — check connection");
       }
-    }
-
-    const inp = el("fms-search-input");
-    const clearBtn = el("fms-search-clear");
-
-    function updateClearBtn() {
-      if (clearBtn) clearBtn.style.display = inp?.value ? "flex" : "none";
     }
 
     clearBtn?.addEventListener("click", () => {
@@ -480,11 +495,10 @@ function mountFieldsPage(user) {
       updateClearBtn();
       const q = e.target.value.trim();
       if (q.length < 2) { hideFmsDropdown(); return; }
-      searchDebounce = setTimeout(() => fetchFmsSuggestions(q), 350);
+      searchDebounce = setTimeout(() => fetchPhoton(q), 320);
     });
 
     inp?.addEventListener("keydown", (e) => {
-      const dd = el("fms-search-results");
       const items = dd?.querySelectorAll(".sr-item") || [];
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -497,11 +511,11 @@ function mountFieldsPage(user) {
       } else if (e.key === "Enter") {
         e.preventDefault();
         if (srFocusIdx >= 0 && items[srFocusIdx]) {
-          const item = items[srFocusIdx];
-          selectFmsResult(item.dataset.lat, item.dataset.lon, item.dataset.name);
+          const it = items[srFocusIdx];
+          flyToResult(parseFloat(it.dataset.lng), parseFloat(it.dataset.lat), it.dataset.name);
         } else {
-          const q = inp.value.trim();
-          if (q) fetchFmsSuggestions(q);
+          const q = inp?.value.trim();
+          if (q) fetchPhoton(q);
         }
       } else if (e.key === "Escape") {
         hideFmsDropdown();
@@ -539,16 +553,60 @@ function mountFieldsPage(user) {
     }),
   );
 
+  /* ─────────────────────────────────────────────────────────
+     MAP CONSTANTS
+     Street style  → OpenFreeMap Liberty (vector, shows every
+       village, store, shop, school, landmark — all OSM POIs)
+     Satellite     → ESRI World Imagery + CartoDB Voyager labels
+  ───────────────────────────────────────────────────────── */
+  const STREET_STYLE = "https://tiles.openfreemap.org/styles/liberty";
+
+  const SATELLITE_STYLE = {
+    version: 8,
+    glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
+    sources: {
+      esri: {
+        type: "raster",
+        tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+        tileSize: 256, maxzoom: 19, attribution: "© Esri",
+      },
+      cartolabels: {
+        type: "raster",
+        tiles: [
+          "https://a.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}.png",
+          "https://b.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}.png",
+          "https://c.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}.png",
+          "https://d.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}.png",
+        ],
+        tileSize: 256, attribution: "© CARTO",
+      },
+    },
+    layers: [
+      { id: "esri-sat",      type: "raster", source: "esri" },
+      { id: "carto-labels",  type: "raster", source: "cartolabels" },
+    ],
+  };
+
+  /* Helper: create a circle polygon (GeoJSON Feature) for accuracy rings */
+  function circleFeature(lat, lng, radiusM) {
+    const coords = [];
+    const R = 6378137;
+    const latR = (lat * Math.PI) / 180;
+    for (let i = 0; i <= 64; i++) {
+      const a = (i / 64) * 2 * Math.PI;
+      const dLat = (radiusM * Math.cos(a)) / R;
+      const dLng = (radiusM * Math.sin(a)) / (R * Math.cos(latR));
+      coords.push([lng + (dLng * 180 / Math.PI), lat + (dLat * 180 / Math.PI)]);
+    }
+    return { type: "Feature", geometry: { type: "Polygon", coordinates: [coords] }, properties: {} };
+  }
+
   let editingFieldId = null;
   let map = null;
-  let markersLayer = null;
-  let boundaryLayer = null;
   let drawingPoints = [];
-  let satelliteLayer = null;
-  let streetLayer = null;
-  let labelsLayer = null;
   let is3D = false;
   let isSatellite = true;
+  let _gpsMLMarker = null; // maplibregl.Marker for GPS dot
 
   // FMS toast
   function fmsToast(msg, ms = 3000) {
@@ -566,64 +624,91 @@ function mountFieldsPage(user) {
   }
 
   function switchLayer(satellite) {
-    if (!map) return;
     isSatellite = satellite;
-    if (satellite) {
-      if (streetLayer) map.removeLayer(streetLayer);
-      if (satelliteLayer && !map.hasLayer(satelliteLayer)) satelliteLayer.addTo(map);
-      if (labelsLayer && !map.hasLayer(labelsLayer)) labelsLayer.addTo(map);
-    } else {
-      if (satelliteLayer) map.removeLayer(satelliteLayer);
-      if (labelsLayer) map.removeLayer(labelsLayer);
-      if (streetLayer && !map.hasLayer(streetLayer)) streetLayer.addTo(map);
-    }
     setActiveLayerBtns(satellite);
+    if (!map) return;
+    map.setStyle(satellite ? SATELLITE_STYLE : STREET_STYLE);
+    map.once("style.load", () => {
+      _addDrawingLayers();
+      redrawDrawing();
+    });
   }
 
   function toggle3D() {
     is3D = !is3D;
-    el("fms-map")?.classList.toggle("mode-3d", is3D);
+    map?.easeTo({ pitch: is3D ? 55 : 0, duration: 550 });
     el("fms-3d-btn")?.classList.toggle("active", is3D);
-    setTimeout(() => map?.invalidateSize(), 520);
   }
 
-  function initMapIfNeeded() {
-    if (map || !window.L) return;
+  /* Add MapLibre GeoJSON sources + layers for boundary drawing.
+     Called once after style loads (and again after every setStyle). */
+  function _addDrawingLayers() {
+    if (!map || map.getSource("fms-drawing")) return;
+
+    map.addSource("fms-drawing", {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+    });
+
+    // Polygon fill
+    map.addLayer({ id: "fms-poly-fill", type: "fill", source: "fms-drawing",
+      filter: ["==", "$type", "Polygon"],
+      paint: { "fill-color": "#4DABFF", "fill-opacity": 0.2 },
+    });
+    // Lines (polyline + polygon outline)
+    map.addLayer({ id: "fms-line", type: "line", source: "fms-drawing",
+      filter: ["in", "$type", "LineString", "Polygon"],
+      paint: { "line-color": "#0A84FF", "line-width": 2.5, "line-opacity": 0.9 },
+    });
+    // Corner circles
+    map.addLayer({ id: "fms-dots", type: "circle", source: "fms-drawing",
+      filter: ["==", "$type", "Point"],
+      paint: { "circle-radius": 8, "circle-color": "#0A84FF",
+               "circle-stroke-color": "#fff", "circle-stroke-width": 2.5 },
+    });
+    // Corner number labels
+    map.addLayer({ id: "fms-labels", type: "symbol", source: "fms-drawing",
+      filter: ["==", "$type", "Point"],
+      layout: {
+        "text-field": ["get", "label"],
+        "text-size": 11, "text-anchor": "center",
+        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+      },
+      paint: { "text-color": "#fff", "text-halo-color": "#0A84FF", "text-halo-width": 1 },
+    });
+
+    // GPS accuracy circle layer
+    map.addSource("fms-gps-acc", { type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+    });
+    map.addLayer({ id: "fms-gps-fill", type: "fill", source: "fms-gps-acc",
+      paint: { "fill-color": "#0A84FF", "fill-opacity": 0.08 },
+    });
+    map.addLayer({ id: "fms-gps-ring", type: "line", source: "fms-gps-acc",
+      paint: { "line-color": "#0A84FF", "line-width": 1.2, "line-opacity": 0.5 },
+    });
+  }
+
+  async function initMapIfNeeded() {
+    if (map) return;
     const mapNode = el("fms-map");
     if (!mapNode) return;
 
-    map = window.L.map(mapNode, {
-      zoomControl: false,
+    map = new maplibregl.Map({
+      container: mapNode,
+      style: STREET_STYLE,          // start with detailed street map (all OSM POIs)
+      center: [FALLBACK_MAP_CENTER[1], FALLBACK_MAP_CENTER[0]], // [lng, lat]
+      zoom: 14,
+      pitch: 0,
+      bearing: 0,
       attributionControl: false,
-      maxZoom: 20,
     });
 
-    // Satellite: ESRI World Imagery (crisp aerial photography, free, no key)
-    satelliteLayer = window.L.tileLayer(
-      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-      { maxZoom: 20, attribution: "© Esri" }
-    ).addTo(map);
+    await new Promise((res) => map.once("load", res));
+    _addDrawingLayers();
 
-    // Labels overlay for satellite: CartoDB Voyager labels only
-    // Shows every village, store, road name, landmark exactly like Google Maps
-    labelsLayer = window.L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}.png",
-      { maxZoom: 20, subdomains: "abcd", opacity: 1, attribution: "© CARTO" }
-    ).addTo(map);
-
-    // Street map: CartoDB Voyager – beautiful modern map with all POIs, villages, stores
-    streetLayer = window.L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-      { maxZoom: 20, subdomains: "abcd", attribution: "© OpenStreetMap contributors © CARTO" }
-    );
-
-    map.setView(FALLBACK_MAP_CENTER, 14);
-
-    markersLayer = window.L.layerGroup().addTo(map);
-    boundaryLayer = window.L.layerGroup().addTo(map);
-
-    map.on("click", (evt) => {
-      drawingPoints.push([evt.latlng.lat, evt.latlng.lng]);
+    map.on("click", (e) => {
+      drawingPoints.push([e.lngLat.lat, e.lngLat.lng]);
       redrawDrawing();
       updateFmsPointsLabel();
       persistDraft();
@@ -644,34 +729,44 @@ function mountFieldsPage(user) {
   }
 
   function redrawDrawing() {
-    if (!map || !markersLayer || !boundaryLayer) return;
-    markersLayer.clearLayers();
-    boundaryLayer.clearLayers();
-    const help = el("map-help-text");
+    const src = map?.getSource("fms-drawing");
+    if (!src) return;
 
-    for (let i = 0; i < drawingPoints.length; i++) {
-      const [lat, lng] = drawingPoints[i];
-      window.L.circleMarker([lat, lng], {
-        radius: 6,
-        color: "#fff",
-        fillColor: "#0A84FF",
-        fillOpacity: 1,
-        weight: 2.5,
-      })
-        .bindTooltip(String(i + 1), { permanent: true, direction: "top" })
-        .addTo(markersLayer);
-    }
+    const features = [];
+
+    // Corner points
+    drawingPoints.forEach(([lat, lng], i) => {
+      features.push({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [lng, lat] },
+        properties: { label: String(i + 1) },
+      });
+    });
+
+    // Connecting line
     if (drawingPoints.length >= 2) {
-      window.L.polyline(drawingPoints, { color: "#4DABFF", weight: 2.5, dashArray: "7 5", opacity: 0.9 }).addTo(boundaryLayer);
+      features.push({
+        type: "Feature",
+        geometry: { type: "LineString",
+          coordinates: drawingPoints.map(([lat, lng]) => [lng, lat]) },
+        properties: {},
+      });
     }
+
+    // Closed polygon
     if (drawingPoints.length >= 3) {
-      window.L.polygon(drawingPoints, { color: "#0A84FF", weight: 2.5, fillColor: "#4DABFF", fillOpacity: 0.2 }).addTo(boundaryLayer);
+      const ring = [...drawingPoints.map(([lat, lng]) => [lng, lat])];
+      ring.push(ring[0]); // close ring
+      features.push({
+        type: "Feature",
+        geometry: { type: "Polygon", coordinates: [ring] },
+        properties: {},
+      });
       const acres = sqMetersToAcres(polygonAreaSqM(drawingPoints));
       if (el("field-area")) el("field-area").value = acres.toFixed(2);
-      if (help) help.textContent = `Boundary: ${acres.toFixed(2)} acres. Adjust points or continue.`;
-    } else if (help) {
-      help.textContent = "Tap the map to drop boundary corners (3+ for a polygon).";
     }
+
+    src.setData({ type: "FeatureCollection", features });
   }
 
   function clearDrawing() {

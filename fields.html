@@ -24,7 +24,9 @@
     <title>Fields - AgriTech AI</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- MapLibre GL JS — WebGL, 60fps, free, no API key needed -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4/dist/maplibre-gl.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4/dist/maplibre-gl.js"></script>
     <style>
         :root {
             --bg-dark: #000000;
@@ -299,15 +301,10 @@
             font-family: 'Outfit', sans-serif;
         }
 
-        /* Map fills entire screen */
+        /* Map fills entire screen — Google Maps handles tilt natively */
         #fms-map {
             position: absolute; inset: 0; z-index: 1;
             cursor: crosshair;
-            transition: transform 0.55s cubic-bezier(0.16,1,0.3,1);
-        }
-        #fms-map.mode-3d {
-            transform: perspective(1000px) rotateX(30deg) scale(1.14);
-            transform-origin: center 62%;
         }
 
         /* ── Top status bar gradient ── */
@@ -478,6 +475,10 @@
         @keyframes btnPulse {
             0%,100% { box-shadow: 0 6px 24px rgba(10,132,255,0.5); }
             50%      { box-shadow: 0 6px 36px rgba(10,132,255,0.75); }
+        }
+        @keyframes gpsPulse {
+            0%,100% { box-shadow: 0 2px 12px rgba(10,132,255,0.55); }
+            50%      { box-shadow: 0 2px 24px rgba(10,132,255,0.9), 0 0 0 8px rgba(10,132,255,0.15); }
         }
 
         /* ── Toast ── */
@@ -744,7 +745,7 @@
             </div>
         </div>
 
-        <!-- Leaflet map fills the full background -->
+        <!-- MapLibre GL map fills the full background -->
         <div id="fms-map"></div>
 
         <!-- Toast notification -->
@@ -776,8 +777,7 @@
     </div>
     <!-- ════════════ END FULL-SCREEN MAP ════════════ -->
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script type="module" src="js/fields.js?v=13"></script>
+    <script type="module" src="js/fields.js?v=14"></script>
     <script type="module" src="js/interaction-engine.js?v=1"></script>
 </body>
 </html>
