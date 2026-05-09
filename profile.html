@@ -135,22 +135,22 @@
     .bnav{
       position:fixed;bottom:0;left:50%;transform:translateX(-50%);
       width:100%;max-width:480px;
-      background:rgba(3,6,9,.96);backdrop-filter:blur(20px);
-      border-top:1px solid var(--border);
-      display:flex;justify-content:space-around;align-items:center;
-      padding:8px 10px calc(8px + env(safe-area-inset-bottom,14px));
-      z-index:200;
+      background:rgba(3,6,9,0.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+      border-top:1px solid rgba(255,255,255,0.05);
+      display:grid;grid-template-columns:repeat(5,1fr);justify-items:center;align-items:center;
+      padding:8px 10px calc(8px + env(safe-area-inset-bottom,16px));
+      z-index:1000;
     }
-    .bn-item{display:flex;flex-direction:column;align-items:center;gap:3px;
-      color:var(--dim);text-decoration:none;transition:.2s;}
+    .bn-item{display:flex;flex-direction:column;align-items:center;gap:4px;
+      color:var(--dim);text-decoration:none;transition:.3s;}
     .bn-item i{font-size:22px;}
     .bn-item span{font-size:9px;font-weight:500;}
-    .bn-item.active{color:var(--primary);}
+    .bn-item.active{color:#10B981;}
     .bn-scan{
       width:64px;height:64px;border-radius:50%;
-      background:rgba(16,185,129,.1);border:1px solid var(--primary);
+      background:rgba(16,185,129,.1);border:1px solid #10B981;
       display:flex;align-items:center;justify-content:center;
-      color:var(--primary);font-size:32px;text-decoration:none;
+      color:#10B981;font-size:32px;text-decoration:none;
       transform:translateY(-24px);
       box-shadow:0 0 30px rgba(16,185,129,.2),inset 0 0 20px rgba(16,185,129,.2);
       position:relative;

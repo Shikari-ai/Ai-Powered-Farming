@@ -313,22 +313,28 @@
     .bottom-nav{
       position:fixed;bottom:0;left:50%;transform:translateX(-50%);
       width:100%;max-width:480px;
-      background:rgba(4,8,14,0.97);backdrop-filter:blur(20px);
-      border-top:1px solid rgba(255,255,255,0.06);
-      display:grid;grid-template-columns:repeat(5,1fr);
-      padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));
-      z-index:300;
+      background:rgba(3,6,9,0.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+      border-top:1px solid rgba(255,255,255,0.05);
+      display:grid;grid-template-columns:repeat(5,1fr);justify-items:center;align-items:center;
+      padding:8px 10px calc(8px + env(safe-area-inset-bottom,16px));
+      z-index:1000;
     }
-    .b-nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,.4);text-decoration:none;font-size:9px;font-weight:500;}
-    .b-nav-item i{font-size:21px;}
+    .b-nav-item{display:flex;flex-direction:column;align-items:center;gap:4px;color:rgba(255,255,255,.4);text-decoration:none;transition:.3s;}
+    .b-nav-item i{font-size:22px;}
+    .b-nav-item span{font-size:9px;font-weight:500;}
     .b-nav-item.active{color:#10B981;}
     .b-nav-scan{
-      width:54px;height:54px;border-radius:50%;
+      width:64px;height:64px;border-radius:50%;
       background:rgba(16,185,129,.1);border:1px solid #10B981;
       display:flex;align-items:center;justify-content:center;
-      color:#10B981;font-size:26px;transform:translateY(-18px);
-      box-shadow:0 0 24px rgba(16,185,129,.25);
+      color:#10B981;font-size:32px;transform:translateY(-24px);
+      box-shadow:0 0 30px rgba(16,185,129,.2),inset 0 0 20px rgba(16,185,129,.2);
+      position:relative;text-decoration:none;
     }
+    .b-nav-scan::before{content:'';position:absolute;top:-8px;left:-8px;right:-8px;bottom:-8px;border-radius:50%;border:1px dashed rgba(16,185,129,.5);animation:mp-spin 10s linear infinite;}
+    .b-nav-scan::after{content:'';position:absolute;top:-16px;left:-16px;right:-16px;bottom:-16px;border-radius:50%;border:1px solid rgba(16,185,129,.1);animation:mp-pulse 3s infinite;}
+    @keyframes mp-spin{100%{transform:rotate(360deg);}}
+    @keyframes mp-pulse{0%{opacity:1;transform:scale(.95);}50%{opacity:.5;transform:scale(1.05);}100%{opacity:1;transform:scale(.95);}}
   </style>
 </head>
 <body>
