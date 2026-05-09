@@ -127,7 +127,8 @@ function loadDraft() {
     if (el("field-area") && p.area) el("field-area").value = p.area;
     if (el("field-planted") && p.planted) el("field-planted").value = p.planted;
     if (el("field-notes") && p.notes) el("field-notes").value = p.notes;
-    if (typeof p.step === "number") wizardStep = clamp(p.step, 1, 4);
+    // Step 2 = full-screen map; don't restore it into the modal wizard
+    if (typeof p.step === "number") wizardStep = p.step === 2 ? 1 : clamp(p.step, 1, 4);
   } catch {}
 }
 
@@ -140,21 +141,17 @@ function clearDraft() {
 let wizardStep = 1;
 
 function updateWizardUi() {
-  // Step 2 = full-screen map — handle separately
-  if (wizardStep === 2) {
-    openFmsMap();
-    return;
-  }
-
-  // Close full-screen if open
+  // Step 2 is the full-screen map — handled by openFmsMap(), never shown in modal.
+  // updateWizardUi only manages steps 1, 3, 4 inside the modal.
   el("field-map-fullscreen")?.classList.add("hidden");
 
+  const displayStep = wizardStep === 2 ? 3 : wizardStep; // map step skipped in modal
   for (let i = 1; i <= 4; i++) {
     el(`wiz-step-${i}`)?.classList.toggle("hidden", i !== wizardStep);
   }
   const prog = el("wizard-progress-fill");
-  if (prog) prog.style.width = `${(wizardStep / 4) * 100}%`;
-  el("wizard-step-label") && (el("wizard-step-label").textContent = `Step ${wizardStep === 2 ? 3 : wizardStep} of 4`);
+  if (prog) prog.style.width = `${(displayStep / 4) * 100}%`;
+  el("wizard-step-label") && (el("wizard-step-label").textContent = `Step ${displayStep} of 4`);
   el("wiz-back-btn")?.classList.toggle("hidden", wizardStep === 1);
   const next = el("wiz-next-btn");
   if (next) next.textContent = wizardStep === 4 ? "Save field" : "Next";
@@ -816,16 +813,14 @@ function mountFieldsPage(user) {
       if (wizardStep < 4) {
         if (wizardStep === 1) {
           const n = (el("field-name")?.value || "").trim();
-          if (!n) {
-            wizSnack("Please enter a field name.");
-            return;
-          }
+          if (!n) { wizSnack("Please enter a field name."); return; }
         }
         wizardStep += 1;
-        updateWizardUi();
         if (wizardStep === 2) {
-          initMapIfNeeded();
-          setTimeout(() => map?.invalidateSize(), 100);
+          // Open full-screen map (openFmsMap is in scope here inside the callback)
+          openFmsMap();
+        } else {
+          updateWizardUi();
         }
         return;
       }
@@ -835,10 +830,10 @@ function mountFieldsPage(user) {
     el("wiz-back-btn")?.addEventListener("click", () => {
       if (wizardStep > 1) {
         wizardStep -= 1;
-        updateWizardUi();
         if (wizardStep === 2) {
-          initMapIfNeeded();
-          setTimeout(() => map?.invalidateSize(), 100);
+          openFmsMap();
+        } else {
+          updateWizardUi();
         }
       }
     });
