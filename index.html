@@ -308,7 +308,7 @@
            LOCATION INTELLIGENCE CARD
         ═══════════════════════════════════════════════════ */
         .loc-intel-wrap {
-            margin: 18px 16px 0;
+            margin-top: 18px;
         }
         .loc-intel-card {
             background: rgba(6, 10, 18, 0.88);
@@ -657,60 +657,6 @@
                 </div>
 
                 <!-- Farm Summary -->
-        <!-- ══ Location Intelligence Card ══ -->
-        </div><!-- close .content-container opened earlier -->
-        <div class="loc-intel-wrap" id="loc-intel-wrap">
-            <div class="loc-intel-card" id="loc-intel-card">
-                <!-- Header -->
-                <div class="lic-hdr">
-                    <div class="lic-radar">
-                        <div class="radar-ring r1"></div>
-                        <div class="radar-ring r2"></div>
-                        <div class="radar-ring r3"></div>
-                        <div class="radar-dot"></div>
-                    </div>
-                    <div class="lic-title">
-                        <h3>Location Intelligence</h3>
-                        <p id="lic-address-line">Detecting your location…</p>
-                    </div>
-                    <div class="lic-live-pill"><div class="lic-live-dot"></div> Live</div>
-                </div>
-
-                <!-- Address chips -->
-                <div class="lic-addr" id="lic-addr-chips">
-                    <div class="lic-addr-chip primary" id="lic-chip-village">📍 Locating…</div>
-                </div>
-
-                <!-- GPS accuracy -->
-                <div class="lic-acc-row">
-                    <span id="lic-acc-label">GPS</span>
-                    <div class="lic-acc-bar"><div class="lic-acc-fill" id="lic-acc-fill" style="width:0%"></div></div>
-                    <span id="lic-acc-val">--</span>
-                </div>
-
-                <!-- Nearby places -->
-                <div class="lic-section-title">Nearby Places</div>
-                <div class="lic-places" id="lic-places">
-                    <div class="lic-skeleton"></div>
-                    <div class="lic-skeleton"></div>
-                    <div class="lic-skeleton"></div>
-                </div>
-
-                <!-- AI Insights -->
-                <div class="lic-section-title" id="lic-insights-title" style="display:none;">AI Field Insights</div>
-                <div class="lic-insights" id="lic-insights"></div>
-
-                <!-- Footer -->
-                <div class="lic-footer">
-                    <span class="lic-coords-txt" id="lic-coords-txt">-- , --</span>
-                    <button class="lic-refresh-btn" id="lic-refresh-btn">
-                        <i class="ri-refresh-line"></i> Refresh
-                    </button>
-                </div>
-            </div>
-        </div>
-        <div class="content-container" style="padding-top:18px;">
-
                 <div class="premium-card summary-card">
                     <div style="align-self:flex-start; width:100%;">
                         <h4 style="font-size:14px; margin-bottom:16px; text-align:left;">Farm Summary</h4>
@@ -725,7 +671,48 @@
                 </div>
             </div>
 
-        </div><!-- close second content-container -->
+            <!-- ══ Location Intelligence Card ══ -->
+            <div class="loc-intel-wrap" id="loc-intel-wrap">
+                <div class="loc-intel-card" id="loc-intel-card">
+                    <div class="lic-hdr">
+                        <div class="lic-radar">
+                            <div class="radar-ring r1"></div>
+                            <div class="radar-ring r2"></div>
+                            <div class="radar-ring r3"></div>
+                            <div class="radar-dot"></div>
+                        </div>
+                        <div class="lic-title">
+                            <h3>Location Intelligence</h3>
+                            <p id="lic-address-line">Detecting your location…</p>
+                        </div>
+                        <div class="lic-live-pill"><div class="lic-live-dot"></div> Live</div>
+                    </div>
+                    <div class="lic-addr" id="lic-addr-chips">
+                        <div class="lic-addr-chip primary" id="lic-chip-village">📍 Locating…</div>
+                    </div>
+                    <div class="lic-acc-row">
+                        <span id="lic-acc-label">GPS</span>
+                        <div class="lic-acc-bar"><div class="lic-acc-fill" id="lic-acc-fill" style="width:0%"></div></div>
+                        <span id="lic-acc-val">--</span>
+                    </div>
+                    <div class="lic-section-title">Nearby Places</div>
+                    <div class="lic-places" id="lic-places">
+                        <div class="lic-skeleton"></div>
+                        <div class="lic-skeleton"></div>
+                        <div class="lic-skeleton"></div>
+                    </div>
+                    <div class="lic-section-title" id="lic-insights-title" style="display:none;">AI Field Insights</div>
+                    <div class="lic-insights" id="lic-insights"></div>
+                    <div class="lic-footer">
+                        <span class="lic-coords-txt" id="lic-coords-txt">-- , --</span>
+                        <button class="lic-refresh-btn" id="lic-refresh-btn">
+                            <i class="ri-refresh-line"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- close .content-container -->
     </div>
 
     <!-- Bottom Nav -->
