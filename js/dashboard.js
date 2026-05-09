@@ -100,18 +100,17 @@ function healthImg(score, crop) {
 
 // ─── Pest Risk ───────────────────────────────────────────────────────────────
 
-function pestRiskColor(risk) {
-    if (!risk) return "rgba(255,255,255,0.35)";
-    const r = risk.toLowerCase();
-    if (r === "high" || r === "critical") return "#EF4444";
-    if (r === "medium" || r === "moderate") return "#F59E0B";
+/** @param {"high"|"medium"|"low"|""} level — English keys only (not translated UI strings) */
+function pestRiskColor(level) {
+    if (!level) return "rgba(255,255,255,0.35)";
+    if (level === "high") return "#EF4444";
+    if (level === "medium") return "#F59E0B";
     return "#10B981";
 }
 
-function pestRiskImg(risk) {
-    if (!risk) return "https://images.unsplash.com/photo-1574943320219-3c1a7fec3b9c?w=200&q=75";
-    const r = risk.toLowerCase();
-    if (r === "high" || r === "critical") {
+function pestRiskImg(level) {
+    if (!level) return "https://images.unsplash.com/photo-1574943320219-3c1a7fec3b9c?w=200&q=75";
+    if (level === "high") {
         return "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=200&q=75";
     }
     return "https://images.unsplash.com/photo-1574943320219-3c1a7fec3b9c?w=200&q=75";
@@ -286,7 +285,23 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    /** Unsubscribe all home listeners (prevents duplicate snapshots if auth re-fires). */
+    let homeUnsubs = [];
+    const sub = (qOrRef, onNext, label) => {
+        const u = onSnapshot(
+            qOrRef,
+            onNext,
+            (err) => console.warn(`[dashboard] ${label}:`, err?.code || err?.message || err)
+        );
+        homeUnsubs.push(u);
+    };
+
     onAuthStateChanged(auth, (user) => {
+        homeUnsubs.forEach((u) => {
+            try { u(); } catch (_) {}
+        });
+        homeUnsubs = [];
+
         if (!user) {
             window.location.href = "login.html";
             return;
@@ -297,7 +312,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // ── 1) User profile ───────────────────────────────────────────────────
         const userRef = doc(db, "users", user.uid);
-        onSnapshot(userRef, (snap) => {
+        sub(userRef, (snap) => {
             const data = snap.exists() ? snap.data() : {};
             const fullName = data?.name || user.displayName
                 || (user.email ? user.email.split("@")[0] : "Farmer");
@@ -323,10 +338,10 @@ document.addEventListener("DOMContentLoaded", () => {
             if (data?.langPreference && window.i18n) {
                 window.i18n.setLanguage(data.langPreference);
             }
-        });
+        }, "users profile");
 
         // ── 2) Fields ─────────────────────────────────────────────────────────
-        onSnapshot(
+        sub(
             query(collection(db, "fields"), where("userId", "==", user.uid), limit(200)),
             (snap) => {
                 totalFields = snap.size;
@@ -338,15 +353,16 @@ document.addEventListener("DOMContentLoaded", () => {
                     const crop = d.data()?.crop;
                     if (crop) cropSet.add(crop.trim().toLowerCase());
                 });
-                updateGlanceCrops(cropSet.size || "--");
+                updateGlanceCrops(cropSet.size);
 
                 renderHomeFields(snap);
                 updateFarmStatus(totalFields, totalScans);
-            }
+            },
+            "fields"
         );
 
         // ── 3) Notifications ─────────────────────────────────────────────────
-        onSnapshot(
+        sub(
             query(collection(db, "notifications"), where("userId", "==", user.uid), limit(50)),
             (snap) => {
                 const items = [];
@@ -359,11 +375,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 items.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
                 setNotifBadge(unread);
                 renderNotifPanel(items);
-            }
+            },
+            "notifications"
         );
 
         // ── 4) Crop scans → Health Ring + Pest Prediction ─────────────────────
-        onSnapshot(
+        sub(
             query(collection(db, "crop_scans"), where("userId", "==", user.uid), limit(200)),
             (snap) => {
                 const scans = [];
@@ -451,42 +468,42 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 const raw = pestSig * 22 + fungalSig * 14 + critSig * 18;
                 const prob = clamp(Math.round((raw / Math.max(1, total)) * 2.2), 0, 95);
-                const riskStr = prob >= 70 ? t("high")
-                    : prob >= 35 ? t("medium")
-                    : t("low");
+                /** English key for logic — UI uses t() */
+                const riskLevel = prob >= 70 ? "high" : prob >= 35 ? "medium" : "low";
+                const riskLabel = riskLevel === "high" ? t("high") : riskLevel === "medium" ? t("medium") : t("low");
 
                 if (pestRiskEl) {
-                    pestRiskEl.textContent = riskStr;
-                    pestRiskEl.style.color = pestRiskColor(riskStr);
+                    pestRiskEl.textContent = riskLabel;
+                    pestRiskEl.style.color = pestRiskColor(riskLevel);
                 }
                 if (pestDescEl) {
-                    if (prob >= 70) {
+                    if (riskLevel === "high") {
                         pestDescEl.textContent = "High pest activity detected in recent scans. Immediate attention required.";
-                    } else if (prob >= 35) {
-                        pestDescEl.textContent = `${riskStr} pest pressure based on scan patterns. Monitor closely.`;
+                    } else if (riskLevel === "medium") {
+                        pestDescEl.textContent = `${riskLabel} pest pressure based on scan patterns. Monitor closely.`;
                     } else {
                         pestDescEl.textContent = "Pest risk is low based on recent scan analysis. Continue monitoring.";
                     }
                 }
-                if (pestImgEl) pestImgEl.src = pestRiskImg(riskStr);
+                if (pestImgEl) pestImgEl.src = pestRiskImg(riskLevel);
 
                 // Animate blip position based on risk
                 const blip = el("radar-blip");
-                const blip2 = el("radar-blip2");
                 if (blip) {
                     const positions = { high: { top: "25%", left: "65%" }, medium: { top: "35%", left: "60%" }, low: { top: "30%", left: "55%" } };
-                    const pos = positions[riskStr.toLowerCase()] || positions.low;
+                    const pos = positions[riskLevel] || positions.low;
                     blip.style.top = pos.top;
                     blip.style.left = pos.left;
-                    blip.style.background = pestRiskColor(riskStr);
-                    blip.style.boxShadow = `0 0 8px ${pestRiskColor(riskStr)}`;
+                    blip.style.background = pestRiskColor(riskLevel);
+                    blip.style.boxShadow = `0 0 8px ${pestRiskColor(riskLevel)}`;
                 }
-            }
+            },
+            "crop_scans"
         );
 
         // ── 5) Weather logs → Soil moisture + Irrigation glance ───────────────
         // (No orderBy: avoids needing a composite index; sort client-side)
-        onSnapshot(
+        sub(
             query(collection(db, "weather_logs"), where("userId", "==", user.uid), limit(80)),
             (snap) => {
                 let bestDoc = null;
@@ -512,11 +529,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else {
                     updateGlanceIrrig(null);
                 }
-            }
+            },
+            "weather_logs"
         );
 
         // ── 6) AI Recommendations → Insights (shown in notif panel) ───────────
-        onSnapshot(
+        sub(
             query(
                 collection(db, "ai_recommendations"),
                 where("userId", "==", user.uid),
@@ -526,7 +544,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (snap.empty) return;
                 // AI insights can be merged into notification panel or shown separately
                 // Currently kept available for other pages (assistant.html)
-            }
+            },
+            "ai_recommendations"
         );
     });
 });
