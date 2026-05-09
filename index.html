@@ -176,12 +176,16 @@
     }
     .wcard.wc-cloudy .wcard-bg { background-image: url('https://images.unsplash.com/photo-1534996858221-380b92700493?w=800&q=75'); }
     .wcard.wc-rainy .wcard-bg { background-image: url('https://images.unsplash.com/photo-1519692933481-e162a57d6721?w=800&q=75'); }
-    .wcard.wc-night .wcard-bg { background-image: url('https://images.unsplash.com/photo-1532978379173-523e16f371f9?w=800&q=75'); }
+    .wcard.wc-night .wcard-bg { background-image: url('https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?w=800&q=75'); background-position: center 40%; }
     .wcard.wc-fog .wcard-bg { background-image: url('https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800&q=75'); }
     .wcard.wc-snow .wcard-bg { background-image: url('https://images.unsplash.com/photo-1517299321609-52687d1bc55a?w=800&q=75'); }
     .wcard-overlay {
       position: absolute; inset: 0;
       background: linear-gradient(110deg, rgba(7,12,9,0.82) 0%, rgba(7,12,9,0.5) 55%, rgba(7,12,9,0.2) 100%);
+      transition: background 0.8s ease;
+    }
+    .wcard.wc-night .wcard-overlay {
+      background: linear-gradient(110deg, rgba(2,6,18,0.88) 0%, rgba(5,10,25,0.6) 55%, rgba(5,10,25,0.25) 100%);
     }
     .wcard-body {
       position: relative; z-index: 2;
@@ -519,6 +523,95 @@
     .mf-add-card i { font-size: 24px; color: var(--primary); }
     .mf-add-card span { font-size: 10px; color: var(--primary); font-weight: 600; }
 
+    /* ── NIGHT SKY ── */
+    .wc-night-sky {
+      position: absolute; inset: 0; z-index: 1;
+      pointer-events: none; overflow: hidden;
+      opacity: 0; transition: opacity 1.4s ease;
+    }
+    .wcard.wc-night .wc-night-sky { opacity: 1; }
+
+    /* Star dot layers — box-shadow set by JS */
+    .wc-star-layer {
+      position: absolute; top: 0; left: 0;
+      width: 1px; height: 1px;
+      border-radius: 50%; background: white;
+      pointer-events: none;
+    }
+    .wc-star-layer.s1 { animation: wcStarTwinkle 3.4s ease-in-out infinite alternate; }
+    .wc-star-layer.s2 { animation: wcStarTwinkle 5.1s ease-in-out infinite alternate 0.8s; }
+    .wc-star-layer.s3 { animation: wcStarTwinkle 7.3s ease-in-out infinite alternate 1.6s; }
+    @keyframes wcStarTwinkle {
+      0%   { opacity: 0.25; }
+      40%  { opacity: 0.9; }
+      70%  { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+
+    /* Moon glow */
+    .wc-moon-glow {
+      position: absolute; top: -20px; right: 12%;
+      width: 100px; height: 100px; border-radius: 50%;
+      background: radial-gradient(circle at center,
+        rgba(190,215,255,0.18) 0%,
+        rgba(170,200,255,0.08) 40%,
+        transparent 70%);
+      animation: wcMoonPulse 5s ease-in-out infinite alternate;
+    }
+    @keyframes wcMoonPulse {
+      from { opacity: 0.7; transform: scale(1); }
+      to   { opacity: 1;   transform: scale(1.12); }
+    }
+
+    /* Shooting star */
+    .wc-shoot {
+      position: absolute;
+      width: 3px; height: 3px; border-radius: 50%;
+      background: white;
+      box-shadow: 0 0 6px 2px rgba(220,235,255,0.9);
+      opacity: 0;
+      pointer-events: none;
+    }
+    /* Trail */
+    .wc-shoot::before {
+      content: '';
+      position: absolute; top: 50%; left: 100%;
+      transform: translateY(-50%);
+      width: 100px; height: 1.5px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.85), rgba(200,220,255,0.3), transparent);
+      border-radius: 1px;
+    }
+    .wc-shoot.ss1 {
+      top: 10%; left: 78%;
+      animation: wcShoot 12s ease-in-out infinite;
+      animation-delay: 3.5s;
+    }
+    .wc-shoot.ss2 {
+      top: 22%; left: 88%;
+      animation: wcShoot 14s ease-in-out infinite;
+      animation-delay: 9s;
+    }
+    @keyframes wcShoot {
+      0%,   82%, 100% { opacity: 0; transform: translate(0,0) rotate(-38deg); }
+      83%              { opacity: 1; transform: translate(0,0) rotate(-38deg); }
+      93%              { opacity: 0; transform: translate(-230px, 145px) rotate(-38deg); }
+    }
+
+    /* Subtle aurora band across top */
+    .wc-aurora {
+      position: absolute; top: 0; left: 0; right: 0; height: 45%;
+      background: linear-gradient(180deg,
+        rgba(80,170,120,0.07) 0%,
+        rgba(60,130,200,0.05) 50%,
+        transparent 100%);
+      animation: wcAurora 8s ease-in-out infinite alternate;
+      pointer-events: none;
+    }
+    @keyframes wcAurora {
+      from { opacity: 0.4; transform: scaleY(0.95); }
+      to   { opacity: 1;   transform: scaleY(1.05); }
+    }
+
     /* ── SKELETON ── */
     .skel {
       background: linear-gradient(90deg,
@@ -689,6 +782,17 @@
     <div class="wcard wc-sunny fade-up" id="wcard" onclick="window.location.href='weather.html'">
       <div class="wcard-bg" id="wcard-bg"></div>
       <div class="wcard-overlay"></div>
+
+      <!-- Night sky — stars, moon glow, shooting stars, aurora -->
+      <div class="wc-night-sky" id="wc-night-sky" aria-hidden="true">
+        <div class="wc-aurora"></div>
+        <div class="wc-moon-glow"></div>
+        <div class="wc-star-layer s1" id="wc-stars-sm"></div>
+        <div class="wc-star-layer s2" id="wc-stars-md"></div>
+        <div class="wc-star-layer s3" id="wc-stars-lg"></div>
+        <div class="wc-shoot ss1"></div>
+        <div class="wc-shoot ss2"></div>
+      </div>
       <div class="wcard-body">
         <p class="wcard-lbl" data-i18n="weatherNow">Weather Now</p>
         <div class="wcard-main">
@@ -951,6 +1055,31 @@
   if (notifBtn) notifBtn.addEventListener('click', openNotifPanel);
   if (npClose) npClose.addEventListener('click', closeNotifPanel);
   if (notifOverlay) notifOverlay.addEventListener('click', closeNotifPanel);
+
+  // ── Night sky star generator ──────────────────────────────────────────────
+  (function initNightStars() {
+    const W = 420, H = 195; // max card dims
+
+    function stars(count, spread, minOp, maxOp) {
+      // Each entry: Xpx Ypx 0 Spx rgba(255,255,255,O)
+      const shadows = [];
+      for (let i = 0; i < count; i++) {
+        const x  = Math.round(Math.random() * W);
+        const y  = Math.round(Math.random() * H * 0.88); // upper 88%
+        const s  = spread;
+        const op = (minOp + Math.random() * (maxOp - minOp)).toFixed(2);
+        shadows.push(`${x}px ${y}px 0 ${s}px rgba(255,255,255,${op})`);
+      }
+      return shadows.join(',');
+    }
+
+    const sm = document.getElementById('wc-stars-sm');
+    const md = document.getElementById('wc-stars-md');
+    const lg = document.getElementById('wc-stars-lg');
+    if (sm) sm.style.boxShadow = stars(70, 0,   0.2, 0.75);  // tiny, many
+    if (md) md.style.boxShadow = stars(35, 0.5, 0.5, 0.95);  // medium
+    if (lg) lg.style.boxShadow = stars(18, 1,   0.7, 1);     // bright, few
+  })();
 </script>
 
 <script src="js/app.js?v=21"></script>
