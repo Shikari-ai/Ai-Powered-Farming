@@ -139,10 +139,12 @@ function timeAgo(ms) {
 /* ─── logout ─── expose directly so inline sheet button can call it ── */
 window._profileLogout = () => logoutUser();
 
+let _langPanelI18nHooked = false;
+
 /* ─── static UI wiring ────────────────── */
 function wireStatic() {
-  /* main settings → account settings */
-  el("main-settings-btn")?.addEventListener("click", () => openPanel("panel-account-settings"));
+  /* main settings → account settings (global openPanel lives on window from profile.html) */
+  el("main-settings-btn")?.addEventListener("click", () => window.openPanel?.("panel-account-settings"));
 
   /* logout buttons are wired to showLogoutSheet() in the inline script */
 
@@ -256,7 +258,8 @@ function wireStatic() {
       }
     };
 
-    renderLangs();
+    window._hydrateLangPanel = () => renderLangs(langSearch ? langSearch.value : "");
+    window._hydrateLangPanel();
 
     if (langSearch) {
       langSearch.addEventListener("input", (e) => renderLangs(e.target.value));
@@ -270,9 +273,11 @@ function wireStatic() {
       renderLangs(langSearch ? langSearch.value : "");
       snack(t("lang.language_changed") || "Language updated successfully!");
     });
-    
-    // Listen for external updates (e.g., from init restoration)
-    window.addEventListener("i18n:updated", () => renderLangs(langSearch ? langSearch.value : ""));
+
+    if (!_langPanelI18nHooked) {
+      _langPanelI18nHooked = true;
+      window.addEventListener("i18n:updated", () => window._hydrateLangPanel?.());
+    }
   }
 }
 

@@ -210,6 +210,7 @@
   },
   "lang": {
     "select_language": "Select Language", "search_language": "Search language...",
-    "language_changed": "Language updated successfully!", "current": "Current"
+    "language_changed": "Language updated successfully!", "current": "Current",
+    "tap_to_apply": "Tap a language to apply. Your choice is saved automatically."
   }
 }

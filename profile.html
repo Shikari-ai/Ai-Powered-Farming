@@ -38,9 +38,11 @@
       transition:transform .32s cubic-bezier(.4,0,.2,1);
       will-change:transform;
       padding-bottom:88px;
+      z-index:1;
     }
     .screen::-webkit-scrollbar,.panel::-webkit-scrollbar{display:none;}
     .screen.active,.panel.active{transform:translateX(0);}
+    .panel.active{z-index:1010;}
     #screen-main{transform:translateX(0);}
 
     /* ── HEADER ── */
@@ -79,11 +81,10 @@
       background:var(--surface);border:1px solid var(--primary);color:var(--primary);
       display:flex;align-items:center;justify-content:center;font-size:11px;z-index:3;cursor:pointer;}
     .hero-info{flex:1;}
-      <div class="hero-name">
-        <span id="profile-name">Farmer</span>
-        <i class="ri-checkbox-circle-fill" style="color:var(--primary);font-size:14px;"></i>
-      </div>
-      <div class="hero-role" data-i18n="profile.farmer">Farmer</div>
+    .hero-name{
+      font-size:18px;font-weight:600;display:flex;align-items:center;gap:6px;
+    }
+    .hero-role{font-size:11px;color:var(--dim);margin-top:2px;}
     .hero-contact{display:flex;flex-direction:column;gap:4px;}
     .hero-c{font-size:9.5px;color:var(--dim);display:flex;align-items:center;gap:5px;}
     .hero-c i{color:var(--primary);font-size:11px;}
@@ -540,6 +541,30 @@
     </div>
     <div style="height:8px;"></div>
   </div><!-- /panel-account-settings -->
+
+  <!-- ════════════════════════════════════════
+       PANEL: LANGUAGE SELECTION
+  ════════════════════════════════════════ -->
+  <div id="panel-language" class="panel">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="closePanel('panel-language')"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title" data-i18n="profile.language">Language</span>
+      </div>
+      <div style="width:38px;"></div>
+    </div>
+
+    <div style="padding: 16px;">
+      <div class="search-bar" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px;display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+        <i class="ri-search-line" style="color:var(--dim);"></i>
+        <input type="text" id="lang-search" placeholder="Search language..." style="background:transparent;border:none;color:var(--txt);font-size:14px;outline:none;width:100%;" data-i18n-placeholder="lang.search_language">
+      </div>
+      <p style="font-size:11px;color:var(--dim);margin:-8px 0 14px;line-height:1.4;" data-i18n="lang.tap_to_apply">Tap a language to apply. Your choice is saved automatically.</p>
+      <div class="lang-list" id="lang-list" style="display:flex;flex-direction:column;gap:10px;">
+        <!-- Language items injected via JS -->
+      </div>
+    </div>
+  </div><!-- /panel-language -->
 
 
   <!-- ════════════════════════════════════════
@@ -1030,29 +1055,6 @@
     <a href="profile.html" class="b-nav-item active"><i class="ri-user-smile-fill"></i><span data-i18n="nav.profile">Profile</span></a>
   </nav>
 
-  <!-- ════════════════════════════════════════
-       PANEL: LANGUAGE SELECTION
-  ════════════════════════════════════════ -->
-  <div id="panel-language" class="panel">
-    <div class="hdr">
-      <div style="display:flex;align-items:center;gap:12px;">
-        <div class="hdr-back" onclick="closePanel('panel-language')"><i class="ri-arrow-left-line"></i></div>
-        <span class="hdr-title" data-i18n="profile.language">Language</span>
-      </div>
-      <div style="width:38px;"></div>
-    </div>
-    
-    <div style="padding: 16px;">
-      <div class="search-bar" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px;display:flex;align-items:center;gap:10px;margin-bottom:16px;">
-        <i class="ri-search-line" style="color:var(--dim);"></i>
-        <input type="text" id="lang-search" placeholder="Search language..." style="background:transparent;border:none;color:var(--txt);font-size:14px;outline:none;width:100%;" data-i18n-placeholder="lang.search_language">
-      </div>
-      <div class="lang-list" id="lang-list" style="display:flex;flex-direction:column;gap:10px;">
-        <!-- Language items injected via JS -->
-      </div>
-    </div>
-  </div><!-- /panel-language -->
-
 </div><!-- /shell -->
 
 <!-- snackbar lives OUTSIDE .shell so overflow:hidden never clips it -->
@@ -1074,6 +1076,9 @@
   function openPanel(id) {
     var el = document.getElementById(id);
     if (el) el.classList.add('active');
+    if (id === 'panel-language' && typeof window._hydrateLangPanel === 'function') {
+      window._hydrateLangPanel();
+    }
   }
   function closePanel(id) {
     var el = document.getElementById(id);
