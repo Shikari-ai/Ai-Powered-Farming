@@ -137,7 +137,7 @@
     "signin_btn": "Sign In", "full_name": "Full Name", "signup_btn": "Create Account",
     "terms_text": "I agree to the <span>Terms of Service</span> and <span>Privacy Policy</span>",
     "or_continue": "Or continue with", "google_btn": "Continue with Google", "apple_btn": "Continue with Apple",
-    "secure_title": "Your data is protected", "secure_desc": "Sign-in uses industry-standard security. Always use a strong, unique password.",
+    "secure_title": "Your data is 100% Secure", "secure_desc": "We use advanced military-grade encryption to protect your farm's sensitive information.",
     "strength": { "too_weak": "Too weak", "fair": "Fair", "good": "Good", "strong": "Strong 💪" },
     "error_email": "Please enter a valid email.",
     "error_name": "Please enter your full name.",
