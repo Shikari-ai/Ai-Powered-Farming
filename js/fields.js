@@ -349,12 +349,12 @@ function mountFieldsPage(user) {
         if (accuracyMarker) { map.removeLayer(accuracyMarker); accuracyMarker = null; }
 
         accuracyCircle = window.L.circle([lat, lng], {
-          radius: acc, color: "#39ff14", weight: 1.5,
-          fillColor: "#39ff14", fillOpacity: 0.07,
+          radius: acc, color: "#0A84FF", weight: 1.5,
+          fillColor: "#0A84FF", fillOpacity: 0.07,
         }).addTo(map);
 
         accuracyMarker = window.L.circleMarker([lat, lng], {
-          radius: 8, color: "#fff", fillColor: "#39ff14",
+          radius: 8, color: "#fff", fillColor: "#0A84FF",
           fillOpacity: 1, weight: 2.5,
         }).bindTooltip("You are here", { permanent: false }).addTo(map);
 
@@ -463,8 +463,21 @@ function mountFieldsPage(user) {
     }
 
     const inp = el("fms-search-input");
+    const clearBtn = el("fms-search-clear");
+
+    function updateClearBtn() {
+      if (clearBtn) clearBtn.style.display = inp?.value ? "flex" : "none";
+    }
+
+    clearBtn?.addEventListener("click", () => {
+      if (inp) { inp.value = ""; inp.focus(); }
+      hideFmsDropdown();
+      updateClearBtn();
+    });
+
     inp?.addEventListener("input", (e) => {
       clearTimeout(searchDebounce);
+      updateClearBtn();
       const q = e.target.value.trim();
       if (q.length < 2) { hideFmsDropdown(); return; }
       searchDebounce = setTimeout(() => fetchFmsSuggestions(q), 350);
@@ -496,12 +509,6 @@ function mountFieldsPage(user) {
     });
 
     inp?.addEventListener("blur", () => setTimeout(hideFmsDropdown, 200));
-
-    el("fms-search-btn")?.addEventListener("click", () => {
-      const q = inp?.value.trim();
-      if (!q) return;
-      fetchFmsSuggestions(q);
-    });
   }
 
   /* END FULL-SCREEN MAP FUNCTIONS */
@@ -591,22 +598,23 @@ function mountFieldsPage(user) {
       maxZoom: 20,
     });
 
-    // Satellite: ESRI World Imagery (free, no key needed)
+    // Satellite: ESRI World Imagery (crisp aerial photography, free, no key)
     satelliteLayer = window.L.tileLayer(
       "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-      { maxZoom: 20 }
+      { maxZoom: 20, attribution: "© Esri" }
     ).addTo(map);
 
-    // Labels overlay (roads, place names)
+    // Labels overlay for satellite: CartoDB Voyager labels only
+    // Shows every village, store, road name, landmark exactly like Google Maps
     labelsLayer = window.L.tileLayer(
-      "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-      { maxZoom: 20, opacity: 0.8 }
+      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}.png",
+      { maxZoom: 20, subdomains: "abcd", opacity: 1, attribution: "© CARTO" }
     ).addTo(map);
 
-    // Street tiles alternative
+    // Street map: CartoDB Voyager – beautiful modern map with all POIs, villages, stores
     streetLayer = window.L.tileLayer(
-      "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-      { maxZoom: 20 }
+      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+      { maxZoom: 20, subdomains: "abcd", attribution: "© OpenStreetMap contributors © CARTO" }
     );
 
     map.setView(FALLBACK_MAP_CENTER, 14);
@@ -625,10 +633,14 @@ function mountFieldsPage(user) {
   function updateFmsPointsLabel() {
     const n = drawingPoints.length;
     const lbl = el("fms-points-label");
-    if (!lbl) return;
-    if (n === 0) lbl.textContent = "Tap the satellite map to drop boundary corners";
-    else if (n < 3) lbl.textContent = `${n} point${n > 1 ? "s" : ""} — add ${3 - n} more to close polygon`;
-    else lbl.textContent = `${n} points — polygon drawn ✓`;
+    const confirmBtn = el("fms-confirm-full-btn");
+    if (lbl) {
+      if (n === 0) lbl.textContent = "Tap map to mark corners";
+      else if (n < 3) lbl.textContent = `${n} point${n > 1 ? "s" : ""} · need ${3 - n} more`;
+      else lbl.textContent = `${n} corners · polygon ready ✓`;
+      lbl.classList.toggle("has-poly", n >= 3);
+    }
+    if (confirmBtn) confirmBtn.classList.toggle("ready", n >= 3);
   }
 
   function redrawDrawing() {
@@ -640,20 +652,20 @@ function mountFieldsPage(user) {
     for (let i = 0; i < drawingPoints.length; i++) {
       const [lat, lng] = drawingPoints[i];
       window.L.circleMarker([lat, lng], {
-        radius: 5,
-        color: "#39ff14",
-        fillColor: "#39ff14",
-        fillOpacity: 0.95,
-        weight: 2,
+        radius: 6,
+        color: "#fff",
+        fillColor: "#0A84FF",
+        fillOpacity: 1,
+        weight: 2.5,
       })
         .bindTooltip(String(i + 1), { permanent: true, direction: "top" })
         .addTo(markersLayer);
     }
     if (drawingPoints.length >= 2) {
-      window.L.polyline(drawingPoints, { color: "#39ff14", weight: 2, dashArray: "6 6" }).addTo(boundaryLayer);
+      window.L.polyline(drawingPoints, { color: "#4DABFF", weight: 2.5, dashArray: "7 5", opacity: 0.9 }).addTo(boundaryLayer);
     }
     if (drawingPoints.length >= 3) {
-      window.L.polygon(drawingPoints, { color: "#39ff14", weight: 2, fillColor: "#39ff14", fillOpacity: 0.18 }).addTo(boundaryLayer);
+      window.L.polygon(drawingPoints, { color: "#0A84FF", weight: 2.5, fillColor: "#4DABFF", fillOpacity: 0.2 }).addTo(boundaryLayer);
       const acres = sqMetersToAcres(polygonAreaSqM(drawingPoints));
       if (el("field-area")) el("field-area").value = acres.toFixed(2);
       if (help) help.textContent = `Boundary: ${acres.toFixed(2)} acres. Adjust points or continue.`;
