@@ -8,6 +8,7 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/fi
 import {
     collection,
     doc,
+    getDoc,
     limit,
     onSnapshot,
     query,
@@ -296,17 +297,7 @@ document.addEventListener("DOMContentLoaded", () => {
         homeUnsubs.push(u);
     };
 
-    onAuthStateChanged(auth, (user) => {
-        homeUnsubs.forEach((u) => {
-            try { u(); } catch (_) {}
-        });
-        homeUnsubs = [];
-
-        if (!user) {
-            window.location.href = "login.html";
-            return;
-        }
-
+    const mountHome = (user) => {
         let totalFields = 0;
         let totalScans = 0;
 
@@ -547,6 +538,33 @@ document.addEventListener("DOMContentLoaded", () => {
             },
             "ai_recommendations"
         );
+    };
+
+    onAuthStateChanged(auth, (user) => {
+        homeUnsubs.forEach((u) => {
+            try { u(); } catch (_) {}
+        });
+        homeUnsubs = [];
+
+        if (!user) {
+            window.location.href = "login.html";
+            return;
+        }
+
+        const uref = doc(db, "users", user.uid);
+        getDoc(uref)
+            .then((snap) => {
+                const done = snap.exists() && snap.data()?.onboardingCompleted === true;
+                if (!done) {
+                    window.location.replace("onboarding.html");
+                    return;
+                }
+                mountHome(user);
+            })
+            .catch((e) => {
+                console.warn("[dashboard] onboarding gate:", e?.message || e);
+                mountHome(user);
+            });
     });
 });
 
