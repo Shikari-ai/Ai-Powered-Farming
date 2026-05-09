@@ -24,6 +24,7 @@
     <title>Fields - AgriTech AI</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/nav.css">
     <!-- MapLibre GL JS — WebGL, 60fps, free, no API key needed -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4/dist/maplibre-gl.css"/>
     <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4/dist/maplibre-gl.js"></script>
@@ -253,36 +254,7 @@
         .af-grid { position: absolute; right: -20px; bottom: -20px; width: 100px; height: 100px; border: 1px solid var(--primary); transform: rotateX(60deg) rotateZ(45deg); opacity: 0.2; background: repeating-linear-gradient(0deg, transparent, transparent 9px, var(--primary) 10px), repeating-linear-gradient(90deg, transparent, transparent 9px, var(--primary) 10px); }
 
         /* Bottom Nav */
-        .bottom-nav {
-            position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
-            width: 100%; max-width: 480px;
-            background: rgba(3, 6, 9, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-top: 1px solid rgba(255,255,255,0.05);
-            display: grid; grid-template-columns: repeat(5, 1fr); justify-items: center; align-items: center;
-            padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 16px));
-            z-index: 1000;
-        }
-        .b-nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: rgba(255,255,255,0.4); text-decoration: none; transition: 0.3s; }
-        .b-nav-item i { font-size: 22px; }
-        .b-nav-item span { font-size: 9px; font-weight: 500; }
-        .b-nav-item.active { color: #10B981; }
-        .b-nav-scan {
-            width: 64px; height: 64px; border-radius: 50%;
-            background: rgba(16,185,129,0.1); border: 1px solid #10B981;
-            display: flex; align-items: center; justify-content: center;
-            color: #10B981; font-size: 32px;
-            transform: translateY(-24px); box-shadow: 0 0 30px rgba(16,185,129,0.2), inset 0 0 20px rgba(16,185,129,0.2);
-            position: relative;
-            text-decoration: none;
-        }
-        .b-nav-scan::before { content: ''; position: absolute; top: -8px; left: -8px; right: -8px; bottom: -8px; border-radius: 50%; border: 1px dashed rgba(16,185,129,0.5); animation: spinSlow 10s linear infinite; }
-        .b-nav-scan::after { content: ''; position: absolute; top: -16px; left: -16px; right: -16px; bottom: -16px; border-radius: 50%; border: 1px solid rgba(16,185,129,0.1); animation: pulse 3s infinite; }
-        
-        .b-nav-scan.active-tab {
-            background: #10B981; color: #000; box-shadow: 0 0 40px rgba(16,185,129,0.5);
-        }
-
-        @keyframes spinSlow { 100% { transform: rotate(360deg); } }
+        /* nav styles → css/nav.css */
         @keyframes pulse { 0% { opacity: 1; transform: scale(0.95); } 50% { opacity: 0.5; transform: scale(1.05); } 100% { opacity: 1; transform: scale(0.95); } }
 
         .hidden { display: none !important; }

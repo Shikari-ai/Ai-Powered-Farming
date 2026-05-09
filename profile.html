@@ -9,6 +9,7 @@
   <title>Profile – Smart Farming</title>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/nav.css">
   <style>
     :root{
       --bg:#030609;--surface:#0A1118;--surface2:rgba(10,17,24,.7);
@@ -132,33 +133,7 @@
     }
 
     /* ── BOTTOM NAV ── */
-    .bnav{
-      position:fixed;bottom:0;left:50%;transform:translateX(-50%);
-      width:100%;max-width:480px;
-      background:rgba(3,6,9,0.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-      border-top:1px solid rgba(255,255,255,0.05);
-      display:grid;grid-template-columns:repeat(5,1fr);justify-items:center;align-items:center;
-      padding:8px 10px calc(8px + env(safe-area-inset-bottom,16px));
-      z-index:1000;
-    }
-    .bn-item{display:flex;flex-direction:column;align-items:center;gap:4px;
-      color:rgba(255,255,255,0.4);text-decoration:none;transition:.3s;}
-    .bn-item i{font-size:22px;}
-    .bn-item span{font-size:9px;font-weight:500;}
-    .bn-item.active{color:#10B981;}
-    .bn-scan{
-      width:64px;height:64px;border-radius:50%;
-      background:rgba(16,185,129,.1);border:1px solid #10B981;
-      display:flex;align-items:center;justify-content:center;
-      color:#10B981;font-size:32px;text-decoration:none;
-      transform:translateY(-24px);
-      box-shadow:0 0 30px rgba(16,185,129,.2),inset 0 0 20px rgba(16,185,129,.2);
-      position:relative;
-    }
-    .bn-scan::before{content:'';position:absolute;top:-8px;left:-8px;right:-8px;bottom:-8px;border-radius:50%;border:1px dashed rgba(16,185,129,.5);animation:bnSpin 10s linear infinite;}
-    .bn-scan::after{content:'';position:absolute;top:-16px;left:-16px;right:-16px;bottom:-16px;border-radius:50%;border:1px solid rgba(16,185,129,.1);animation:bnPulse 3s infinite;}
-    @keyframes bnSpin{100%{transform:rotate(360deg);}}
-    @keyframes bnPulse{0%{opacity:1;transform:scale(.95);}50%{opacity:.5;transform:scale(1.05);}100%{opacity:1;transform:scale(.95);}}
+    /* nav styles → css/nav.css */
 
     /* ── SECTION HEADING ── */
     .sec-h{font-size:11px;color:var(--dim);font-weight:500;
@@ -1019,12 +994,12 @@
   <!-- ════════════════════════════════════════
        BOTTOM NAV
   ════════════════════════════════════════ -->
-  <nav class="bnav">
-    <a href="index.html" class="bn-item"><i class="ri-home-5-line"></i><span>Home</span></a>
-    <a href="map.html" class="bn-item"><i class="ri-map-2-line"></i><span>Map</span></a>
-    <a href="fields.html" class="bn-scan"><i class="ri-leaf-fill"></i></a>
-    <a href="assistant.html" class="bn-item"><i class="ri-sparkling-line"></i><span>AI</span></a>
-    <a href="profile.html" class="bn-item active"><i class="ri-user-smile-fill"></i><span>Profile</span></a>
+  <nav class="bottom-nav">
+    <a href="index.html" class="b-nav-item"><i class="ri-home-5-line"></i><span>Home</span></a>
+    <a href="map.html" class="b-nav-item"><i class="ri-map-2-line"></i><span>Map</span></a>
+    <a href="fields.html" class="b-nav-scan"><i class="ri-leaf-fill"></i></a>
+    <a href="assistant.html" class="b-nav-item"><i class="ri-sparkling-line"></i><span>AI</span></a>
+    <a href="profile.html" class="b-nav-item active"><i class="ri-user-smile-fill"></i><span>Profile</span></a>
   </nav>
 
 </div><!-- /shell -->
