@@ -21,215 +21,160 @@
     })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smart Farming — Sign in</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Authentication - AgriTech AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <style>
         :root {
             --primary: #10b981;
-            --primary-glow: rgba(16, 185, 129, 0.55);
             --primary-dim: #059669;
-            --card: rgba(20, 25, 30, 0.92);
-            --card-border: rgba(255, 255, 255, 0.08);
-            --field-bg: rgba(12, 16, 22, 0.85);
-            --text: #ffffff;
-            --muted: #9ca3af;
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: rgba(255, 255, 255, 0.1);
+            --text: #f8fafc;
+            --muted: #94a3b8;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
 
         body {
-            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
             color: var(--text);
             min-height: 100vh;
             display: flex;
             justify-content: center;
-            align-items: center;
-            padding: 28px 18px 40px;
-            position: relative;
-            overflow-x: hidden;
-        }
-
-        .page-bg {
-            position: fixed;
-            inset: 0;
-            z-index: 0;
-            background:
-                linear-gradient(160deg, rgba(15, 23, 42, 0.55) 0%, rgba(6, 78, 59, 0.35) 100%),
-                url('https://images.unsplash.com/photo-1523348837708-ccddcda28030?auto=format&fit=crop&w=1920&q=85') center/cover no-repeat;
-            filter: blur(14px);
-            transform: scale(1.07);
-        }
-
-        .page-bg-fallback {
-            position: fixed;
-            inset: 0;
-            z-index: -1;
-            background: linear-gradient(145deg, #0f172a 0%, #064e3b 50%, #022c22 100%);
+            padding: 32px 20px 48px;
         }
 
         .wrap {
             width: 100%;
-            max-width: 420px;
+            max-width: 400px;
             position: relative;
             z-index: 1;
         }
 
         .brand {
             text-align: center;
-            margin-bottom: 26px;
+            margin-bottom: 28px;
         }
-
         .brand .logo {
-            width: 72px;
-            height: 72px;
-            margin: 0 auto 16px;
-            border-radius: 50%;
-            background: rgba(16, 185, 129, 0.08);
-            border: 1px solid rgba(16, 185, 129, 0.35);
-            box-shadow: 0 0 28px rgba(16, 185, 129, 0.25), inset 0 0 20px rgba(16, 185, 129, 0.06);
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 14px;
+            border-radius: 14px;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.3);
             display: flex;
             align-items: center;
             justify-content: center;
             color: var(--primary);
-            font-size: 34px;
+            font-size: 28px;
         }
-
         .brand h1 {
-            font-size: 1.75rem;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-        }
-
-        .brand h1 .brand-smart { color: #fff; }
-        .brand h1 .brand-farming { color: var(--primary); }
-
-        .brand .tagline {
-            font-size: 0.72rem;
+            font-size: 1.5rem;
             font-weight: 600;
-            letter-spacing: 0.22em;
-            color: rgba(255, 255, 255, 0.88);
-            margin-top: 8px;
-            text-transform: uppercase;
+        }
+        .brand p {
+            font-size: 0.8125rem;
+            color: var(--muted);
+            margin-top: 6px;
         }
 
         .card {
-            background: var(--card);
-            border: 1px solid var(--card-border);
-            border-radius: 28px;
-            padding: 28px 24px 26px;
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
         }
 
-        #dynamic-header { margin-bottom: 22px; }
-        .welcome-text { font-size: 1.35rem; font-weight: 700; margin-bottom: 6px; letter-spacing: -0.02em; }
-        .sub-text { font-size: 0.875rem; color: var(--muted); line-height: 1.45; }
+        #dynamic-header { margin-bottom: 20px; }
+        .welcome-text { font-size: 1.25rem; font-weight: 600; margin-bottom: 4px; }
+        .sub-text { font-size: 0.875rem; color: var(--muted); line-height: 1.4; }
 
         .tabs {
             display: flex;
-            margin-bottom: 22px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
             position: relative;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
-
         .tab-btn {
             flex: 1;
-            padding: 14px 8px 12px;
+            padding: 12px 8px;
             border: none;
             background: none;
             color: var(--muted);
-            font-size: 0.75rem;
-            font-weight: 700;
-            letter-spacing: 0.12em;
+            font-size: 0.8125rem;
+            font-weight: 600;
             cursor: pointer;
             font-family: inherit;
-            text-transform: uppercase;
         }
-
-        .tab-btn.active { color: #fff; }
-
+        .tab-btn.active { color: var(--text); }
         .tab-ind {
             position: absolute;
             bottom: -1px;
             left: 0;
             width: 50%;
-            height: 3px;
+            height: 2px;
             background: var(--primary);
-            border-radius: 3px 3px 0 0;
-            box-shadow: 0 0 14px var(--primary-glow), 0 0 24px rgba(16, 185, 129, 0.35);
-            transition: transform 0.28s ease;
+            transition: transform 0.25s ease;
         }
 
         .panel-hidden { display: none !important; }
 
-        .input-block { margin-bottom: 16px; }
-
         .row {
             display: flex;
             align-items: stretch;
-            gap: 12px;
-            padding: 4px 4px 4px 6px;
-            border-radius: 14px;
-            background: var(--field-bg);
-            border: 1px solid rgba(255, 255, 255, 0.07);
-            transition: border-color 0.2s, box-shadow 0.2s;
+            gap: 10px;
+            margin-bottom: 14px;
         }
-
-        .row:focus-within {
-            border-color: rgba(16, 185, 129, 0.45);
-            box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.12);
-        }
-
         .row .ico {
-            width: 48px;
+            width: 44px;
             flex-shrink: 0;
-            border-radius: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: rgba(15, 23, 42, 0.5);
             display: flex;
             align-items: center;
             justify-content: center;
             color: var(--muted);
-            font-size: 22px;
+            font-size: 20px;
         }
-
-        .row:focus-within .ico { color: var(--primary); }
+        .row:focus-within .ico { color: var(--primary); border-color: rgba(16, 185, 129, 0.35); }
 
         .field {
             flex: 1;
             min-width: 0;
-            padding: 10px 4px 12px 0;
         }
-
         .field label {
             display: block;
             font-size: 0.6875rem;
-            font-weight: 600;
-            color: rgba(255, 255, 255, 0.45);
-            margin-bottom: 4px;
+            font-weight: 500;
+            color: var(--muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
             letter-spacing: 0.04em;
         }
-
         .field input {
             width: 100%;
-            padding: 0;
-            border: none;
-            background: transparent;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: rgba(15, 23, 42, 0.6);
             color: var(--text);
             font-size: 0.9375rem;
             outline: none;
             font-family: inherit;
         }
-
-        .field input::placeholder { color: rgba(156, 163, 175, 0.55); }
+        .field input:focus {
+            border-color: rgba(16, 185, 129, 0.5);
+        }
 
         .eye {
-            width: 48px;
+            width: 44px;
             flex-shrink: 0;
-            margin: 6px 6px 6px 0;
-            border-radius: 12px;
-            border: none;
-            background: rgba(255, 255, 255, 0.04);
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: rgba(15, 23, 42, 0.5);
             color: var(--muted);
             cursor: pointer;
             display: flex;
@@ -237,67 +182,52 @@
             justify-content: center;
             font-size: 20px;
         }
-
-        .eye:hover { color: #e5e7eb; }
+        .eye:hover { color: var(--text); }
 
         .forgot-link {
             display: block;
             text-align: right;
             font-size: 0.8125rem;
-            font-weight: 500;
             color: var(--primary);
             text-decoration: none;
-            margin: -4px 0 20px;
+            margin: -6px 0 18px;
         }
-
         .forgot-link:hover { text-decoration: underline; }
 
-        .submit-wrap { margin-top: 4px; }
-
+        .submit-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin-top: 4px;
+        }
         .primary-btn {
             width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 14px 14px 14px 22px;
+            padding: 14px 16px;
             border: none;
-            border-radius: 14px;
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: #fff;
-            font-size: 1rem;
+            border-radius: 10px;
+            background: var(--primary);
+            color: #042f2e;
+            font-size: 0.9375rem;
             font-weight: 600;
             cursor: pointer;
             font-family: inherit;
-            box-shadow: 0 8px 28px rgba(16, 185, 129, 0.35);
         }
+        .primary-btn:hover { background: var(--primary-dim); color: #fff; }
+        .primary-btn:disabled { opacity: 0.65; cursor: not-allowed; }
 
-        .primary-btn:hover {
-            filter: brightness(1.06);
-            box-shadow: 0 10px 32px rgba(16, 185, 129, 0.42);
-        }
-
-        .primary-btn:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-
-        .primary-btn-label { flex: 1; text-align: left; }
-
-        .primary-btn-arrow {
-            width: 44px;
-            height: 44px;
-            flex-shrink: 0;
-            border-radius: 12px;
-            background: #fff;
+        .login-icon-below {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
+            gap: 4px;
+            color: var(--muted);
+            font-size: 0.75rem;
+        }
+        .login-icon-below i {
+            font-size: 1.5rem;
             color: var(--primary);
         }
-
-        .primary-btn-arrow svg { display: block; }
 
         .strength-wrap { margin: 4px 0 12px; }
         .strength-bars { display: flex; gap: 5px; margin-bottom: 5px; }
@@ -323,66 +253,67 @@
             display: flex;
             align-items: center;
             gap: 12px;
-            margin: 24px 0 18px;
+            margin: 20px 0;
             font-size: 0.75rem;
             color: var(--muted);
-            font-weight: 500;
         }
         .divider::before, .divider::after {
             content: '';
             flex: 1;
             height: 1px;
-            background: rgba(255, 255, 255, 0.12);
+            background: var(--border);
         }
 
-        .social-btn {
+        .social-google {
             width: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 12px;
-            padding: 14px 16px;
-            border-radius: 14px;
-            border: 1px solid rgba(0, 0, 0, 0.06);
+            gap: 10px;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
             background: #fff;
-            color: #111827;
+            color: #1e293b;
             font-size: 0.875rem;
-            font-weight: 600;
+            font-weight: 500;
+            cursor: pointer;
+            margin-bottom: 10px;
+            font-family: inherit;
+        }
+        .social-google:hover { background: #f1f5f9; }
+
+        .social-apple {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: #0a0a0a;
+            color: #f8fafc;
+            font-size: 0.875rem;
+            font-weight: 500;
             cursor: pointer;
             font-family: inherit;
-            transition: background 0.2s, transform 0.15s;
         }
-
-        .social-btn:hover { background: #f9fafb; }
-        .social-btn:active { transform: scale(0.99); }
-
-        .social-btn + .social-btn { margin-top: 12px; }
-
-        .social-btn .g-logo {
-            flex-shrink: 0;
-            display: block;
-        }
-
-        .social-btn .apple-ico {
-            font-size: 22px;
-            color: #000;
-            line-height: 1;
-        }
+        .social-apple:hover { background: #171717; }
 
         .security-badge {
-            margin-top: 22px;
-            padding: 14px 16px;
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 24px;
+            padding: 14px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
             font-size: 0.75rem;
             color: var(--muted);
             line-height: 1.45;
-            background: rgba(15, 23, 42, 0.35);
         }
         .security-badge strong {
             display: block;
-            color: rgba(255, 255, 255, 0.9);
-            font-weight: 600;
+            color: var(--text);
+            font-weight: 500;
             margin-bottom: 4px;
         }
 
@@ -425,16 +356,13 @@
     </style>
 </head>
 <body>
-    <div class="page-bg-fallback" aria-hidden="true"></div>
-    <div class="page-bg" aria-hidden="true"></div>
-
     <div class="login-toast" id="login-toast"></div>
 
     <div class="wrap">
         <div class="brand">
             <div class="logo"><i class="ri-leaf-fill"></i></div>
-            <h1><span class="brand-smart" data-i18n="auth.title_smart">Smart</span> <span class="brand-farming" data-i18n="auth.title_farming">Farming</span></h1>
-            <p class="tagline" data-i18n="auth.subtitle_caps">AI Powered Agriculture</p>
+            <h1 data-i18n="auth.title">Smart Farming</h1>
+            <p data-i18n="auth.subtitle">AI Powered Agriculture</p>
         </div>
 
         <div class="card">
@@ -452,35 +380,28 @@
             <!-- Sign in -->
             <div id="signin-section">
                 <form id="form-signin">
-                    <div class="input-block">
-                        <div class="row">
-                            <div class="ico"><i class="ri-user-3-line"></i></div>
-                            <div class="field">
-                                <label for="si-email" data-i18n="auth.email">Email Address</label>
-                                <input type="email" id="si-email" name="email" autocomplete="email" placeholder="Enter your email address" data-i18n-placeholder="auth.placeholder_email" required>
-                            </div>
+                    <div class="row">
+                        <div class="ico"><i class="ri-mail-line"></i></div>
+                        <div class="field">
+                            <label for="si-email" data-i18n="auth.email">Email Address</label>
+                            <input type="email" id="si-email" name="email" autocomplete="email" required>
                         </div>
                     </div>
-                    <div class="input-block">
-                        <div class="row">
-                            <div class="ico"><i class="ri-lock-2-line"></i></div>
-                            <div class="field">
-                                <label for="si-password" data-i18n="auth.password">Password</label>
-                                <input type="password" id="si-password" name="password" autocomplete="current-password" placeholder="Enter your password" data-i18n-placeholder="auth.placeholder_password" required>
-                            </div>
-                            <button type="button" class="eye" id="si-eye" aria-label="Show password"><i class="ri-eye-off-line"></i></button>
+                    <div class="row">
+                        <div class="ico"><i class="ri-lock-2-line"></i></div>
+                        <div class="field">
+                            <label for="si-password" data-i18n="auth.password">Password</label>
+                            <input type="password" id="si-password" name="password" autocomplete="current-password" required>
                         </div>
+                        <button type="button" class="eye" id="si-eye" aria-label="Show password"><i class="ri-eye-off-line"></i></button>
                     </div>
                     <a href="#" class="forgot-link" id="forgot-link" data-i18n="auth.forgot_password">Forgot Password?</a>
                     <div class="submit-wrap">
-                        <button type="submit" class="primary-btn" id="si-btn">
-                            <span class="primary-btn-label" id="si-btn-label" data-i18n="auth.signin_btn">Sign In</span>
-                            <span class="primary-btn-arrow" aria-hidden="true">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                    <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                            </span>
-                        </button>
+                        <button type="submit" class="primary-btn" id="si-btn" data-i18n="auth.signin_btn">Sign In</button>
+                        <div class="login-icon-below" aria-hidden="true">
+                            <i class="ri-login-circle-line"></i>
+                            <span data-i18n="auth.signin_tab">Sign In</span>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -488,33 +409,27 @@
             <!-- Sign up -->
             <div id="signup-section" class="panel-hidden">
                 <form id="form-signup">
-                    <div class="input-block">
-                        <div class="row">
-                            <div class="ico"><i class="ri-user-line"></i></div>
-                            <div class="field">
-                                <label for="su-name" data-i18n="auth.full_name">Full Name</label>
-                                <input type="text" id="su-name" name="name" autocomplete="name" placeholder="Enter your full name" data-i18n-placeholder="auth.placeholder_name" required>
-                            </div>
+                    <div class="row">
+                        <div class="ico"><i class="ri-user-line"></i></div>
+                        <div class="field">
+                            <label for="su-name" data-i18n="auth.full_name">Full Name</label>
+                            <input type="text" id="su-name" name="name" autocomplete="name" required>
                         </div>
                     </div>
-                    <div class="input-block">
-                        <div class="row">
-                            <div class="ico"><i class="ri-user-3-line"></i></div>
-                            <div class="field">
-                                <label for="su-email" data-i18n="auth.email">Email Address</label>
-                                <input type="email" id="su-email" name="email" autocomplete="email" placeholder="Enter your email address" data-i18n-placeholder="auth.placeholder_email" required>
-                            </div>
+                    <div class="row">
+                        <div class="ico"><i class="ri-mail-line"></i></div>
+                        <div class="field">
+                            <label for="su-email" data-i18n="auth.email">Email Address</label>
+                            <input type="email" id="su-email" name="email" autocomplete="email" required>
                         </div>
                     </div>
-                    <div class="input-block">
-                        <div class="row">
-                            <div class="ico"><i class="ri-lock-2-line"></i></div>
-                            <div class="field">
-                                <label for="su-password" data-i18n="auth.password">Password</label>
-                                <input type="password" id="su-password" name="password" autocomplete="new-password" placeholder="Create a password" data-i18n-placeholder="auth.placeholder_password_create" required>
-                            </div>
-                            <button type="button" class="eye" id="su-eye" aria-label="Show password"><i class="ri-eye-off-line"></i></button>
+                    <div class="row">
+                        <div class="ico"><i class="ri-lock-2-line"></i></div>
+                        <div class="field">
+                            <label for="su-password" data-i18n="auth.password">Password</label>
+                            <input type="password" id="su-password" name="password" autocomplete="new-password" required>
                         </div>
+                        <button type="button" class="eye" id="su-eye" aria-label="Show password"><i class="ri-eye-off-line"></i></button>
                     </div>
                     <div class="strength-wrap" id="strength-wrap" style="display:none;">
                         <div class="strength-bars">
@@ -530,23 +445,19 @@
                         <label for="su-terms" id="su-terms-label">I agree to the Terms of Service and Privacy Policy</label>
                     </div>
                     <div class="submit-wrap">
-                        <button type="submit" class="primary-btn" id="su-btn">
-                            <span class="primary-btn-label" id="su-btn-label" data-i18n="auth.signup_btn">Create Account</span>
-                            <span class="primary-btn-arrow" aria-hidden="true">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                    <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                            </span>
-                        </button>
+                        <button type="submit" class="primary-btn" id="su-btn" data-i18n="auth.signup_btn">Create Account</button>
+                        <div class="login-icon-below" aria-hidden="true">
+                            <i class="ri-user-add-line"></i>
+                            <span data-i18n="auth.signup_tab">Sign Up</span>
+                        </div>
                     </div>
                 </form>
             </div>
 
-            <div class="divider"><span data-i18n="auth.or_continue">or continue with</span></div>
+            <div class="divider" data-i18n="auth.or_continue">or continue with</div>
 
-            <button type="button" class="social-btn" id="btn-google" aria-label="Continue with Google">
-                <!-- Official Google full-color logomark (product icon) -->
-                <svg class="g-logo" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 48 48" aria-hidden="true">
+            <button type="button" class="social-google" id="btn-google">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="22" height="22" aria-hidden="true">
                   <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
                   <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
                   <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
@@ -555,8 +466,8 @@
                 <span data-i18n="auth.google_btn">Continue with Google</span>
             </button>
 
-            <button type="button" class="social-btn" id="btn-apple" aria-label="Continue with Apple">
-                <i class="ri-apple-fill apple-ico" aria-hidden="true"></i>
+            <button type="button" class="social-apple" id="btn-apple">
+                <i class="ri-apple-fill" style="font-size:22px;"></i>
                 <span data-i18n="auth.apple_btn">Continue with Apple</span>
             </button>
         </div>
@@ -568,26 +479,9 @@
     </div>
 
     <script type="module">
-        import { auth, loginWithEmailPwd, signUpWithEmail, loginWithGoogle, loginWithApple } from './js/auth.js';
+        import { auth, loginWithEmailPwd, signUpWithEmail, loginWithGoogle } from './js/auth.js';
         import { initI18n, startI18nObserver, t } from './js/i18n.js';
         import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
-        function primaryBtnLoading() {
-            return '<span class="primary-btn-label" style="flex:1;text-align:center"><i class="ri-loader-4-line spin"></i></span>';
-        }
-
-        function signInButtonRestored() {
-            return '<span class="primary-btn-label" id="si-btn-label" data-i18n="auth.signin_btn">' + t('auth.signin_btn') + '</span>'
-                + '<span class="primary-btn-arrow" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
-        }
-
-        function signUpButtonRestored() {
-            return '<span class="primary-btn-label" id="su-btn-label" data-i18n="auth.signup_btn">' + t('auth.signup_btn') + '</span>'
-                + '<span class="primary-btn-arrow" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
-        }
-
-        await initI18n();
-        startI18nObserver();
 
         function toast(msg, type = 'info', duration = 4000) {
             const el = document.getElementById('login-toast');
@@ -600,13 +494,13 @@
         function restoreSignInButton() {
             const btn = document.getElementById('si-btn');
             btn.disabled = false;
-            btn.innerHTML = signInButtonRestored();
+            btn.textContent = t('auth.signin_btn');
         }
 
         function restoreSignUpButton() {
             const btn = document.getElementById('su-btn');
             btn.disabled = false;
-            btn.innerHTML = signUpButtonRestored();
+            btn.textContent = t('auth.signup_btn');
         }
 
         let activeTab = 'signin';
@@ -669,73 +563,89 @@
             el.classList.add('shake');
         }
 
-        document.getElementById('tab-signin').addEventListener('click', () => switchTab('signin'));
-        document.getElementById('tab-signup').addEventListener('click', () => switchTab('signup'));
+        async function wireLoginPage() {
+            document.getElementById('tab-signin').addEventListener('click', () => switchTab('signin'));
+            document.getElementById('tab-signup').addEventListener('click', () => switchTab('signup'));
 
-        document.getElementById('form-signin').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const email = document.getElementById('si-email').value.trim();
-            const pwd = document.getElementById('si-password').value;
-            const btn = document.getElementById('si-btn');
-            btn.disabled = true;
-            btn.innerHTML = primaryBtnLoading();
-            loginWithEmailPwd(email, pwd).catch((err) => {
-                restoreSignInButton();
-                shakeEl('signin-section');
-                toast(String(err?.message || '').replace(/^Firebase:\s*/,'').replace(/\s*\(auth\/[^)]+\)\s*$/,'') || 'Sign in failed.', 'error');
+            document.getElementById('form-signin').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const email = document.getElementById('si-email').value.trim();
+                const pwd = document.getElementById('si-password').value;
+                const btn = document.getElementById('si-btn');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="ri-loader-4-line spin"></i>';
+                loginWithEmailPwd(email, pwd).catch((err) => {
+                    restoreSignInButton();
+                    shakeEl('signin-section');
+                    toast(String(err?.message || '').replace(/^Firebase:\s*/,'').replace(/\s*\(auth\/[^)]+\)\s*$/,'') || 'Sign in failed.', 'error');
+                });
             });
-        });
 
-        document.getElementById('su-password').addEventListener('input', (e) => checkStrength(e.target.value));
+            document.getElementById('su-password').addEventListener('input', (e) => checkStrength(e.target.value));
 
-        document.getElementById('form-signup').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const name = document.getElementById('su-name').value.trim();
-            const email = document.getElementById('su-email').value.trim();
-            const pwd = document.getElementById('su-password').value;
-            const btn = document.getElementById('su-btn');
-            btn.disabled = true;
-            btn.innerHTML = primaryBtnLoading();
-            signUpWithEmail(email, pwd, name).catch((err) => {
-                restoreSignUpButton();
-                shakeEl('signup-section');
-                toast(String(err?.message || '').replace(/^Firebase:\s*/,'').replace(/\s*\(auth\/[^)]+\)\s*$/,'') || 'Sign up failed.', 'error');
+            document.getElementById('form-signup').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = document.getElementById('su-name').value.trim();
+                const email = document.getElementById('su-email').value.trim();
+                const pwd = document.getElementById('su-password').value;
+                const btn = document.getElementById('su-btn');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="ri-loader-4-line spin"></i>';
+                signUpWithEmail(email, pwd, name).catch((err) => {
+                    restoreSignUpButton();
+                    shakeEl('signup-section');
+                    toast(String(err?.message || '').replace(/^Firebase:\s*/,'').replace(/\s*\(auth\/[^)]+\)\s*$/,'') || 'Sign up failed.', 'error');
+                });
             });
-        });
 
-        document.getElementById('btn-google').addEventListener('click', () => loginWithGoogle());
-        document.getElementById('btn-apple').addEventListener('click', () => loginWithApple());
+            document.getElementById('btn-google').addEventListener('click', () => loginWithGoogle());
+            document.getElementById('btn-apple').addEventListener('click', () => loginWithGoogle());
 
-        document.getElementById('forgot-link').addEventListener('click', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('si-email').value.trim();
-            if (!email) {
-                toast(t('auth.error_email') || 'Enter your email first.', 'info');
-                return;
-            }
+            document.getElementById('forgot-link').addEventListener('click', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('si-email').value.trim();
+                if (!email) {
+                    toast(t('auth.error_email') || 'Enter your email first.', 'info');
+                    return;
+                }
+                try {
+                    await sendPasswordResetEmail(auth, email);
+                    toast('Reset link sent to ' + email, 'success');
+                } catch (err) {
+                    toast(String(err?.message || 'Could not send reset email.'), 'error');
+                }
+            });
+
+            wirePwdToggle('si-password', 'si-eye');
+            wirePwdToggle('su-password', 'su-eye');
+
+            document.getElementById('su-terms-label').innerHTML = t('auth.terms_text');
+            window.switchTab = switchTab;
+
             try {
-                await sendPasswordResetEmail(auth, email);
-                toast('Reset link sent to ' + email, 'success');
-            } catch (err) {
-                toast(String(err?.message || 'Could not send reset email.'), 'error');
-            }
-        });
-
-        wirePwdToggle('si-password', 'si-eye');
-        wirePwdToggle('su-password', 'su-eye');
-
-        document.getElementById('su-terms-label').innerHTML = t('auth.terms_text');
-
-        await auth.authStateReady();
-        const path = location.pathname || '';
-        if (/login\.html$/i.test(path) && auth.currentUser) {
-            try {
-                const u = auth.currentUser;
-                const name = u.displayName || (u.email ? u.email.split('@')[0] : 'Farmer');
-                localStorage.setItem('agri_user', JSON.stringify({ name, email: u.email || '' }));
+                await auth.authStateReady();
+                const path = location.pathname || '';
+                if (/login\.html$/i.test(path) && auth.currentUser) {
+                    try {
+                        const u = auth.currentUser;
+                        const name = u.displayName || (u.email ? u.email.split('@')[0] : 'Farmer');
+                        localStorage.setItem('agri_user', JSON.stringify({ name, email: u.email || '' }));
+                    } catch (_) {}
+                    window.location.replace('index.html');
+                }
             } catch (_) {}
-            window.location.replace('index.html');
         }
+
+        (async function boot() {
+            try {
+                await initI18n();
+            } catch (err) {
+                console.error('[login] initI18n failed', err);
+                toast('Could not load translations. Check your connection and refresh.', 'error', 8000);
+            }
+            startI18nObserver();
+            await wireLoginPage();
+        })();
     </script>
 </body>
 </html>
