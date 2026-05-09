@@ -3,6 +3,7 @@ import {
     getAuth,
     signInWithPopup,
     GoogleAuthProvider,
+    OAuthProvider,
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     sendPasswordResetEmail,
@@ -44,6 +45,9 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 const googleProvider = new GoogleAuthProvider();
+const appleProvider = new OAuthProvider('apple.com');
+appleProvider.addScope('email');
+appleProvider.addScope('name');
 
 // Offline persistence (production-grade caching). Safe to ignore if unavailable (e.g. private mode / multiple tabs).
 enableIndexedDbPersistence(db).catch((err) => {
@@ -55,68 +59,68 @@ enableIndexedDbPersistence(db).catch((err) => {
 // it caused post-logout bounce because Firebase's IndexedDB cache briefly
 // reports user as signed-in even after signOut.
 
+// Persist a /users/{uid} doc but never block auth on it. If Firestore is
+// unreachable or rules reject the write, log + continue — the auth account
+// already exists and the user shouldn't be locked out.
+async function saveUserDocSafely(uid, data) {
+    try {
+        await setDoc(doc(db, "users", uid), data, { merge: true });
+    } catch (err) {
+        console.warn("[auth] Firestore user-doc write failed (non-fatal):", err?.code || err?.message || err);
+    }
+}
+
 // 1. Google Auth
 export const loginWithGoogle = async () => {
-    try {
-        const result = await signInWithPopup(auth, googleProvider);
-        const user = result.user;
+    const result = await signInWithPopup(auth, googleProvider);
+    const user = result.user;
+    await saveUserDocSafely(user.uid, {
+        name: user.displayName,
+        email: user.email,
+        photoURL: user.photoURL,
+        lastLogin: serverTimestamp(),
+        authProvider: 'google'
+    });
+    localStorage.setItem('agri_user', JSON.stringify({ name: user.displayName || "Farmer", email: user.email }));
+    window.location.replace("index.html");
+};
 
-        // Save to Firestore Database
-        await setDoc(doc(db, "users", user.uid), {
-            name: user.displayName,
-            email: user.email,
-            photoURL: user.photoURL,
-            lastLogin: serverTimestamp(),
-            authProvider: 'google'
-        }, { merge: true });
-
-        // Sync with local app logic
-        localStorage.setItem('agri_user', JSON.stringify({name: user.displayName || "Farmer", email: user.email}));
-        window.location.replace("index.html");
-    } catch (error) {
-        alert("Google Login Error: " + error.message);
-        throw error;
-    }
+// 1b. Apple Auth
+export const loginWithApple = async () => {
+    const result = await signInWithPopup(auth, appleProvider);
+    const user = result.user;
+    await saveUserDocSafely(user.uid, {
+        name: user.displayName || "Farmer",
+        email: user.email,
+        lastLogin: serverTimestamp(),
+        authProvider: 'apple'
+    });
+    localStorage.setItem('agri_user', JSON.stringify({ name: user.displayName || "Farmer", email: user.email || '' }));
+    window.location.replace("index.html");
 };
 
 // 2. Email / Password Sign Up
 export const signUpWithEmail = async (email, password, name) => {
-    try {
-        const result = await createUserWithEmailAndPassword(auth, email, password);
-        const user = result.user;
-
-        // Update Firebase Auth Profile
-        await updateProfile(user, { displayName: name });
-
-        // Save to Firestore
-        await setDoc(doc(db, "users", user.uid), {
-            name: name,
-            email: email,
-            farmLocation: "",
-            cropsGrown: [],
-            createdAt: serverTimestamp(),
-            authProvider: 'email'
-        });
-
-        // Sync with local app logic
-        localStorage.setItem('agri_user', JSON.stringify({name: name, email: email}));
-        window.location.replace("index.html");
-    } catch (error) {
-        alert("Sign Up Error: " + error.message);
-        throw error;
-    }
+    const result = await createUserWithEmailAndPassword(auth, email, password);
+    const user = result.user;
+    try { await updateProfile(user, { displayName: name }); } catch (_) {}
+    await saveUserDocSafely(user.uid, {
+        name: name,
+        email: email,
+        farmLocation: "",
+        cropsGrown: [],
+        createdAt: serverTimestamp(),
+        authProvider: 'email'
+    });
+    localStorage.setItem('agri_user', JSON.stringify({ name: name, email: email }));
+    window.location.replace("index.html");
 };
 
 // 3. Email / Password Login
 export const loginWithEmailPwd = async (email, password) => {
-    try {
-        const user = (await signInWithEmailAndPassword(auth, email, password)).user;
-        localStorage.setItem('agri_user', JSON.stringify({name: user.displayName || email.split('@')[0], email: user.email}));
-        window.location.replace("index.html");
-    } catch (error) {
-        alert("Login Error: " + error.message);
-        throw error;
-    }
+    const user = (await signInWithEmailAndPassword(auth, email, password)).user;
+    localStorage.setItem('agri_user', JSON.stringify({ name: user.displayName || email.split('@')[0], email: user.email }));
+    window.location.replace("index.html");
 };
 
 // 4. Phone OTP Login

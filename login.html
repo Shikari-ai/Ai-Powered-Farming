@@ -558,7 +558,7 @@
                 </div>
             </button>
 
-            <button type="button" class="social-btn apple" onclick="handleGoogleLogin()">
+            <button type="button" class="social-btn apple" onclick="handleAppleLogin()">
                 <i class="ri-apple-fill apple-icon" style="font-size:22px;"></i>
                 <span data-i18n="auth.apple_btn">Continue with Apple</span>
             </button>
@@ -577,7 +577,7 @@
     </div><!-- /auth-container -->
 
     <script type="module">
-        import { auth, loginWithEmailPwd, signUpWithEmail, loginWithGoogle } from './js/auth.js';
+        import { auth, loginWithEmailPwd, signUpWithEmail, loginWithGoogle, loginWithApple } from './js/auth.js';
         import { initI18n, startI18nObserver, t } from './js/i18n.js';
         import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
@@ -852,7 +852,24 @@
             });
         };
 
-        window.handleGoogleLogin = () => { loginWithGoogle(); };
+        window.handleGoogleLogin = () => {
+            loginWithGoogle().catch((err) => {
+                toast(err?.message?.replace('Firebase: ','').replace(/ \(auth\/.+\)/,'') || 'Google sign-in failed.', 'error');
+            });
+        };
+
+        window.handleAppleLogin = () => {
+            loginWithApple().catch((err) => {
+                const code = err?.code || '';
+                if (code === 'auth/operation-not-allowed') {
+                    toast('Apple sign-in is not enabled for this app yet.', 'info');
+                } else if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+                    return;
+                } else {
+                    toast(err?.message?.replace('Firebase: ','').replace(/ \(auth\/.+\)/,'') || 'Apple sign-in failed.', 'error');
+                }
+            });
+        };
 
         window.handleForgotPassword = async (e) => {
             e.preventDefault();
