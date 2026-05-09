@@ -12,7 +12,6 @@ import {
     onSnapshot,
     query,
     where,
-    orderBy,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getGreeting, t, applyTranslations } from "./i18n.js";
 
@@ -486,31 +485,33 @@ document.addEventListener("DOMContentLoaded", () => {
         );
 
         // ── 5) Weather logs → Soil moisture + Irrigation glance ───────────────
+        // (No orderBy: avoids needing a composite index; sort client-side)
         onSnapshot(
-            query(
-                collection(db, "weather_logs"),
-                where("userId", "==", user.uid),
-                orderBy("fetchedAt", "desc"),
-                limit(1)
-            ),
+            query(collection(db, "weather_logs"), where("userId", "==", user.uid), limit(80)),
             (snap) => {
-                if (snap.empty) {
+                let bestDoc = null;
+                let bestMs = 0;
+                snap.forEach((d) => {
+                    const ms = tsToMs(d.data()?.fetchedAt);
+                    if (ms >= bestMs) {
+                        bestMs = ms;
+                        bestDoc = d;
+                    }
+                });
+                if (!bestDoc) {
                     updateGlanceSoil(null);
                     updateGlanceIrrig(null);
                     return;
                 }
-                snap.forEach((d) => {
-                    const data = d.data();
-                    const soilEst = data?.derived?.soilMoistureEstimate ?? null;
-                    updateGlanceSoil(soilEst);
-                    // Irrigation efficiency: inverse of soil saturation for simple estimate
-                    if (soilEst !== null) {
-                        const irrigEff = clamp(Math.round(85 - (soilEst - 50) * 0.3), 40, 98);
-                        updateGlanceIrrig(irrigEff);
-                    } else {
-                        updateGlanceIrrig(null);
-                    }
-                });
+                const data = bestDoc.data();
+                const soilEst = data?.derived?.soilMoistureEstimate ?? null;
+                updateGlanceSoil(soilEst);
+                if (soilEst !== null) {
+                    const irrigEff = clamp(Math.round(85 - (soilEst - 50) * 0.3), 40, 98);
+                    updateGlanceIrrig(irrigEff);
+                } else {
+                    updateGlanceIrrig(null);
+                }
             }
         );
 
