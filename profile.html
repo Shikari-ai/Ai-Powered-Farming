@@ -1080,10 +1080,12 @@
       window._hydrateLangPanel();
     }
   }
+  window.openPanel = openPanel;
   function closePanel(id) {
     var el = document.getElementById(id);
     if (el) el.classList.remove('active');
   }
+  window.closePanel = closePanel;
   /* ── snackbar ── */
   var _snackTimer;
   function showSnack(msg, isError) {

@@ -1,12 +1,9 @@
-# Pushes static site to gh-pages branch for GitHub Pages.
+# Optional: pushes static site to gh-pages. Primary production hosting is Firebase
+# (https://agritech-4d1ba.web.app). Run this workflow manually if you use GitHub Pages.
 
 name: Deploy to gh-pages
 
 on:
-  push:
-    branches:
-      - main
-      - master
   workflow_dispatch:
 
 env:
