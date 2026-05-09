@@ -254,6 +254,30 @@
       50%{box-shadow:0 2px 20px rgba(10,132,255,.9),0 0 0 10px rgba(10,132,255,.12);}
     }
 
+    /* ── NavIC / GNSS badge (map page) ── */
+    .gnss-badge{
+      display:inline-flex;align-items:center;gap:3px;
+      padding:2px 7px;border-radius:20px;font-size:9px;
+      font-weight:700;letter-spacing:.4px;white-space:nowrap;
+    }
+    .gnss-gps{background:rgba(255,255,255,.1);color:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.15);}
+    .gnss-navic{
+      background:linear-gradient(90deg,rgba(255,140,0,.22),rgba(255,200,40,.14));
+      color:#FFB830;border:1px solid rgba(255,165,0,.35);
+      box-shadow:0 0 8px rgba(255,165,0,.2);
+    }
+    .gnss-navic-precise{
+      background:linear-gradient(90deg,rgba(255,165,0,.3),rgba(255,215,0,.2));
+      color:#FFD700;border-color:rgba(255,215,0,.45);
+      box-shadow:0 0 12px rgba(255,215,0,.3),0 0 24px rgba(255,165,0,.12);
+    }
+    .gnss-isro{font-size:7px;font-weight:800;letter-spacing:1px;opacity:.75;margin-right:1px;}
+    .gnss-isro-dot{
+      width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.8;
+      animation:gnssBlip 1.8s ease-in-out infinite;flex-shrink:0;
+    }
+    @keyframes gnssBlip{0%,100%{opacity:.4;transform:scale(1);}50%{opacity:1;transform:scale(1.5);}}
+
     /* ── Scale bar ── */
     .mp-scale{
       position:fixed;bottom:calc(140px + env(safe-area-inset-bottom,0px));

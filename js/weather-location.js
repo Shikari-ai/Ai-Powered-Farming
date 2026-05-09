@@ -1,6 +1,8 @@
 /**
  * Weather location: device GPS + reverse geocode, or fallback when permission/denied.
+ * Uses NavIC (ISRO) automatically on compatible Android devices via enableHighAccuracy.
  */
+import { NAVIC_GPS_WEATHER, detectGNSSSource } from "./navic.js";
 
 export const FALLBACK_LOC = {
   city: "Bhopal",
@@ -11,13 +13,11 @@ export const FALLBACK_LOC = {
   lon: 77.4126,
   source: "fallback",
   accuracyM: null,
+  gnssSource: null,
 };
 
-export const GPS_OPTIONS = {
-  enableHighAccuracy: false,
-  maximumAge: 300000,
-  timeout: 3000,
-};
+/** @deprecated Use NAVIC_GPS_WEATHER from navic.js directly */
+export const GPS_OPTIONS = NAVIC_GPS_WEATHER;
 
 export function persistLocationDetails(loc) {
   try {
@@ -79,20 +79,19 @@ export async function resolveWeatherLocation() {
   if ("geolocation" in navigator) {
     try {
       const pos = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, GPS_OPTIONS);
+        navigator.geolocation.getCurrentPosition(resolve, reject, NAVIC_GPS_WEATHER);
       });
-      gps = {
-        lat: pos.coords.latitude,
-        lon: pos.coords.longitude,
-        accuracyM: typeof pos.coords.accuracy === "number" ? pos.coords.accuracy : null,
-      };
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      const accuracyM = typeof pos.coords.accuracy === "number" ? pos.coords.accuracy : null;
+      gps = { lat, lon, accuracyM, gnssSource: detectGNSSSource(lat, lon, accuracyM) };
     } catch {
       /* denied / timeout */
     }
   }
 
   if (!gps) {
-    return { ...FALLBACK_LOC, source: "fallback", accuracyM: null };
+    return { ...FALLBACK_LOC, source: "fallback", accuracyM: null, gnssSource: null };
   }
 
   try {
@@ -110,6 +109,7 @@ export async function resolveWeatherLocation() {
       lat: gps.lat,
       lon: gps.lon,
       accuracyM: gps.accuracyM,
+      gnssSource: gps.gnssSource,
       source: "gps-live",
     };
     persistLocationDetails(loc);
@@ -123,6 +123,7 @@ export async function resolveWeatherLocation() {
       lat: gps.lat,
       lon: gps.lon,
       accuracyM: gps.accuracyM,
+      gnssSource: gps.gnssSource,
       source: "gps-live",
     };
     persistLocationDetails(loc);

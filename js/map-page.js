@@ -10,6 +10,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { resolveLocationApprox, resolveLoc } from "./weather-location.js";
 import { runLocationIntelligence, CATEGORIES } from "./location-intelligence.js";
+import { NAVIC_GPS_OPTIONS, detectGNSSSource, navicBadgeHTML } from "./navic.js";
 
 /* ── helpers ── */
 function el(id) { return document.getElementById(id); }
@@ -228,12 +229,24 @@ function refreshHealthBadges() {
   });
 }
 
-/* ── GPS dot ── */
-function showGPSDot(lng, lat) {
+/* ── GPS dot (with NavIC/ISRO badge) ── */
+function showGPSDot(lng, lat, gnssSource) {
   if (gpsMkr) { gpsMkr.remove(); gpsMkr = null; }
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:4px;";
+
   const dot = document.createElement("div");
   dot.className = "gps-dot";
-  gpsMkr = new maplibregl.Marker({ element: dot, anchor: "center" })
+  wrap.appendChild(dot);
+
+  if (gnssSource) {
+    const badge = document.createElement("div");
+    badge.innerHTML = navicBadgeHTML(gnssSource);
+    badge.style.cssText = "pointer-events:none;";
+    wrap.appendChild(badge);
+  }
+
+  gpsMkr = new maplibregl.Marker({ element: wrap, anchor: "center" })
     .setLngLat([lng, lat])
     .addTo(map);
 }
@@ -486,12 +499,13 @@ onAuthStateChanged(auth, async (user) => {
     if (map.loaded()) refreshFieldLayer();
   });
 
-  /* ── 4. GPS ── */
+  /* ── 4. GPS (NavIC / ISRO on compatible devices) ── */
   navigator.geolocation?.getCurrentPosition((pos) => {
-    const { latitude: lat, longitude: lng } = pos.coords;
-    showGPSDot(lng, lat);
+    const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+    const gnssSource = detectGNSSSource(lat, lng, accuracy ?? null);
+    showGPSDot(lng, lat, gnssSource);
     loadMapWeather(lat, lng);
-  }, () => {}, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+  }, () => {}, NAVIC_GPS_OPTIONS);
 
   /* ── 5. Location intelligence (nearby places) ── */
   runLocationIntelligence(user.uid, (data) => {
@@ -519,12 +533,13 @@ onAuthStateChanged(auth, async (user) => {
   el("fab-gps")?.addEventListener("click", () => {
     el("fab-gps")?.classList.add("active");
     navigator.geolocation?.getCurrentPosition((pos) => {
-      const { latitude: lat, longitude: lng } = pos.coords;
-      showGPSDot(lng, lat);
+      const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+      const gnssSource = detectGNSSSource(lat, lng, accuracy ?? null);
+      showGPSDot(lng, lat, gnssSource);
       map.flyTo({ center: [lng, lat], zoom: 16, essential: true, speed: 1.4 });
       el("fab-gps")?.classList.remove("active");
     }, () => el("fab-gps")?.classList.remove("active"),
-    { enableHighAccuracy: true, timeout: 14000, maximumAge: 0 });
+    NAVIC_GPS_OPTIONS);
   });
   el("fab-search")?.addEventListener("click", () => {
     const q = prompt("Search a location:");

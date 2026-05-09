@@ -9,6 +9,7 @@ import {
     where,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { runLocationIntelligence, CATEGORIES } from "./location-intelligence.js";
+import { navicBadgeHTML } from "./navic.js";
 
 function el(id) {
     return document.getElementById(id);
@@ -419,18 +420,20 @@ function renderLIInsights(insights) {
     }).join("");
 }
 
-function renderLIAccuracy(accuracy) {
-    const accFill  = el("lic-acc-fill");
-    const accLabel = el("lic-acc-label");
-    const accVal   = el("lic-acc-val");
+function renderLIAccuracy(accuracy, gnssSource) {
+    const accFill   = el("lic-acc-fill");
+    const gnssBadge = el("lic-gnss-badge");
+    const accVal    = el("lic-acc-val");
     if (!accFill) return;
 
     // Map accuracy in metres to a quality percentage (lower = better)
     const quality = accuracy <= 5 ? 100 : accuracy <= 20 ? 90 : accuracy <= 100 ? 70 : accuracy <= 500 ? 40 : 15;
     accFill.style.width = `${quality}%`;
-    const src = accuracy > 1000 ? "IP-based" : "GPS";
-    if (accLabel) accLabel.textContent = src;
-    if (accVal)   accVal.textContent   = accuracy ? `±${Math.round(accuracy)}m` : "--";
+
+    // NavIC / GNSS badge
+    const src = gnssSource || (accuracy > 1000 ? "IP" : "GPS");
+    if (gnssBadge) gnssBadge.innerHTML = navicBadgeHTML(src);
+    if (accVal) accVal.textContent = accuracy ? `±${Math.round(accuracy)}m` : "--";
 }
 
 function renderLICoords(coords) {
@@ -442,10 +445,10 @@ function renderLICoords(coords) {
 function onLocationUpdate(data) {
     if (data.error) { return; }
 
-    const { coords, address, places, insights, accuracy, phase } = data;
+    const { coords, address, places, insights, accuracy, gnssSource, phase } = data;
 
     if (coords)   renderLICoords(coords);
-    if (accuracy !== undefined) renderLIAccuracy(accuracy);
+    if (accuracy !== undefined) renderLIAccuracy(accuracy, gnssSource ?? coords?.gnssSource ?? null);
     if (address)  renderLIAddress(address);
     if (places?.length)   renderLIPlaces(places);
     if (insights?.length) renderLIInsights(insights);

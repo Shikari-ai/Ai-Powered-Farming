@@ -400,6 +400,41 @@
         .lic-acc-bar { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,0.07); overflow: hidden; }
         .lic-acc-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, #0A84FF, #38BDF8); transition: width 1s; }
 
+        /* ── NavIC / GNSS badge ── */
+        .gnss-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 2px 7px; border-radius: 20px; font-size: 10px;
+            font-weight: 700; letter-spacing: 0.4px; white-space: nowrap;
+        }
+        .gnss-gps {
+            background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.4);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .gnss-navic {
+            background: linear-gradient(90deg,rgba(255,140,0,0.18),rgba(255,200,40,0.12));
+            color: #FFB830; border: 1px solid rgba(255,165,0,0.3);
+            box-shadow: 0 0 8px rgba(255,165,0,0.15);
+        }
+        .gnss-navic-precise {
+            background: linear-gradient(90deg,rgba(255,165,0,0.28),rgba(255,215,0,0.18));
+            color: #FFD700; border-color: rgba(255,215,0,0.4);
+            box-shadow: 0 0 12px rgba(255,215,0,0.25), 0 0 24px rgba(255,165,0,0.1);
+        }
+        .gnss-isro {
+            font-size: 8px; font-weight: 800; letter-spacing: 1px;
+            opacity: 0.75; margin-right: 1px;
+        }
+        .gnss-isro-dot {
+            width: 5px; height: 5px; border-radius: 50%;
+            background: currentColor; opacity: 0.8;
+            animation: gnssBlip 1.8s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+        @keyframes gnssBlip {
+            0%,100% { opacity: 0.4; transform: scale(1); }
+            50%      { opacity: 1;   transform: scale(1.5); }
+        }
+
         /* ── Section title ── */
         .lic-section-title {
             font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.35);
@@ -691,7 +726,7 @@
                         <div class="lic-addr-chip primary" id="lic-chip-village">📍 Locating…</div>
                     </div>
                     <div class="lic-acc-row">
-                        <span id="lic-acc-label">GPS</span>
+                        <span id="lic-gnss-badge"><span class="gnss-badge gnss-gps">GPS</span></span>
                         <div class="lic-acc-bar"><div class="lic-acc-fill" id="lic-acc-fill" style="width:0%"></div></div>
                         <span id="lic-acc-val">--</span>
                     </div>

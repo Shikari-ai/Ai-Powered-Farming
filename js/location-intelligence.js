@@ -1,11 +1,12 @@
 /**
  * Location Intelligence Engine
- * GPS → Nominatim reverse-geocode → Overpass API nearby POIs → Firestore
- * 100% free stack: OpenStreetMap / Nominatim / Overpass / Firebase
+ * GPS (NavIC / ISRO on compatible devices) → Nominatim → Overpass API → Firestore
+ * 100% free stack: OpenStreetMap / Nominatim / Overpass / Firebase / NavIC
  */
 
 import { db } from "./auth.js";
 import { doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { NAVIC_GPS_OPTIONS, detectGNSSSource } from "./navic.js";
 
 /* ─── Category definitions ──────────────────────────────────────── */
 export const CATEGORIES = {
@@ -162,18 +163,16 @@ async function fetchNearbyPlaces(lat, lng, radius = 2500) {
   return results.slice(0, 40); // top 40 closest
 }
 
-/* ─── GPS: precise device coordinates ───────────────────────────── */
-function getCurrentPosition(highAccuracy = true) {
+/* ─── GPS: NavIC / ISRO + device coordinates ────────────────────── */
+function getCurrentPosition() {
   return new Promise((resolve, reject) => {
     if (!("geolocation" in navigator)) {
       reject(new Error("Geolocation not supported"));
       return;
     }
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: highAccuracy,
-      timeout           : 15000,
-      maximumAge        : 0,
-    });
+    // NAVIC_GPS_OPTIONS: enableHighAccuracy:true triggers NavIC on compatible
+    // Snapdragon 720G+ / Dimensity hardware when inside the coverage area.
+    navigator.geolocation.getCurrentPosition(resolve, reject, NAVIC_GPS_OPTIONS);
   });
 }
 
@@ -243,17 +242,20 @@ export async function runLocationIntelligence(uid, onUpdate, opts = {}) {
       }
     } catch (_) {}
 
-    /* Phase 2 — precise GPS */
+    /* Phase 2 — precise GPS (NavIC on compatible devices) */
     let gpsPos;
     try {
-      gpsPos = await getCurrentPosition(true);
+      gpsPos = await getCurrentPosition();
     } catch (_) {
-      // Try low-accuracy fallback
-      gpsPos = await getCurrentPosition(false).catch(() => null);
+      gpsPos = null;
     }
 
+    const gnssSource = gpsPos
+      ? detectGNSSSource(gpsPos.coords.latitude, gpsPos.coords.longitude, gpsPos.coords.accuracy ?? null)
+      : null;
+
     const coords = gpsPos
-      ? { lat: gpsPos.coords.latitude, lng: gpsPos.coords.longitude, accuracy: gpsPos.coords.accuracy, source: "gps" }
+      ? { lat: gpsPos.coords.latitude, lng: gpsPos.coords.longitude, accuracy: gpsPos.coords.accuracy, source: "gps", gnssSource }
       : approxCoords;
 
     if (!coords) throw new Error("No location available");
@@ -272,7 +274,7 @@ export async function runLocationIntelligence(uid, onUpdate, opts = {}) {
     /* Phase 5 — AI insights */
     const insights = deriveAIInsights(address, places);
 
-    result = { coords, address, places, insights, accuracy: coords.accuracy, phase: "precise", timestamp: Date.now() };
+    result = { coords, address, places, insights, accuracy: coords.accuracy, gnssSource: gnssSource || null, phase: "precise", timestamp: Date.now() };
     _cache = result;
 
     onUpdate?.(result);
@@ -280,7 +282,7 @@ export async function runLocationIntelligence(uid, onUpdate, opts = {}) {
     /* Phase 6 — Firestore persistence */
     if (persist && uid) {
       await syncToFirestore(uid, {
-        coords    : { lat: coords.lat, lng: coords.lng, accuracy: coords.accuracy },
+        coords    : { lat: coords.lat, lng: coords.lng, accuracy: coords.accuracy, gnssSource: gnssSource || null },
         address   : address || {},
         nearbyCount: places.length,
         insights  : insights.map(i => ({ type: i.type, text: i.text })),
