@@ -43,7 +43,8 @@
     "language": "भाषा", "language_sub": "ऐप के भाषा बदलव", "edit": "संपादित करव",
     "save": "सहेजव", "save_changes": "बदलाव सहेजव", "save_preferences": "प्राथमिकता सहेजव",
     "full_name": "पूरा नाम", "email": "ईमेल", "phone": "फोन नंबर",
-    "location": "जगह", "personal_info": "व्यक्तिगत जानकारी", "preferences": "प्राथमिकता",
+    "location": "जगह", "location_not_set_short": "सेट नइ",
+    "personal_info": "व्यक्तिगत जानकारी", "preferences": "प्राथमिकता",
     "security": "सुरक्षा", "password": "पासवर्ड", "change_password": "पासवर्ड बदलव"
   },
   "weather": {

@@ -206,7 +206,8 @@
     "no_data": "No data", "healthy": "Healthy", "moderate": "Moderate", "at_risk": "At Risk",
     "edit": "Edit", "save": "Save", "save_changes": "Save Changes", "save_preferences": "Save Preferences",
     "full_name": "Full Name", "email": "Email", "phone": "Phone Number",
-    "location": "Location", "preferences": "Preferences", "security": "Security", "password": "Password", "change_password": "Change Password"
+    "location": "Location", "location_not_set_short": "Not set",
+    "preferences": "Preferences", "security": "Security", "password": "Password", "change_password": "Change Password"
   },
   "lang": {
     "select_language": "Select Language", "search_language": "Search language...",

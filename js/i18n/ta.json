@@ -41,7 +41,8 @@
     "language": "மொழி", "language_sub": "ஆப் மொழியை மாற்று", "edit": "திருத்து",
     "save": "சேமி", "save_changes": "மாற்றங்களை சேமி", "save_preferences": "விருப்பங்களை சேமி",
     "full_name": "முழு பெயர்", "email": "மின்னஞ்சல்", "phone": "தொலைபேசி எண்",
-    "location": "இடம்", "personal_info": "தனிப்பட்ட தகவல்", "preferences": "விருப்பங்கள்",
+    "location": "இடம்", "location_not_set_short": "இல்லை",
+    "personal_info": "தனிப்பட்ட தகவல்", "preferences": "விருப்பங்கள்",
     "security": "பாதுகாப்பு", "password": "கடவுச்சொல்", "change_password": "கடவுச்சொல் மாற்று"
   },
   "weather": {

@@ -41,7 +41,8 @@
     "language": "भाषा", "language_sub": "अॅपची भाषा बदला", "edit": "संपादित करा",
     "save": "जतन करा", "save_changes": "बदल जतन करा", "save_preferences": "प्राधान्ये जतन करा",
     "full_name": "पूर्ण नाव", "email": "ईमेल", "phone": "फोन नंबर",
-    "location": "स्थान", "personal_info": "वैयक्तिक माहिती", "preferences": "प्राधान्ये",
+    "location": "स्थान", "location_not_set_short": "सेट नाही",
+    "personal_info": "वैयक्तिक माहिती", "preferences": "प्राधान्ये",
     "security": "सुरक्षा", "password": "पासवर्ड", "change_password": "पासवर्ड बदला"
   },
   "weather": {

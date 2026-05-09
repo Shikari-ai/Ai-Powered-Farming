@@ -41,7 +41,8 @@
     "language": "భాష", "language_sub": "యాప్ భాషను మార్చండి", "edit": "సవరించండి",
     "save": "సేవ్ చేయండి", "save_changes": "మార్పులు సేవ్ చేయండి", "save_preferences": "ప్రాధాన్యతలు సేవ్ చేయండి",
     "full_name": "పూర్తి పేరు", "email": "ఇమెయిల్", "phone": "ఫోన్ నంబర్",
-    "location": "స్థానం", "personal_info": "వ్యక్తిగత సమాచారం", "preferences": "ప్రాధాన్యతలు",
+    "location": "స్థానం", "location_not_set_short": "సెట్ చేయలేదు",
+    "personal_info": "వ్యక్తిగత సమాచారం", "preferences": "ప్రాధాన్యతలు",
     "security": "భద్రత", "password": "పాస్‌వర్డ్", "change_password": "పాస్‌వర్డ్ మార్చండి"
   },
   "weather": {

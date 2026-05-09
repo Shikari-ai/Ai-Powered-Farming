@@ -41,7 +41,8 @@
     "language": "ਭਾਸ਼ਾ", "language_sub": "ਐਪ ਦੀ ਭਾਸ਼ਾ ਬਦਲੋ", "edit": "ਸੰਪਾਦਿਤ ਕਰੋ",
     "save": "ਸੰਭਾਲੋ", "save_changes": "ਬਦਲਾਅ ਸੰਭਾਲੋ", "save_preferences": "ਤਰਜੀਹਾਂ ਸੰਭਾਲੋ",
     "full_name": "ਪੂਰਾ ਨਾਮ", "email": "ਈਮੇਲ", "phone": "ਫ਼ੋਨ ਨੰਬਰ",
-    "location": "ਟਿਕਾਣਾ", "personal_info": "ਨਿੱਜੀ ਜਾਣਕਾਰੀ", "preferences": "ਤਰਜੀਹਾਂ",
+    "location": "ਟਿਕਾਣਾ", "location_not_set_short": "ਨਹੀਂ",
+    "personal_info": "ਨਿੱਜੀ ਜਾਣਕਾਰੀ", "preferences": "ਤਰਜੀਹਾਂ",
     "security": "ਸੁਰੱਖਿਆ", "password": "ਪਾਸਵਰਡ", "change_password": "ਪਾਸਵਰਡ ਬਦਲੋ"
   },
   "weather": {

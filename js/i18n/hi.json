@@ -206,7 +206,8 @@
     "no_data": "कोई डेटा नहीं", "healthy": "स्वस्थ", "moderate": "मध्यम", "at_risk": "जोखिम में",
     "edit": "संपादित करें", "save": "सहेजें", "save_changes": "बदलाव सहेजें", "save_preferences": "प्राथमिकताएं सहेजें",
     "full_name": "पूरा नाम", "email": "ईमेल", "phone": "फोन नंबर",
-    "location": "स्थान", "preferences": "प्राथमिकताएं", "security": "सुरक्षा", "password": "पासवर्ड", "change_password": "पासवर्ड बदलें"
+    "location": "स्थान", "location_not_set_short": "सेट नहीं",
+    "preferences": "प्राथमिकताएं", "security": "सुरक्षा", "password": "पासवर्ड", "change_password": "पासवर्ड बदलें"
   },
   "lang": {
     "select_language": "भाषा चुनें", "search_language": "भाषा खोजें...",

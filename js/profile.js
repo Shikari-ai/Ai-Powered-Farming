@@ -325,7 +325,7 @@ function attachUser(user) {
     setText("main-name",  name);
     setText("main-email", user.email || "--");
     setText("main-phone", d.phone || user.phoneNumber || "Not set");
-    setText("main-location", d.village || "Location not set");
+    setText("main-location", d.village || t("common.location_not_set"));
     setHide("main-verified", !d.isVerified);
     setAv("main-av", av);
 
@@ -333,7 +333,7 @@ function attachUser(user) {
     setText("as-name",     name);
     setText("as-email",    user.email || "--");
     setText("as-phone",    d.phone || "Not set");
-    setText("as-location", d.village || "Not set");
+    setText("as-location", d.village || t("profile.location_not_set_short"));
 
     /* edit profile defaults */
     const epName = el("ep-name"); if (epName) epName.value = name;
