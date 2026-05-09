@@ -1,0 +1,71 @@
+{
+  "_meta": { "name": "Punjabi", "nativeName": "ਪੰਜਾਬੀ", "flag": "🇮🇳", "dir": "ltr" },
+  "nav": { "home": "ਘਰ", "fields": "ਖੇਤ", "ai": "AI", "profile": "ਪ੍ਰੋਫਾਈਲ", "scan": "ਸਕੈਨ" },
+  "home": {
+    "greeting_morning": "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ,", "greeting_afternoon": "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ,",
+    "greeting_evening": "ਸ਼ੁਭ ਸ਼ਾਮ,", "greeting_night": "ਸ਼ੁਭ ਰਾਤ,",
+    "systems_active": "ਸਾਰੇ ਸਿਸਟਮ ਸਰਗਰਮ", "performing_great": "ਅੱਜ ਤੁਹਾਡਾ ਖੇਤ ਵਧੀਆ ਕੰਮ ਕਰ ਰਿਹਾ ਹੈ।",
+    "weather_now": "ਹੁਣ ਦਾ ਮੌਸਮ", "humidity": "ਨਮੀ", "wind": "ਹਵਾ",
+    "rainfall": "ਬਾਰਸ਼", "at_a_glance": "ਇੱਕ ਝਲਕ ਵਿੱਚ", "my_fields": "ਮੇਰੇ ਖੇਤ",
+    "manage_all": "ਸਭ ਵੇਖੋ", "no_fields": "ਅਜੇ ਕੋਈ ਖੇਤ ਨਹੀਂ।", "ai_insights": "AI ਜਾਣਕਾਰੀ",
+    "crop_health": "ਫ਼ਸਲ ਸਿਹਤ", "pest_prediction": "ਕੀਟ ਅਨੁਮਾਨ", "farm_performance": "ਖੇਤ ਪ੍ਰਦਰਸ਼ਨ",
+    "recent_alerts": "ਤਾਜ਼ੇ ਅਲਰਟ", "view_all": "ਸਭ ਵੇਖੋ", "pull_refresh": "ਰਿਫਰੈਸ਼ ਕਰੋ"
+  },
+  "fields": {
+    "title": "ਖੇਤ", "subtitle": "ਤੁਹਾਡੇ ਸਾਰੇ ਖੇਤਾਂ ਦੀ ਨਿਗਰਾਨੀ ਅਤੇ ਪ੍ਰਬੰਧਨ ਕਰੋ",
+    "total_fields": "ਕੁੱਲ ਖੇਤ", "total_area": "ਕੁੱਲ ਖੇਤਰ", "fields_healthy": "ਸਿਹਤਮੰਦ ਖੇਤ",
+    "attention_needed": "ਧਿਆਨ ਲੋੜੀਂਦਾ", "field_overview": "ਖੇਤ ਸੰਖੇਪ",
+    "add_new_field": "ਨਵਾਂ ਖੇਤ ਜੋੜੋ", "map_boundary": "ਨਵੀਂ ਖੇਤ ਸੀਮਾ ਬਣਾਓ",
+    "no_fields": "ਅਜੇ ਕੋਈ ਖੇਤ ਨਹੀਂ। ਪਹਿਲਾ ਖੇਤ ਜੋੜੋ।",
+    "add_field": "ਖੇਤ ਜੋੜੋ", "healthy": "ਸਿਹਤਮੰਦ", "moderate": "ਦਰਮਿਆਨਾ",
+    "at_risk": "ਖ਼ਤਰੇ ਵਿੱਚ", "critical": "ਗੰਭੀਰ", "active": "ਸਰਗਰਮ", "acres": "ਏਕੜ",
+    "good_condition": "ਚੰਗੀ ਸਥਿਤੀ", "needs_action": "ਕਾਰਵਾਈ ਲੋੜੀਂਦੀ"
+  },
+  "assistant": {
+    "title": "AI ਸਹਾਇਕ", "subtitle": "ਤੁਹਾਡੇ ਖੇਤ ਲਈ ਡੇਟਾ-ਆਧਾਰਿਤ ਮਦਦ",
+    "empty_msg": "ਅਜੇ ਕੋਈ ਇਤਿਹਾਸ ਨਹੀਂ। ਖੇਤ ਜੋੜੋ ਜਾਂ ਸਕੈਨ ਕਰੋ।",
+    "start_scan": "ਸਕੈਨ ਸ਼ੁਰੂ ਕਰੋ", "add_field": "ਖੇਤ ਜੋੜੋ",
+    "placeholder": "ਖੇਤ, ਸਕੈਨ, ਕੀਟ ਬਾਰੇ ਪੁੱਛੋ…",
+    "clear": "ਚੈਟ ਸਾਫ਼ ਕਰੋ"
+  },
+  "profile": {
+    "title": "ਪ੍ਰੋਫਾਈਲ", "farm_owner": "ਖੇਤ ਮਾਲਕ", "farm_overview": "ਖੇਤ ਸੰਖੇਪ",
+    "farm_glance": "ਇੱਕ ਝਲਕ ਵਿੱਚ ਤੁਹਾਡਾ ਖੇਤ", "account_settings": "ਖਾਤਾ ਸੈਟਿੰਗਾਂ",
+    "manage_info": "ਆਪਣੀ ਜਾਣਕਾਰੀ ਪ੍ਰਬੰਧਿਤ ਕਰੋ", "my_farms": "ਮੇਰੇ ਖੇਤ",
+    "view_manage": "ਖੇਤ ਵੇਖੋ ਅਤੇ ਪ੍ਰਬੰਧਿਤ ਕਰੋ", "subscription": "ਸਦੱਸਤਾ",
+    "manage_plan": "ਆਪਣੀ ਯੋਜਨਾ ਪ੍ਰਬੰਧਿਤ ਕਰੋ", "ai_preferences": "AI ਤਰਜੀਹਾਂ",
+    "customize_ai": "AI ਸੁਝਾਅ ਕਸਟਮਾਈਜ਼ ਕਰੋ", "notifications": "ਸੂਚਨਾਵਾਂ",
+    "manage_alerts": "ਅਲਰਟ ਪ੍ਰਬੰਧਿਤ ਕਰੋ", "help_support": "ਮਦਦ ਅਤੇ ਸਹਾਇਤਾ",
+    "get_help": "ਮਦਦ ਲਓ", "about": "ਸਮਾਰਟ ਫਾਰਮਿੰਗ ਬਾਰੇ",
+    "app_info": "ਐਪ ਜਾਣਕਾਰੀ", "logout": "ਲਾਗਆਉਟ", "sign_out": "ਸਾਈਨ ਆਉਟ ਕਰੋ",
+    "language": "ਭਾਸ਼ਾ", "language_sub": "ਐਪ ਦੀ ਭਾਸ਼ਾ ਬਦਲੋ", "edit": "ਸੰਪਾਦਿਤ ਕਰੋ",
+    "save": "ਸੰਭਾਲੋ", "save_changes": "ਬਦਲਾਅ ਸੰਭਾਲੋ", "save_preferences": "ਤਰਜੀਹਾਂ ਸੰਭਾਲੋ",
+    "full_name": "ਪੂਰਾ ਨਾਮ", "email": "ਈਮੇਲ", "phone": "ਫ਼ੋਨ ਨੰਬਰ",
+    "location": "ਟਿਕਾਣਾ", "personal_info": "ਨਿੱਜੀ ਜਾਣਕਾਰੀ", "preferences": "ਤਰਜੀਹਾਂ",
+    "security": "ਸੁਰੱਖਿਆ", "password": "ਪਾਸਵਰਡ", "change_password": "ਪਾਸਵਰਡ ਬਦਲੋ"
+  },
+  "weather": {
+    "title": "ਮੌਸਮ ਜਾਣਕਾਰੀ", "syncing": "ਟਿਕਾਣਾ ਸਿੰਕ ਹੋ ਰਿਹਾ ਹੈ...",
+    "loading": "ਰੀਅਲਟਾਈਮ ਮੌਸਮ ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ...", "hourly": "ਘੰਟੇਵਾਰ ਅਨੁਮਾਨ",
+    "farming_intel": "ਖੇਤੀ ਜਾਣਕਾਰੀ", "ten_day": "੧੦-ਦਿਨਾ ਅਨੁਮਾਨ",
+    "realtime": "ਰੀਅਲਟਾਈਮ ਮੈਟ੍ਰਿਕਸ", "visibility": "ਦਿੱਖ", "air_quality": "ਹਵਾ ਗੁਣਵੱਤਾ PM2.5",
+    "heat_index": "ਗਰਮੀ ਸੂਚਕ", "feels_like": "ਮਹਿਸੂਸ ਹੁੰਦਾ ਹੈ", "soil_moisture": "ਮਿੱਟੀ ਨਮੀ",
+    "model_estimate": "ਮਾਡਲ ਅਨੁਮਾਨ"
+  },
+  "scanner": {
+    "title": "ਫ਼ਸਲ ਸਕੈਨਰ", "point_camera": "ਕੈਮਰਾ ਫ਼ਸਲ ਦੇ ਪੱਤੇ 'ਤੇ ਲਗਾਓ",
+    "scanning": "ਸਕੈਨ ਹੋ ਰਿਹਾ ਹੈ...", "analyzing": "ਫ਼ਸਲ ਵਿਸ਼ਲੇਸ਼ਣ ਹੋ ਰਿਹਾ ਹੈ...", "save_scan": "ਸਕੈਨ ਸੰਭਾਲੋ",
+    "scan_again": "ਦੁਬਾਰਾ ਸਕੈਨ ਕਰੋ", "health_score": "ਸਿਹਤ ਅੰਕ", "disease": "ਬਿਮਾਰੀ",
+    "recommendations": "ਸੁਝਾਅ"
+  },
+  "common": {
+    "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ...", "error": "ਕੁਝ ਗਲਤ ਹੋਇਆ", "retry": "ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ",
+    "cancel": "ਰੱਦ ਕਰੋ", "confirm": "ਪੁਸ਼ਟੀ ਕਰੋ", "done": "ਹੋ ਗਿਆ", "next": "ਅਗਲਾ", "back": "ਵਾਪਸ",
+    "search": "ਖੋਜੋ", "select": "ਚੁਣੋ", "yes": "ਹਾਂ", "no": "ਨਹੀਂ",
+    "active": "ਸਰਗਰਮ", "inactive": "ਅਕਿਰਿਆਸ਼ੀਲ", "high": "ਉੱਚ", "medium": "ਦਰਮਿਆਨਾ", "low": "ਘੱਟ"
+  },
+  "lang": {
+    "select_language": "ਭਾਸ਼ਾ ਚੁਣੋ", "search_language": "ਭਾਸ਼ਾ ਖੋਜੋ...",
+    "language_changed": "ਭਾਸ਼ਾ ਸਫਲਤਾਪੂਰਵਕ ਅਪਡੇਟ ਹੋਈ!", "current": "ਮੌਜੂਦਾ"
+  }
+}

@@ -1,4 +1,5 @@
 import { auth, db } from "./auth.js";
+import { initI18n, startI18nObserver } from "./i18n.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
   addDoc,
@@ -37,7 +38,7 @@ function renderMessages(container, msgs) {
     .sort((a, b) => tsToMs(a.createdAt) - tsToMs(b.createdAt))
     .map((m) => {
       const role = m.role === "user" ? "user" : "assistant";
-      const who = role === "user" ? "You" : "Assistant";
+      const who = role === "user" ? t("assistant.you") : t("assistant.assistant_name");
       const time = formatTime(tsToMs(m.createdAt));
       const safe = String(m.text || "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
       return `
@@ -63,15 +64,15 @@ function buildAssistantReply({ question, fields, scans, recs, weatherLogs }) {
   const lines = [];
 
   // Always ground the response in real state first.
-  lines.push(`Current state: ${fieldCount} field${fieldCount === 1 ? "" : "s"}, ${scanCount} scan${scanCount === 1 ? "" : "s"}.`);
+  lines.push(t("assistant.state_summary", { f: fieldCount, s: scanCount }));
 
   if (q.includes("start") || q.includes("setup") || q.includes("begin")) {
     if (!fieldCount && !scanCount) {
       lines.push("");
-      lines.push("To activate analytics:");
-      lines.push("- Add your first field in Fields.");
-      lines.push("- Run your first crop scan and save it.");
-      lines.push("- (Optional) Enable location to build weather logs.");
+      lines.push(t("assistant.activate_analytics"));
+      lines.push(`- ${t("assistant.add_field_instr")}`);
+      lines.push(`- ${t("assistant.run_scan_instr")}`);
+      lines.push(`- ${t("assistant.enable_loc_instr")}`);
       return lines.join("\n");
     }
   }
@@ -79,15 +80,15 @@ function buildAssistantReply({ question, fields, scans, recs, weatherLogs }) {
   if (q.includes("latest") || q.includes("last scan") || q.includes("scan")) {
     if (!latestScan) {
       lines.push("");
-      lines.push("No scans yet. Run a scan to generate your first health score and recommendations.");
+      lines.push(t("assistant.no_scans_yet"));
       return lines.join("\n");
     }
     const health = typeof latestScan.healthScore === "number" ? `${Math.round(latestScan.healthScore)}%` : "--";
     const diag = latestScan.diagnosis?.label || "Scan saved";
     lines.push("");
-    lines.push(`Latest scan: ${latestScan.cropType || "Crop"} • ${diag} • Health ${health}.`);
+    lines.push(t("assistant.latest_scan_msg", { crop: latestScan.cropType || "Crop", diag, health }));
     if (latestScan.recommendations && latestScan.recommendations.length) {
-      lines.push("Top actions:");
+      lines.push(t("assistant.top_actions"));
       for (const r of latestScan.recommendations.slice(0, 3)) lines.push(`- ${r.text}`);
     }
     return lines.join("\n");
@@ -97,12 +98,12 @@ function buildAssistantReply({ question, fields, scans, recs, weatherLogs }) {
     const active = recs.filter((r) => (r.status || "active") === "active");
     if (!active.length) {
       lines.push("");
-      lines.push("No recommendations yet. Recommendations appear after you save scans (and later: weather/sensor logs).");
+      lines.push(t("assistant.no_recommendations"));
       return lines.join("\n");
     }
     active.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
     lines.push("");
-    lines.push("Latest recommendations:");
+    lines.push(t("assistant.top_actions"));
     for (const r of active.slice(0, 5)) lines.push(`- ${r.text}`);
     return lines.join("\n");
   }
@@ -110,42 +111,40 @@ function buildAssistantReply({ question, fields, scans, recs, weatherLogs }) {
   if (q.includes("weather") || q.includes("rain") || q.includes("humidity")) {
     if (!latestWeather) {
       lines.push("");
-      lines.push("No weather logs yet. Enable location on the dashboard to sync real weather data into your account.");
+      lines.push(t("assistant.no_weather"));
       return lines.join("\n");
     }
     const c = latestWeather.city || "your area";
     const cur = latestWeather.current || {};
-    const t = typeof cur.temperature_2m === "number" ? `${Math.round(cur.temperature_2m)}°C` : "--";
-    const hum = typeof cur.relative_humidity_2m === "number" ? `${Math.round(cur.relative_humidity_2m)}%` : "--";
+    const temp = typeof cur.temperature_2m === "number" ? Math.round(cur.temperature_2m) : "--";
+    const moist = latestWeather.derived?.soilMoistureEstimate || "--";
     lines.push("");
-    lines.push(`Latest weather log (${c}): Temp ${t}, Humidity ${hum}.`);
+    lines.push(t("assistant.latest_weather", { temp, desc: latestWeather.derived?.conditionLabel || "Clear", moist }));
     return lines.join("\n");
   }
 
   if (q.includes("field")) {
     if (!fieldCount) {
       lines.push("");
-      lines.push("No fields yet. Add a field to unlock per-field monitoring and coverage metrics.");
+      lines.push(t("assistant.add_field_instr"));
       return lines.join("\n");
     }
     lines.push("");
-    lines.push("Your fields:");
-    for (const f of fields.slice(0, 5)) lines.push(`- ${f.name || "Field"}${f.cropType ? ` (${f.cropType})` : ""}`);
+    lines.push(t("assistant.field_overview"));
+    for (const f of fields.slice(0, 5)) lines.push(`- ${f.name || t("field_detail.overview")}${f.cropType ? ` (${f.cropType})` : ""}`);
     if (fieldCount > 5) lines.push(`- …and ${fieldCount - 5} more`);
     return lines.join("\n");
   }
 
   // Default: safe, minimal guidance without pretending.
-  lines.push("");
-  if (!fieldCount && !scanCount) {
-    lines.push("I don’t have enough activity to analyze yet. Add a field or save a scan and I’ll adapt immediately.");
-  } else {
-    lines.push("Ask about your latest scan, recommendations, weather logs, or field coverage and I’ll answer using your real data.");
-  }
+  lines.push(t("assistant.default_reply"));
   return lines.join("\n");
 }
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
+  await initI18n();
+  startI18nObserver();
+
   if (!user) {
     window.location.href = "login.html";
     return;

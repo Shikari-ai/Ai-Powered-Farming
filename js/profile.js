@@ -1,5 +1,5 @@
 import { auth, db, storage, logoutUser } from "./auth.js";
-import { LANGUAGES, setLanguage, getLang } from "./i18n.js";
+import { t, setLanguage, getCurrentLang, getSupportedLangs, initI18n, startI18nObserver } from "./i18n.js";
 import { onAuthStateChanged, updateProfile, sendPasswordResetEmail }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
@@ -46,10 +46,10 @@ function computeScore({ fields, scans, msgs }) {
   return Math.round(raw * 10) / 10;
 }
 function scoreLbl(s) {
-  if (s >= 85) return "Excellent";
-  if (s >= 70) return "Good";
-  if (s >= 50) return "Average";
-  return "Getting started";
+  if (s >= 85) return t("profile.excellent");
+  if (s >= 70) return t("profile.good_lbl");
+  if (s >= 50) return t("profile.average");
+  return t("profile.getting_started");
 }
 function renderStars(score) {
   const filled = Math.round((score / 100) * 5);
@@ -61,15 +61,15 @@ function renderStars(score) {
 }
 function renderScore(score) {
   setText("score-num", score > 0 ? score.toFixed(1) : "--");
-  setText("score-lbl", score > 0 ? scoreLbl(score) : "No data");
+  setText("score-lbl", score > 0 ? scoreLbl(score) : t("profile.no_data"));
   renderStars(score);
 }
 
 /* ─── farm-card builder ───────────────── */
 function healthClass(pct) {
-  if (pct >= 70) return { cls: "hp-good", lbl: "Healthy" };
-  if (pct >= 40) return { cls: "hp-mod",  lbl: "Moderate" };
-  return { cls: "hp-risk", lbl: "At Risk" };
+  if (pct >= 70) return { cls: "hp-good", lbl: t("profile.healthy") };
+  if (pct >= 40) return { cls: "hp-mod",  lbl: t("profile.moderate") };
+  return { cls: "hp-risk", lbl: t("profile.at_risk") };
 }
 function buildFarmCard(field, scanPct) {
   const pct  = Math.round(scanPct ?? 0);
@@ -83,8 +83,8 @@ function buildFarmCard(field, scanPct) {
     <div class="farm-card" onclick="openPanel('panel-my-farms-detail'); renderFarmDetail(${JSON.stringify({ ...field, scanPct: pct }).replace(/"/g,"&quot;")})">
       <div class="farm-thumb" style="${thumb}"></div>
       <div class="farm-body">
-        <div class="farm-name">${field.name || "Unnamed"}</div>
-        <div class="farm-area">${field.areaAcres ? field.areaAcres.toFixed(1) + " acres" : "Area not set"}</div>
+        <div class="farm-name">${field.name || t("field_detail.overview")}</div>
+        <div class="farm-area">${field.areaAcres ? field.areaAcres.toFixed(1) + " " + t("field_detail.acres") : t("field_detail.area_not_set")}</div>
         <div class="farm-area" style="margin-top:3px;color:var(--dim);">${field.location || ""}</div>
         <span class="health-pill ${cls}" style="margin-top:6px;">${lbl}</span>
       </div>
@@ -228,34 +228,51 @@ function wireStatic() {
   );
 
   /* account settings — app language */
-  const langSel = el("as-lang");
-  if (langSel) {
-    langSel.innerHTML = LANGUAGES.map(
-      (L) => `<option value="${L.code}">${L.native} — ${L.name}</option>`
-    ).join("");
-    const syncLangSelect = () => {
-      const cur = getLang();
-      if (LANGUAGES.some((L) => L.code === cur)) langSel.value = cur;
-    };
-    syncLangSelect();
-    document.addEventListener("langchange", syncLangSelect);
-    langSel.addEventListener("change", async () => {
-      const code = langSel.value;
-      setLanguage(code);
-      snack("Language updated");
-      const u = auth.currentUser;
-      if (u) {
-        try {
-          await setDoc(
-            doc(db, "users", u.uid),
-            { langPreference: code, updatedAt: serverTimestamp() },
-            { merge: true }
-          );
-        } catch (e) {
-          console.warn("langPreference save:", e);
-        }
+  const langList = el("lang-list");
+  const currentLangName = el("current-lang-name");
+  const langSearch = el("lang-search");
+
+  if (langList) {
+    const langs = getSupportedLangs();
+    const renderLangs = (filterText = "") => {
+      const cur = getCurrentLang();
+      const q = filterText.toLowerCase();
+      langList.innerHTML = langs.filter(L => L.name.toLowerCase().includes(q) || L.nativeName.toLowerCase().includes(q)).map(L => `
+        <div class="lang-item ${L.code === cur ? 'active' : ''}" data-code="${L.code}">
+          <div class="lang-left">
+            <div class="lang-flag">${L.flag}</div>
+            <div>
+              <div class="lang-name">${L.name}</div>
+              <div class="lang-native">${L.nativeName}</div>
+            </div>
+          </div>
+          <i class="ri-check-line lang-check"></i>
+        </div>
+      `).join("");
+      
+      const currentObj = langs.find(L => L.code === cur);
+      if (currentLangName && currentObj) {
+        currentLangName.textContent = currentObj.name;
       }
+    };
+
+    renderLangs();
+
+    if (langSearch) {
+      langSearch.addEventListener("input", (e) => renderLangs(e.target.value));
+    }
+
+    langList.addEventListener("click", async (e) => {
+      const item = e.target.closest(".lang-item");
+      if (!item) return;
+      const code = item.dataset.code;
+      await setLanguage(code);
+      renderLangs(langSearch ? langSearch.value : "");
+      snack(t("lang.language_changed") || "Language updated successfully!");
     });
+    
+    // Listen for external updates (e.g., from init restoration)
+    window.addEventListener("i18n:updated", () => renderLangs(langSearch ? langSearch.value : ""));
   }
 }
 
@@ -436,11 +453,16 @@ function attachUser(user) {
 /* ─── boot ────────────────────────────── */
 let teardown = null;
 
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", wireStatic, { once: true });
-} else {
-  wireStatic();
+async function boot() {
+  await initI18n();
+  startI18nObserver();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", wireStatic, { once: true });
+  } else {
+    wireStatic();
+  }
 }
+boot();
 
 onAuthStateChanged(auth, user => {
   if (teardown) { teardown(); teardown = null; }

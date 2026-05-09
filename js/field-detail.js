@@ -1,4 +1,5 @@
 import { auth, db, storage } from "./auth.js";
+import { initI18n, startI18nObserver, t } from "./i18n.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
   collection,
@@ -32,10 +33,10 @@ function fieldIdFromUrl() {
 function formatAgo(ms) {
   if (!ms) return "";
   const s = Math.floor((Date.now() - ms) / 1000);
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
+  if (s < 60) return t("field_detail.just_now");
+  if (s < 3600) return t("field_detail.m_ago", { n: Math.floor(s / 60) });
+  if (s < 86400) return t("field_detail.h_ago", { n: Math.floor(s / 3600) });
+  return t("field_detail.d_ago", { n: Math.floor(s / 86400) });
 }
 
 function pestRiskFromScan(scan) {
@@ -71,7 +72,7 @@ function renderSparkline(scansAsc) {
     .map((s) => (typeof s.healthScore === "number" ? s.healthScore : null))
     .filter((n) => n != null);
   if (pts.length < 2) {
-    host.innerHTML = '<div class="empty" style="padding:12px;">Need at least two scans to plot a trend</div>';
+    host.innerHTML = `<div class="empty" style="padding:12px;">${t("field_detail.need_two_scans")}</div>`;
     return;
   }
   const w = 300;
@@ -95,28 +96,28 @@ function buildInsights(field, latest, scansDesc, soilMoisture) {
   const items = [];
   if (latest && typeof latest.healthScore === "number") {
     if (latest.healthScore < 50) {
-      items.push({ cls: "bad", icon: "ri-alarm-warning-line", text: "Latest scan health is low. Re-run a scan after any treatment or irrigation change." });
+      items.push({ cls: "bad", icon: "ri-alarm-warning-line", text: t("field_detail.insights.low_health") });
     } else if (latest.healthScore >= 80) {
-      items.push({ cls: "", icon: "ri-plant-line", text: "Latest scan indicates strong canopy health. Maintain current scouting rhythm." });
+      items.push({ cls: "", icon: "ri-plant-line", text: t("field_detail.insights.high_health") });
     }
   }
   const pr = pestRiskFromScan(latest);
   if (pr != null && pr >= 55) {
-    items.push({ cls: "warn", icon: "ri-bug-line", text: `Elevated pest pressure signal (${pr}%) from symptom patterns — prioritize field edges and stressed rows.` });
+    items.push({ cls: "warn", icon: "ri-bug-line", text: t("field_detail.insights.pest_pressure", { n: pr }) });
   }
   const dp = diseaseProbFromScan(latest);
   if (dp != null && dp >= 50) {
-    items.push({ cls: "warn", icon: "ri-virus-line", text: `Disease risk estimate ${dp}% from recent scan — improve airflow and avoid overhead irrigation when humid.` });
+    items.push({ cls: "warn", icon: "ri-virus-line", text: t("field_detail.insights.disease_risk", { n: dp }) });
   }
   if (typeof soilMoisture === "number") {
-    if (soilMoisture < 35) items.push({ cls: "", icon: "ri-drop-line", text: "Regional moisture model is dry — align irrigation with early morning blocks." });
-    if (soilMoisture > 78) items.push({ cls: "warn", icon: "ri-water-flash-line", text: "Moisture model is high — check drainage in low spots after rain." });
+    if (soilMoisture < 35) items.push({ cls: "", icon: "ri-drop-line", text: t("field_detail.insights.dry_model") });
+    if (soilMoisture > 78) items.push({ cls: "warn", icon: "ri-water-flash-line", text: t("field_detail.insights.high_moisture") });
   }
   if (field?.irrigationType === "Rain-fed" && typeof soilMoisture === "number" && soilMoisture < 40) {
-    items.push({ cls: "warn", icon: "ri-cloud-off-line", text: "Rain-fed field with dry moisture estimate — monitor soil crusting and consider contingency irrigation." });
+    items.push({ cls: "warn", icon: "ri-cloud-off-line", text: t("field_detail.insights.rainfed_dry") });
   }
   if (!items.length) {
-    items.push({ cls: "", icon: "ri-sparkling-line", text: "Keep scanning after major weather or input changes to sharpen field intelligence." });
+    items.push({ cls: "", icon: "ri-sparkling-line", text: t("field_detail.insights.keep_scanning") });
   }
   return items;
 }
@@ -223,9 +224,9 @@ function attachFieldDetail(user, fieldId) {
   }
 
   function paintFieldHeader(f) {
-    el("fd-name").textContent = f.name || "Field";
-    const crop = f.cropType || "Crop not set";
-    const area = typeof f.areaAcres === "number" ? `${f.areaAcres.toFixed(1)} acres` : "Area not set";
+    el("fd-name").textContent = f.name || t("field_detail.overview");
+    const crop = f.cropType || t("field_detail.crop_not_set");
+    const area = typeof f.areaAcres === "number" ? `${f.areaAcres.toFixed(1)} ${t("field_detail.acres")}` : t("field_detail.area_not_set");
     el("fd-sub").textContent = `${crop} · ${area}`;
     const img = el("fd-hero-img");
     const fb = el("fd-hero-fallback");
@@ -263,7 +264,7 @@ function attachFieldDetail(user, fieldId) {
     const latest = latestScan();
     const health = latest && typeof latest.healthScore === "number" ? `${Math.round(latest.healthScore)}%` : "—";
     el("fd-health").textContent = health;
-    el("fd-area").textContent = typeof f.areaAcres === "number" ? `${f.areaAcres.toFixed(1)} ac` : "—";
+    el("fd-area").textContent = typeof f.areaAcres === "number" ? `${f.areaAcres.toFixed(1)} ${t("field_detail.ac")}` : "—";
     const moist =
       latestWeatherMoisture != null ? `${Math.round(latestWeatherMoisture)}%` : "—";
     el("fd-moisture").textContent = moist;
@@ -275,9 +276,9 @@ function attachFieldDetail(user, fieldId) {
 
     const cropEl = el("fd-crop-summary");
     cropEl.innerHTML = `
-      <strong style="color:var(--neon)">${f.cropType || "Not set"}</strong><br/>
-      Soil: ${f.soilType || "—"} · Irrigation: ${f.irrigationType || "—"}<br/>
-      Planted: ${f.plantedAt ? new Date(f.plantedAt).toLocaleDateString() : "—"}
+      <strong style="color:var(--neon)">${f.cropType || t("field_detail.not_set")}</strong><br/>
+      ${t("field_detail.soil")}: ${f.soilType || "—"} · ${t("field_detail.irrigation_lbl")}: ${f.irrigationType || "—"}<br/>
+      ${t("field_detail.planted")}: ${f.plantedAt ? new Date(f.plantedAt).toLocaleDateString() : "—"}
     `;
 
     const recHost = el("fd-recs-list");
@@ -286,7 +287,7 @@ function attachFieldDetail(user, fieldId) {
       .sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt))
       .slice(0, 12);
     if (!fieldRecs.length) {
-      recHost.innerHTML = '<div class="empty">No recommendations yet. Run a scan linked to this field.</div>';
+      recHost.innerHTML = `<div class="empty">${t("field_detail.no_recs")}</div>`;
     } else {
       recHost.innerHTML = fieldRecs
         .map(
@@ -301,11 +302,11 @@ function attachFieldDetail(user, fieldId) {
 
     const latestHost = el("fd-latest-scan");
     if (!latest) {
-      latestHost.innerHTML = '<div class="empty">No scans for this field yet. Use Scan from the nav.</div>';
+      latestHost.innerHTML = `<div class="empty">${t("field_detail.no_scans")} (${t("field_detail.use_scan_nav")})</div>`;
     } else {
       latestHost.innerHTML = `
         <div class="scan-card">
-          <div class="score">Health ${Math.round(latest.healthScore)}% · ${latest.severity?.label || latest.severity?.level || ""}</div>
+          <div class="score">${t("common.health")} ${Math.round(latest.healthScore)}% · ${latest.severity?.label || latest.severity?.level || ""}</div>
           <div style="margin-top:6px;color:var(--dim);font-size:11px;">${escapeHtml(latest.diagnosis || "")}</div>
           <div class="t">${formatAgo(tsToMs(latest.createdAt))}</div>
         </div>
@@ -323,17 +324,17 @@ function attachFieldDetail(user, fieldId) {
     const actHost = el("fd-activity-list");
     const acts = activities.slice(0, 25);
     if (!acts.length) {
-      actHost.innerHTML = '<div class="empty">No activity for this field yet.</div>';
+      actHost.innerHTML = `<div class="empty">${t("field_detail.no_activity")}</div>`;
     } else {
       actHost.innerHTML = acts
         .map((a) => {
           const msg =
             a.type === "field.created"
-              ? "Field created"
+              ? t("field_detail.field_created_msg")
               : a.type === "field.updated"
-                ? "Field updated"
+                ? t("field_detail.field_updated_msg")
                 : a.type === "crop_scan.created"
-                  ? "Crop scan saved"
+                  ? t("field_detail.scan_saved_msg")
                   : a.type || "Activity";
           return `<div class="activity-item"><div>${escapeHtml(msg)}</div><div class="t">${formatAgo(tsToMs(a.createdAt))}</div></div>`;
         })
@@ -346,7 +347,7 @@ function attachFieldDetail(user, fieldId) {
       .sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt))
       .slice(0, 15);
     if (!sdesc.length) {
-      scanHost.innerHTML = '<div class="empty">No scans yet.</div>';
+      scanHost.innerHTML = `<div class="empty">${t("field_detail.no_scans_history")}</div>`;
     } else {
       scanHost.innerHTML = sdesc
         .map(
@@ -372,7 +373,7 @@ function attachFieldDetail(user, fieldId) {
     const btn = el("fd-save-meta");
     const name = el("fd-in-name").value.trim();
     if (!name) {
-      alert("Name is required.");
+      alert(t("field_detail.name_required"));
       return;
     }
     btn.disabled = true;
@@ -392,7 +393,7 @@ function attachFieldDetail(user, fieldId) {
       const file = el("fd-cover-file").files?.[0];
       if (file) {
         if (file.size > 6 * 1024 * 1024) {
-          alert("Image must be under 6MB.");
+          alert(t("field_detail.image_size_error"));
         } else {
           const storageRef = ref(storage, `field_covers/${user.uid}/${fieldId}/banner_${Date.now()}`);
           await uploadBytes(storageRef, file);
@@ -430,7 +431,7 @@ function attachFieldDetail(user, fieldId) {
   };
 
   el("fd-delete-field").onclick = async () => {
-    if (!confirm("Delete this field permanently? Scans remain but lose this link.")) return;
+    if (!confirm(t("field_detail.delete_confirm"))) return;
     try {
       await deleteDoc(doc(db, "fields", fieldId));
       window.location.href = "fields.html";
@@ -459,7 +460,10 @@ function setupTabs() {
   });
 }
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
+  await initI18n();
+  startI18nObserver();
+
   if (detach) {
     detach();
     detach = null;

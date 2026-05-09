@@ -1,0 +1,71 @@
+{
+  "_meta": { "name": "Marathi", "nativeName": "मराठी", "flag": "🇮🇳", "dir": "ltr" },
+  "nav": { "home": "मुख्यपृष्ठ", "fields": "शेत", "ai": "AI", "profile": "प्रोफाइल", "scan": "स्कॅन" },
+  "home": {
+    "greeting_morning": "सुप्रभात,", "greeting_afternoon": "नमस्कार,",
+    "greeting_evening": "शुभ संध्या,", "greeting_night": "शुभ रात्री,",
+    "systems_active": "सर्व सिस्टम सक्रिय", "performing_great": "आज तुमचे शेत उत्कृष्ट कामगिरी करत आहे।",
+    "weather_now": "आत्ताचे हवामान", "humidity": "आर्द्रता", "wind": "वारा",
+    "rainfall": "पाऊस", "at_a_glance": "एका दृष्टीक्षेपात", "my_fields": "माझी शेतं",
+    "manage_all": "सर्व पहा", "no_fields": "अद्याप कोणतेही शेत नाही।", "ai_insights": "AI अंतर्दृष्टी",
+    "crop_health": "पिकाचे आरोग्य", "pest_prediction": "कीटक अंदाज", "farm_performance": "शेत कामगिरी",
+    "recent_alerts": "अलीकडील सूचना", "view_all": "सर्व पहा", "pull_refresh": "रिफ्रेश करा"
+  },
+  "fields": {
+    "title": "शेत", "subtitle": "तुमच्या सर्व शेतांचे निरीक्षण, विश्लेषण आणि व्यवस्थापन करा",
+    "total_fields": "एकूण शेत", "total_area": "एकूण क्षेत्र", "fields_healthy": "निरोगी शेत",
+    "attention_needed": "लक्ष आवश्यक", "field_overview": "शेत आढावा",
+    "add_new_field": "नवीन शेत जोडा", "map_boundary": "नवीन शेताची सीमा नकाशावर आखा",
+    "no_fields": "अद्याप कोणतेही शेत नाही। निरीक्षण सुरू करण्यासाठी पहिले शेत जोडा।",
+    "add_field": "शेत जोडा", "healthy": "निरोगी", "moderate": "मध्यम",
+    "at_risk": "धोक्यात", "critical": "गंभीर", "active": "सक्रिय", "acres": "एकर",
+    "good_condition": "चांगली स्थिती", "needs_action": "कारवाई आवश्यक"
+  },
+  "assistant": {
+    "title": "AI सहाय्यक", "subtitle": "तुमच्या शेतासाठी डेटा-आधारित मदत",
+    "empty_msg": "अद्याप कोणताही इतिहास नाही। शेत जोडा किंवा स्कॅन सुरू करा।",
+    "start_scan": "स्कॅन सुरू करा", "add_field": "शेत जोडा",
+    "placeholder": "शेत, स्कॅन, कीटक किंवा पुढील कृतींबद्दल विचारा…",
+    "clear": "चॅट साफ करा"
+  },
+  "profile": {
+    "title": "प्रोफाइल", "farm_owner": "शेत मालक", "farm_overview": "शेत आढावा",
+    "farm_glance": "एका दृष्टीक्षेपात तुमचे शेत", "account_settings": "खाते सेटिंग्ज",
+    "manage_info": "तुमची वैयक्तिक माहिती व्यवस्थापित करा", "my_farms": "माझी शेतं",
+    "view_manage": "तुमची शेतं पहा आणि व्यवस्थापित करा", "subscription": "सदस्यता",
+    "manage_plan": "तुमची योजना व्यवस्थापित करा", "ai_preferences": "AI प्राधान्ये",
+    "customize_ai": "AI शिफारसी सानुकूलित करा", "notifications": "सूचना",
+    "manage_alerts": "सूचना व्यवस्थापित करा", "help_support": "मदत आणि समर्थन",
+    "get_help": "मदत मिळवा", "about": "स्मार्ट फार्मिंगबद्दल",
+    "app_info": "अॅप माहिती", "logout": "लॉगआउट", "sign_out": "साइन आउट करा",
+    "language": "भाषा", "language_sub": "अॅपची भाषा बदला", "edit": "संपादित करा",
+    "save": "जतन करा", "save_changes": "बदल जतन करा", "save_preferences": "प्राधान्ये जतन करा",
+    "full_name": "पूर्ण नाव", "email": "ईमेल", "phone": "फोन नंबर",
+    "location": "स्थान", "personal_info": "वैयक्तिक माहिती", "preferences": "प्राधान्ये",
+    "security": "सुरक्षा", "password": "पासवर्ड", "change_password": "पासवर्ड बदला"
+  },
+  "weather": {
+    "title": "हवामान माहिती", "syncing": "स्थान सिंक होत आहे...",
+    "loading": "रिअलटाइम हवामान लोड होत आहे...", "hourly": "तासावार अंदाज",
+    "farming_intel": "शेती माहिती", "ten_day": "१०-दिवसीय अंदाज",
+    "realtime": "रिअलटाइम मेट्रिक्स", "visibility": "दृश्यमानता", "air_quality": "हवा गुणवत्ता PM2.5",
+    "heat_index": "उष्णता निर्देशांक", "feels_like": "वाटते", "soil_moisture": "माती ओलावा अंदाज",
+    "model_estimate": "मॉडेल अंदाज"
+  },
+  "scanner": {
+    "title": "पीक स्कॅनर", "point_camera": "कॅमेरा पिकाच्या पानावर ठेवा",
+    "scanning": "स्कॅन होत आहे...", "analyzing": "पीक विश्लेषण होत आहे...", "save_scan": "स्कॅन जतन करा",
+    "scan_again": "पुन्हा स्कॅन करा", "health_score": "आरोग्य गुण", "disease": "रोग",
+    "recommendations": "शिफारसी"
+  },
+  "common": {
+    "loading": "लोड होत आहे...", "error": "काहीतरी चूक झाली", "retry": "पुन्हा प्रयत्न करा",
+    "cancel": "रद्द करा", "confirm": "पुष्टी करा", "done": "झाले", "next": "पुढे", "back": "मागे",
+    "search": "शोधा", "select": "निवडा", "yes": "होय", "no": "नाही",
+    "active": "सक्रिय", "inactive": "निष्क्रिय", "high": "उच्च", "medium": "मध्यम", "low": "कमी"
+  },
+  "lang": {
+    "select_language": "भाषा निवडा", "search_language": "भाषा शोधा...",
+    "language_changed": "भाषा यशस्वीरित्या अपडेट झाली!", "current": "सध्याची"
+  }
+}

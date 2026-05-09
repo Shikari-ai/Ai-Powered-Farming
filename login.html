@@ -444,21 +444,21 @@
 
         <div class="auth-header">
             <div class="logo-ring"><i class="ri-leaf-fill"></i></div>
-            <h1>Smart <span>Farming</span></h1>
-            <p>AI Powered Agriculture</p>
+            <h1 data-i18n="auth.title">Smart <span>Farming</span></h1>
+            <p data-i18n="auth.subtitle">AI Powered Agriculture</p>
         </div>
 
         <div class="glass-card" id="glass-card">
             <!-- Dynamic header -->
             <div id="dynamic-header">
-                <h2 class="welcome-text">Welcome Back!</h2>
-                <p class="sub-text">Sign in to continue your smart farming journey</p>
+                <h2 class="welcome-text" data-i18n="auth.welcome_back">Welcome Back!</h2>
+                <p class="sub-text" data-i18n="auth.signin_desc">Sign in to continue your smart farming journey</p>
             </div>
 
             <!-- Tabs -->
             <div class="auth-tabs">
-                <button class="tab-btn active" id="tab-signin" onclick="switchTab('signin')">SIGN IN</button>
-                <button class="tab-btn"        id="tab-signup" onclick="switchTab('signup')">SIGN UP</button>
+                <button class="tab-btn active" id="tab-signin" onclick="switchTab('signin')" data-i18n="auth.signin_tab">SIGN IN</button>
+                <button class="tab-btn"        id="tab-signup" onclick="switchTab('signup')" data-i18n="auth.signup_tab">SIGN UP</button>
                 <div class="tab-indicator" id="tab-indicator"></div>
             </div>
 
@@ -472,19 +472,19 @@
                             <i class="ri-user-line input-icon"></i>
                             <div class="input-content">
                                 <input type="email" id="si-email" required placeholder=" " autocomplete="email">
-                                <label>Email Address</label>
+                                <label data-i18n="auth.email">Email Address</label>
                             </div>
                         </div>
                         <div class="input-group">
                             <i class="ri-lock-2-line input-icon"></i>
                             <div class="input-content">
                                 <input type="password" id="si-password" required placeholder=" " autocomplete="current-password">
-                                <label>Password</label>
+                                <label data-i18n="auth.password">Password</label>
                             </div>
                             <i class="ri-eye-off-line input-icon" style="cursor:pointer;flex-shrink:0;" onclick="togglePwd('si-password',this)"></i>
                         </div>
-                        <a href="#" class="forgot-link" onclick="handleForgotPassword(event)">Forgot Password?</a>
-                        <button type="submit" class="primary-btn" id="si-btn">
+                        <a href="#" class="forgot-link" onclick="handleForgotPassword(event)" data-i18n="auth.forgot_password">Forgot Password?</a>
+                        <button type="submit" class="primary-btn" id="si-btn" data-i18n="auth.signin_btn">
                             Sign In
                             <div class="btn-arrow"><i class="ri-arrow-right-line"></i></div>
                         </button>
@@ -500,14 +500,14 @@
                             <i class="ri-user-line input-icon"></i>
                             <div class="input-content">
                                 <input type="text" id="su-name" required placeholder=" " autocomplete="name">
-                                <label>Full Name</label>
+                                <label data-i18n="auth.full_name">Full Name</label>
                             </div>
                         </div>
                         <div class="input-group">
                             <i class="ri-mail-line input-icon"></i>
                             <div class="input-content">
                                 <input type="email" id="su-email" required placeholder=" " autocomplete="email">
-                                <label>Email Address</label>
+                                <label data-i18n="auth.email">Email Address</label>
                             </div>
                         </div>
                         <div class="input-group">
@@ -515,7 +515,7 @@
                             <div class="input-content">
                                 <input type="password" id="su-password" required placeholder=" "
                                        autocomplete="new-password" oninput="checkStrength(this.value)">
-                                <label>Password</label>
+                                <label data-i18n="auth.password">Password</label>
                             </div>
                             <i class="ri-eye-off-line input-icon" style="cursor:pointer;flex-shrink:0;" onclick="togglePwd('su-password',this)"></i>
                         </div>
@@ -531,9 +531,9 @@
                         </div>
                         <div class="terms-row">
                             <input type="checkbox" required id="su-terms">
-                            <label for="su-terms">I agree to the <span style="color:var(--emerald);">Terms of Service</span> and <span style="color:var(--emerald);">Privacy Policy</span></label>
+                            <label for="su-terms" data-i18n="auth.terms_text">I agree to the <span style="color:var(--emerald);">Terms of Service</span> and <span style="color:var(--emerald);">Privacy Policy</span></label>
                         </div>
-                        <button type="submit" class="primary-btn" id="su-btn">
+                        <button type="submit" class="primary-btn" id="su-btn" data-i18n="auth.signup_btn">
                             Create Account
                             <div class="btn-arrow"><i class="ri-arrow-right-line"></i></div>
                         </button>
@@ -543,7 +543,7 @@
 
             </div><!-- /forms-wrapper -->
 
-            <div class="divider">or continue with</div>
+            <div class="divider" data-i18n="auth.or_continue">or continue with</div>
 
             <button type="button" class="social-btn google-btn" onclick="handleGoogleLogin()">
                 <div class="g-inner">
@@ -554,13 +554,13 @@
                       <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
                       <path fill="none" d="M0 0h48v48H0z"/>
                     </svg>
-                    Continue with Google
+                    <span data-i18n="auth.google_btn">Continue with Google</span>
                 </div>
             </button>
 
             <button type="button" class="social-btn apple" onclick="handleGoogleLogin()">
                 <i class="ri-apple-fill apple-icon" style="font-size:22px;"></i>
-                Continue with Apple
+                <span data-i18n="auth.apple_btn">Continue with Apple</span>
             </button>
 
         </div><!-- /glass-card -->
@@ -569,8 +569,8 @@
         <div class="security-badge">
             <div class="sec-icon"><i class="ri-shield-check-fill"></i></div>
             <div class="sec-text">
-                <h4>Your data is 100% secure</h4>
-                <p>We use advanced military-grade encryption to protect your farm's sensitive information.</p>
+                <h4 data-i18n="auth.secure_title">Your data is 100% secure</h4>
+                <p data-i18n="auth.secure_desc">We use advanced military-grade encryption to protect your farm's sensitive information.</p>
             </div>
         </div>
 
@@ -578,10 +578,13 @@
 
     <script type="module">
         import { auth, loginWithEmailPwd, signUpWithEmail, loginWithGoogle } from './js/auth.js';
+        import { initI18n, startI18nObserver, t } from './js/i18n.js';
         import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         /** Already signed in: go straight to dashboard. */
         (async function redirectIfAlreadySignedIn() {
+            await initI18n();
+            startI18nObserver();
             await auth.authStateReady();
             const path = location.pathname || '';
             if (!/login\.html$/i.test(path)) return;
@@ -772,15 +775,15 @@
             // Update dynamic header
             const header = document.getElementById('dynamic-header');
             header.innerHTML = tab === 'signin'
-                ? `<h2 class="welcome-text header-anim">Welcome Back!</h2><p class="sub-text header-anim">Sign in to continue your smart farming journey</p>`
-                : `<h2 class="welcome-text header-anim">Create Account</h2><p class="sub-text header-anim">Start your smart farming journey today</p>`;
+                ? `<h2 class="welcome-text header-anim">${t('auth.welcome_back')}</h2><p class="sub-text header-anim">${t('auth.signin_desc')}</p>`
+                : `<h2 class="welcome-text header-anim">${t('auth.create_account')}</h2><p class="sub-text header-anim">${t('auth.signup_desc')}</p>`;
         };
 
         /* ══════════════════════════════════════
            PASSWORD STRENGTH
         ══════════════════════════════════════ */
         const strengthColors = ['#ef4444','#f97316','#eab308','#22c55e'];
-        const strengthLabels = ['Too weak','Fair','Good','Strong 💪'];
+        const strengthLabels = [t('auth.strength.too_weak'), t('auth.strength.fair'), t('auth.strength.good'), t('auth.strength.strong')];
 
         window.checkStrength = (pwd) => {
             const wrap = document.getElementById('strength-wrap');

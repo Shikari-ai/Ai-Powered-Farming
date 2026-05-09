@@ -293,8 +293,8 @@
     <header class="header">
       <button class="icon-btn" onclick="window.location.href='index.html'"><i class="ri-arrow-left-line"></i></button>
       <div class="title">
-        <h1>Weather Intelligence</h1>
-        <p id="loc-line">Syncing location...</p>
+        <h1 data-i18n="weather.title">Weather Intelligence</h1>
+        <p id="loc-line" data-i18n="weather.syncing">Syncing location...</p>
         <p class="coords" id="loc-coords"></p>
         <p class="source-tag" id="data-source-line"></p>
       </div>
@@ -309,43 +309,43 @@
         <div class="hero-top">
           <div>
             <div class="hero-temp" id="cur-temp">--</div>
-            <div class="hero-desc" id="cur-desc">Loading realtime weather...</div>
+            <div class="hero-desc" id="cur-desc" data-i18n="weather.loading">Loading realtime weather...</div>
             <div class="hero-sub" id="cur-meta">--</div>
           </div>
           <div style="font-size:40px; opacity:.9;" id="cur-icon"><i class="ri-sun-line"></i></div>
         </div>
         <div class="chip-row">
-          <div class="chip"><div>Humidity</div><div class="val" id="cur-hum">--</div></div>
-          <div class="chip"><div>Wind</div><div class="val" id="cur-wind">--</div></div>
-          <div class="chip"><div>Rain</div><div class="val" id="cur-rain">--</div></div>
-          <div class="chip"><div>UV</div><div class="val" id="cur-uv">--</div></div>
+          <div class="chip"><div data-i18n="home.humidity">Humidity</div><div class="val" id="cur-hum">--</div></div>
+          <div class="chip"><div data-i18n="home.wind">Wind</div><div class="val" id="cur-wind">--</div></div>
+          <div class="chip"><div data-i18n="home.rainfall">Rain</div><div class="val" id="cur-rain">--</div></div>
+          <div class="chip"><div data-i18n="weather.uv">UV</div><div class="val" id="cur-uv">--</div></div>
         </div>
       </section>
 
       <section class="card">
-        <h3>Hourly Forecast</h3>
+        <h3 data-i18n="weather.hourly">Hourly Forecast</h3>
         <div class="hourly" id="hourly-list"><div class="empty">Loading...</div></div>
       </section>
 
       <section class="card">
-        <h3>Farming Intelligence</h3>
+        <h3 data-i18n="weather.farming_intel">Farming Intelligence</h3>
         <div style="display:flex; flex-direction:column; gap:8px;" id="insights-list">
           <div class="empty">Waiting for weather sync...</div>
         </div>
       </section>
 
       <section class="card">
-        <h3>10-Day Forecast</h3>
+        <h3 data-i18n="weather.forecast_10">10-Day Forecast</h3>
         <div class="days" id="days-list"><div class="empty">Loading...</div></div>
       </section>
 
       <section class="card">
-        <h3>Realtime Metrics</h3>
+        <h3 data-i18n="weather.realtime_metrics">Realtime Metrics</h3>
         <div class="grid">
-          <div class="metric"><div class="k">Visibility</div><div class="v" id="m-vis">--</div><div class="s">km</div></div>
-          <div class="metric"><div class="k">Air Quality PM2.5</div><div class="v" id="m-pm25">--</div><div class="s" id="m-aqi-label">--</div></div>
-          <div class="metric"><div class="k">Heat Index</div><div class="v" id="m-heat">--</div><div class="s">feels like</div></div>
-          <div class="metric"><div class="k">Soil Moisture Est.</div><div class="v" id="m-soil">--</div><div class="s">model estimate</div></div>
+          <div class="metric"><div class="k" data-i18n="weather.visibility">Visibility</div><div class="v" id="m-vis">--</div><div class="s">km</div></div>
+          <div class="metric"><div class="k" data-i18n="weather.air_quality">Air Quality PM2.5</div><div class="v" id="m-pm25">--</div><div class="s" id="m-aqi-label">--</div></div>
+          <div class="metric"><div class="k" data-i18n="weather.heat_index">Heat Index</div><div class="v" id="m-heat">--</div><div class="s">feels like</div></div>
+          <div class="metric"><div class="k" data-i18n="weather.soil_moisture">Soil Moisture Est.</div><div class="v" id="m-soil">--</div><div class="s">model estimate</div></div>
         </div>
       </section>
 

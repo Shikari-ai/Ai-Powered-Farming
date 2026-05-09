@@ -13,7 +13,7 @@ function loadSavedScans() {
     const scans = JSON.parse(localStorage.getItem('agri_scans') || '[]');
     
     if (scans.length === 0) {
-        scansList.innerHTML = '<p class="text-muted" style="font-size:13px; text-align:center; padding: 10px;">No data saved yet. Scan a crop to start building your farm history!</p>';
+        scansList.innerHTML = `<p class="text-muted" style="font-size:13px; text-align:center; padding: 10px;">${window.t ? window.t("common.no_data_saved") : "No data saved yet. Scan a crop to start building your farm history!"}</p>`;
         return;
     }
     
@@ -28,7 +28,7 @@ function loadSavedScans() {
                 </div>
                 <div class="scan-details" style="flex:1;">
                     <h4 style="font-size:14px; margin-bottom:2px;">${scan.disease}</h4>
-                    <p style="font-size:12px; color:var(--text-muted);">${date} • Health: <span style="color:var(--accent-orange)">${scan.health}%</span></p>
+                    <p style="font-size:12px; color:var(--text-muted);">${date} • ${window.t ? window.t("common.health") : "Health"}: <span style="color:var(--accent-orange)">${scan.health}%</span></p>
                 </div>
             </div>
         `;
@@ -58,7 +58,7 @@ async function initCamera() {
 async function refreshLocationAndWeather() {
     const locElement = document.querySelector('.location');
     if (locElement) {
-        locElement.innerHTML = `<i class="ri-loader-4-line spin" style="display:inline-block"></i> Syncing…`;
+        locElement.innerHTML = `<i class="ri-loader-4-line spin" style="display:inline-block"></i> ${window.t ? window.t("common.syncing") : "Syncing..."}`;
     }
 
     try {
@@ -68,7 +68,7 @@ async function refreshLocationAndWeather() {
 
         if (locElement) {
             if (loc.source === 'insecure-context') {
-                locElement.innerHTML = `<i class="ri-map-pin-line" style="color:var(--accent-orange)"></i> Need HTTPS for GPS`;
+                locElement.innerHTML = `<i class="ri-map-pin-line" style="color:var(--accent-orange)"></i> ${window.t ? window.t("common.need_https") : "Need HTTPS for GPS"}`;
                 const aiAlert = document.querySelector('.ai-alert');
                 if (aiAlert) {
                     aiAlert.innerHTML = `<i class="ri-error-warning-line"></i> AI: This page is not served over HTTPS. Browsers block location on plain http:// (except localhost). Deploy with HTTPS or test with <strong>http://127.0.0.1</strong> / <strong>http://localhost</strong>.`;
@@ -76,10 +76,10 @@ async function refreshLocationAndWeather() {
                     aiAlert.style.color = "var(--accent-orange)";
                 }
             } else if (loc.source === 'fallback') {
-                locElement.innerHTML = `<i class="ri-map-pin-line" style="color:var(--accent-orange)"></i> ${loc.city} (approx.)`;
+                locElement.innerHTML = `<i class="ri-map-pin-line" style="color:var(--accent-orange)"></i> ${loc.city} (${window.t ? window.t("common.approx") : "approx."})`;
                 const aiAlert = document.querySelector('.ai-alert');
                 if (aiAlert) {
-                    aiAlert.innerHTML = `<i class="ri-error-warning-line"></i> AI: Allow location for this site in your browser, then open the dashboard again.`;
+                    aiAlert.innerHTML = `<i class="ri-error-warning-line"></i> AI: ${window.t ? window.t("common.allow_location") : "Allow location for this site in your browser, then open the dashboard again."}`;
                     aiAlert.style.display = 'block';
                     aiAlert.style.color = "var(--accent-orange)";
                 }

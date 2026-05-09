@@ -1,4 +1,5 @@
 import { auth, db, storage } from './auth.js';
+import { initI18n, startI18nObserver, t } from './i18n.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
     collection,
@@ -46,23 +47,23 @@ function computeDiagnosis(selectedSymptomIds) {
     for (const sId of selectedSymptomIds) {
         const s = SYMPTOMS.find(x => x.id === sId);
         if (!s) continue;
-        for (const t of s.tags) tags.add(t);
+        for (const tTag of s.tags) tags.add(tTag);
     }
 
     if (selectedSymptomIds.length === 0) {
-        return { code: "no_symptoms", label: "No symptoms reported", category: "healthy" };
+        return { code: "no_symptoms", label: t("scanner.diagnosis.no_symptoms"), category: "healthy" };
     }
-    if (tags.has("fungal")) return { code: "fungal_risk", label: "Fungal risk signals", category: "risk" };
-    if (tags.has("pest")) return { code: "pest_damage", label: "Possible pest damage", category: "risk" };
-    if (tags.has("nutrient")) return { code: "nutrient_stress", label: "Possible nutrient stress", category: "risk" };
-    if (tags.has("water")) return { code: "water_stress", label: "Possible water stress", category: "risk" };
-    return { code: "needs_review", label: "Needs further review", category: "unknown" };
+    if (tags.has("fungal")) return { code: "fungal_risk", label: t("scanner.diagnosis.fungal_risk"), category: "risk" };
+    if (tags.has("pest")) return { code: "pest_damage", label: t("scanner.diagnosis.pest_damage"), category: "risk" };
+    if (tags.has("nutrient")) return { code: "nutrient_stress", label: t("scanner.diagnosis.nutrient_stress"), category: "risk" };
+    if (tags.has("water")) return { code: "water_stress", label: t("scanner.diagnosis.water_stress"), category: "risk" };
+    return { code: "needs_review", label: t("scanner.diagnosis.needs_review"), category: "unknown" };
 }
 
 function computeSeverity(healthScore) {
-    if (healthScore >= 80) return { level: "good", label: "Good" };
-    if (healthScore >= 50) return { level: "warning", label: "Needs attention" };
-    return { level: "critical", label: "Critical" };
+    if (healthScore >= 80) return { level: "good", label: t("scanner.severity.good") };
+    if (healthScore >= 50) return { level: "warning", label: t("scanner.severity.warning") };
+    return { level: "critical", label: t("scanner.severity.critical") };
 }
 
 function buildRecommendations({ diagnosis, selectedSymptomIds }) {
@@ -70,34 +71,34 @@ function buildRecommendations({ diagnosis, selectedSymptomIds }) {
     const has = (id) => selectedSymptomIds.includes(id);
 
     if (diagnosis.code === "no_symptoms") {
-        recs.push({ type: "info", text: "Log a scan with symptoms anytime you notice changes." });
-        recs.push({ type: "info", text: "Add fields to unlock per-field monitoring and trends." });
+        recs.push({ type: "info", text: t("scanner.recs.no_symptoms_log") });
+        recs.push({ type: "info", text: t("scanner.recs.no_symptoms_fields") });
         return recs;
     }
 
     if (diagnosis.code === "fungal_risk") {
-        recs.push({ type: "action", text: "Inspect underside of leaves and remove heavily affected foliage." });
-        recs.push({ type: "action", text: "Avoid overhead watering; improve airflow around plants." });
-        if (has("mold")) recs.push({ type: "warning", text: "If mildew spreads quickly, consult a local agronomist for targeted treatment." });
+        recs.push({ type: "action", text: t("scanner.recs.fungal_inspect") });
+        recs.push({ type: "action", text: t("scanner.recs.fungal_watering") });
+        if (has("mold")) recs.push({ type: "warning", text: t("scanner.recs.fungal_mildew") });
     }
 
     if (diagnosis.code === "pest_damage") {
-        recs.push({ type: "action", text: "Check leaves early morning for larvae/eggs; document findings." });
-        recs.push({ type: "action", text: "Consider pheromone/sticky traps and targeted scouting before spraying." });
+        recs.push({ type: "action", text: t("scanner.recs.pest_check") });
+        recs.push({ type: "action", text: t("scanner.recs.pest_traps") });
     }
 
     if (diagnosis.code === "nutrient_stress") {
-        recs.push({ type: "action", text: "Review recent fertilization; consider soil test before adjusting inputs." });
-        recs.push({ type: "info", text: "Track symptom spread across fields to confirm nutrient vs pest causes." });
+        recs.push({ type: "action", text: t("scanner.recs.nutrient_review") });
+        recs.push({ type: "info", text: t("scanner.recs.nutrient_track") });
     }
 
     if (diagnosis.code === "water_stress") {
-        recs.push({ type: "action", text: "Check irrigation schedule and soil moisture at root depth." });
-        if (has("wilting")) recs.push({ type: "warning", text: "If wilting persists after irrigation, check for root issues." });
+        recs.push({ type: "action", text: t("scanner.recs.water_check") });
+        if (has("wilting")) recs.push({ type: "warning", text: t("scanner.recs.water_wilting") });
     }
 
     if (recs.length === 0) {
-        recs.push({ type: "info", text: "Add more observations to generate actionable recommendations." });
+        recs.push({ type: "info", text: t("scanner.recs.more_obs") });
     }
     return recs;
 }
@@ -117,7 +118,7 @@ function renderSymptoms(container, onChange) {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.dataset.symptom = s.id;
-        btn.textContent = s.label;
+        btn.textContent = t(`scanner.symptoms.${s.id}`, s.label);
         btn.style.padding = "10px 12px";
         btn.style.borderRadius = "999px";
         btn.style.border = "1px solid rgba(255,255,255,0.10)";
@@ -206,11 +207,14 @@ function setBtnLoading(btn, isLoading, text) {
     if (!btn) return;
     btn.disabled = isLoading;
     btn.innerHTML = isLoading
-        ? `<i class="ri-loader-4-line spin" style="margin-right:8px;"></i>${text || "Working..."}`
+        ? `<i class="ri-loader-4-line spin" style="margin-right:8px;"></i>${text || t("scanner.working")}`
         : text || btn.dataset.originalText || btn.textContent;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+    await initI18n();
+    startI18nObserver();
+
     const readyState = qs("ready-state");
     const analyzeState = qs("analyze-state");
     const resultState = qs("result-state");
@@ -238,7 +242,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const updateSymptomCount = () => {
         if (!symptomsWrap || !symptomCount) return;
         const selected = getSelectedSymptoms(symptomsWrap);
-        symptomCount.textContent = `${selected.length} selected`;
+        symptomCount.textContent = t("scanner.symptom_count", { n: selected.length });
     };
 
     if (symptomsWrap) renderSymptoms(symptomsWrap, updateSymptomCount);
@@ -289,7 +293,7 @@ document.addEventListener("DOMContentLoaded", () => {
             );
             onSnapshot(fieldsQ, (snap) => {
                 const prev = fieldSel.value;
-                fieldSel.innerHTML = `<option value="">No field selected</option>`;
+                fieldSel.innerHTML = `<option value="" data-i18n="scanner.no_field_selected">${t("scanner.no_field_selected")}</option>`;
                 snap.forEach((d) => {
                     const f = d.data();
                     const opt = document.createElement("option");
@@ -310,7 +314,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (captureBtn) {
         captureBtn.addEventListener("click", async () => {
             try {
-                setBtnLoading(captureBtn, true, "Capturing...");
+                setBtnLoading(captureBtn, true, t("scanner.capturing"));
                 const videoEl = qs("videoElement");
                 const blob = await captureFromVideo(videoEl);
                 currentBlob = blob;
@@ -319,7 +323,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 toAnalyzeState();
             } catch (e) {
                 console.error(e);
-                alert("Could not capture from camera. Try Upload instead.");
+                alert(t("scanner.camera_fail_alert"));
             } finally {
                 setBtnLoading(captureBtn, false);
             }
@@ -342,7 +346,7 @@ document.addEventListener("DOMContentLoaded", () => {
         analyzeBtn.addEventListener("click", async () => {
             const cropType = cropSel ? cropSel.value.trim() : "";
             if (!cropType) {
-                alert("Please select a crop type.");
+                alert(t("scanner.select_crop_alert"));
                 return;
             }
             const selected = symptomsWrap ? getSelectedSymptoms(symptomsWrap) : [];
@@ -371,23 +375,23 @@ document.addEventListener("DOMContentLoaded", () => {
         saveBtn.addEventListener("click", async () => {
             if (!currentUserId) return;
             if (!computed) {
-                alert("Please generate recommendations first.");
+                alert(t("scanner.generate_first_alert"));
                 return;
             }
 
-            setBtnLoading(saveBtn, true, "Saving...");
+            setBtnLoading(saveBtn, true, t("scanner.saving"));
 
             const scanRef = doc(collection(db, "crop_scans"));
             let imageMeta = null;
 
             try {
                 if (currentBlob) {
-                    setBtnLoading(saveBtn, true, "Uploading image...");
+                    setBtnLoading(saveBtn, true, t("scanner.uploading", { n: 0 }));
                     imageMeta = await uploadScanImage({
                         userId: currentUserId,
                         scanId: scanRef.id,
                         blob: currentBlob,
-                        onProgress: (pct) => setBtnLoading(saveBtn, true, `Uploading ${pct}%`),
+                        onProgress: (pct) => setBtnLoading(saveBtn, true, t("scanner.uploading", { n: pct })),
                     });
                 }
 

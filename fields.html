@@ -475,8 +475,8 @@
             <div class="header-left">
                 <div class="menu-btn" onclick="window.location.href='index.html'"><i class="ri-arrow-left-line"></i></div>
                 <div class="greeting-text">
-                    <h2>Fields</h2>
-                    <p>Monitor, analyze and manage all your fields</p>
+                    <h2 data-i18n="fields.title">Fields</h2>
+                    <p data-i18n="fields.subtitle">Monitor, analyze and manage all your fields</p>
                 </div>
             </div>
             <div class="header-right">
@@ -492,33 +492,33 @@
             <div class="stat-card">
                 <div class="sc-icon" style="background:rgba(16,185,129,0.1); color:var(--primary);"><i class="ri-layout-grid-fill"></i></div>
                 <div class="sc-info">
-                    <p>Total Fields</p>
+                    <p data-i18n="fields.total_fields">Total Fields</p>
                     <h3 id="fields-total">--</h3>
-                    <span>Active</span>
+                    <span data-i18n="fields.active">Active</span>
                 </div>
             </div>
             <div class="stat-card">
                 <div class="sc-icon" style="background:rgba(139,92,246,0.1); color:var(--accent-purple);"><i class="ri-map-pin-line"></i></div>
                 <div class="sc-info">
-                    <p>Total Area</p>
+                    <p data-i18n="fields.total_area">Total Area</p>
                     <h3 id="fields-area">--</h3>
-                    <span>acres</span>
+                    <span data-i18n="fields.acres">acres</span>
                 </div>
             </div>
             <div class="stat-card">
                 <div class="sc-icon" style="background:rgba(16,185,129,0.1); color:var(--primary);"><i class="ri-leaf-fill"></i></div>
                 <div class="sc-info">
-                    <p>Fields Healthy</p>
+                    <p data-i18n="fields.fields_healthy">Fields Healthy</p>
                     <h3 id="fields-healthy">--</h3>
-                    <span>Good Condition</span>
+                    <span data-i18n="fields.good_condition">Good Condition</span>
                 </div>
             </div>
             <div class="stat-card">
                 <div class="sc-icon" style="background:rgba(245,158,11,0.1); color:var(--accent-yellow);"><i class="ri-error-warning-fill"></i></div>
                 <div class="sc-info">
-                    <p>Attention Needed</p>
+                    <p data-i18n="fields.attention_needed">Attention Needed</p>
                     <h3 id="fields-attn">--</h3>
-                    <span>Needs Action</span>
+                    <span data-i18n="fields.needs_action">Needs Action</span>
                 </div>
             </div>
         </div>
@@ -542,22 +542,22 @@
             <div id="fields-map-empty" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:11; padding:24px; text-align:center;">
                 <div style="background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.08); border-radius: 18px; padding: 16px 14px; max-width: 260px; backdrop-filter: blur(14px);">
                     <i class="ri-map-pin-add-line" style="font-size:26px; color: var(--text-dim);"></i>
-                    <p style="font-size:12px; color: var(--text-dim); margin-top:8px;">No fields connected yet. Add your first field to activate monitoring.</p>
-                    <button class="btn-outline" style="margin-top:12px;" onclick="window.openAddFieldModal && window.openAddFieldModal()">Add field</button>
+                    <p style="font-size:12px; color: var(--text-dim); margin-top:8px;" data-i18n="fields.no_fields">No fields connected yet. Add your first field to activate monitoring.</p>
+                    <button class="btn-outline" style="margin-top:12px;" onclick="window.openAddFieldModal && window.openAddFieldModal()" data-i18n="fields.add_field">Add field</button>
                 </div>
             </div>
 
             <div class="map-legend">
-                <div class="leg-item"><div class="leg-dot" style="background:var(--primary);"></div> Healthy</div>
-                <div class="leg-item"><div class="leg-dot" style="background:var(--accent-yellow);"></div> Moderate</div>
-                <div class="leg-item"><div class="leg-dot" style="background:#F97316;"></div> At Risk</div>
-                <div class="leg-item"><div class="leg-dot" style="background:var(--accent-red);"></div> Critical</div>
+                <div class="leg-item"><div class="leg-dot" style="background:var(--primary);"></div> <span data-i18n="fields.healthy">Healthy</span></div>
+                <div class="leg-item"><div class="leg-dot" style="background:var(--accent-yellow);"></div> <span data-i18n="fields.moderate">Moderate</span></div>
+                <div class="leg-item"><div class="leg-dot" style="background:#F97316;"></div> <span data-i18n="fields.at_risk">At Risk</span></div>
+                <div class="leg-item"><div class="leg-dot" style="background:var(--accent-red);"></div> <span data-i18n="fields.critical">Critical</span></div>
             </div>
         </div>
 
         <!-- Field Overview Section -->
         <div class="section-title">
-            <h3><div style="width:4px; height:14px; background:var(--primary); display:inline-block; margin-right:8px; border-radius:2px; vertical-align:middle;"></div> Field Overview</h3>
+            <h3><div style="width:4px; height:14px; background:var(--primary); display:inline-block; margin-right:8px; border-radius:2px; vertical-align:middle;"></div> <span data-i18n="fields.field_overview">Field Overview</span></h3>
             <div class="sort-dropdown">Sort by: <span>Health Score</span> <i class="ri-arrow-down-s-line"></i></div>
         </div>
 
@@ -574,8 +574,8 @@
         <div class="add-field-card" id="add-field-cta">
             <div class="af-btn"><i class="ri-add-line"></i></div>
             <div class="af-text">
-                <h4>Add New Field</h4>
-                <p>Map new field boundary and start monitoring</p>
+                <h4 data-i18n="fields.add_new_field">Add New Field</h4>
+                <p data-i18n="fields.map_boundary">Map new field boundary and start monitoring</p>
             </div>
             <div class="af-grid"></div>
             <div class="af-graphic"></div>
@@ -587,11 +587,11 @@
     <nav class="bottom-nav">
         <a href="index.html" class="b-nav-item">
             <i class="ri-home-5-line"></i>
-            <span>Home</span>
+            <span data-i18n="nav.home">Home</span>
         </a>
         <a href="fields.html" class="b-nav-item active">
             <i class="ri-leaf-fill"></i>
-            <span>Fields</span>
+            <span data-i18n="nav.fields">Fields</span>
         </a>
         <a href="scanner.html" class="b-nav-scan">
             <i class="ri-leaf-fill"></i>

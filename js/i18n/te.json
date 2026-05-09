@@ -1,0 +1,71 @@
+{
+  "_meta": { "name": "Telugu", "nativeName": "తెలుగు", "flag": "🇮🇳", "dir": "ltr" },
+  "nav": { "home": "హోమ్", "fields": "పొలాలు", "ai": "AI", "profile": "ప్రొఫైల్", "scan": "స్కాన్" },
+  "home": {
+    "greeting_morning": "శుభోదయం,", "greeting_afternoon": "నమస్కారం,",
+    "greeting_evening": "శుభ సాయంత్రం,", "greeting_night": "శుభ రాత్రి,",
+    "systems_active": "అన్ని సిస్టమ్‌లు యాక్టివ్‌గా ఉన్నాయి", "performing_great": "ఈరోజు మీ పొలం చాలా బాగా పని చేస్తోంది.",
+    "weather_now": "ఇప్పటి వాతావరణం", "humidity": "తేమ", "wind": "గాలి",
+    "rainfall": "వర్షపాతం", "at_a_glance": "ఒక్క చూపులో", "my_fields": "నా పొలాలు",
+    "manage_all": "అన్నీ చూడండి", "no_fields": "ఇంకా పొలాలు లేవు.", "ai_insights": "AI అంతర్దృష్టి",
+    "crop_health": "పంట ఆరోగ్యం", "pest_prediction": "పురుగుల అంచనా", "farm_performance": "పొలం పనితీరు",
+    "recent_alerts": "ఇటీవలి హెచ్చరికలు", "view_all": "అన్నీ చూడండి", "pull_refresh": "రిఫ్రెష్ చేయండి"
+  },
+  "fields": {
+    "title": "పొలాలు", "subtitle": "మీ అన్ని పొలాలను పర్యవేక్షించండి మరియు నిర్వహించండి",
+    "total_fields": "మొత్తం పొలాలు", "total_area": "మొత్తం విస్తీర్ణం", "fields_healthy": "ఆరోగ్యకరమైన పొలాలు",
+    "attention_needed": "శ్రద్ధ అవసరం", "field_overview": "పొలం సారాంశం",
+    "add_new_field": "కొత్త పొలం జోడించండి", "map_boundary": "కొత్త పొలం సరిహద్దు గీయండి",
+    "no_fields": "ఇంకా పొలాలు లేవు. పర్యవేక్షణ ప్రారంభించడానికి మొదటి పొలం జోడించండి.",
+    "add_field": "పొలం జోడించండి", "healthy": "ఆరోగ్యకరమైన", "moderate": "మధ్యస్థ",
+    "at_risk": "ప్రమాదంలో", "critical": "తీవ్రమైన", "active": "యాక్టివ్", "acres": "ఎకరాలు",
+    "good_condition": "మంచి స్థితి", "needs_action": "చర్య అవసరం"
+  },
+  "assistant": {
+    "title": "AI సహాయకుడు", "subtitle": "మీ పొలానికి డేటా-ఆధారిత సహాయం",
+    "empty_msg": "ఇంకా చరిత్ర లేదు. పొలం జోడించండి లేదా స్కాన్ ప్రారంభించండి.",
+    "start_scan": "స్కాన్ ప్రారంభించండి", "add_field": "పొలం జోడించండి",
+    "placeholder": "పొలం, స్కాన్, పురుగుల గురించి అడగండి…",
+    "clear": "చాట్ క్లియర్ చేయండి"
+  },
+  "profile": {
+    "title": "ప్రొఫైల్", "farm_owner": "పొలం యజమాని", "farm_overview": "పొలం సారాంశం",
+    "farm_glance": "ఒక్క చూపులో మీ పొలం", "account_settings": "ఖాతా సెట్టింగ్‌లు",
+    "manage_info": "మీ వ్యక్తిగత సమాచారాన్ని నిర్వహించండి", "my_farms": "నా పొలాలు",
+    "view_manage": "పొలాలను చూడండి మరియు నిర్వహించండి", "subscription": "సభ్యత్వం",
+    "manage_plan": "మీ ప్లాన్ నిర్వహించండి", "ai_preferences": "AI ప్రాధాన్యతలు",
+    "customize_ai": "AI సిఫార్సులు కస్టమైజ్ చేయండి", "notifications": "నోటిఫికేషన్‌లు",
+    "manage_alerts": "హెచ్చరికలు నిర్వహించండి", "help_support": "సహాయం మరియు మద్దతు",
+    "get_help": "సహాయం పొందండి", "about": "స్మార్ట్ ఫార్మింగ్ గురించి",
+    "app_info": "యాప్ సమాచారం", "logout": "లాగ్‌అవుట్", "sign_out": "మీ స్మార్ట్ ఫార్మ్ నుండి సైన్ అవుట్ చేయండి",
+    "language": "భాష", "language_sub": "యాప్ భాషను మార్చండి", "edit": "సవరించండి",
+    "save": "సేవ్ చేయండి", "save_changes": "మార్పులు సేవ్ చేయండి", "save_preferences": "ప్రాధాన్యతలు సేవ్ చేయండి",
+    "full_name": "పూర్తి పేరు", "email": "ఇమెయిల్", "phone": "ఫోన్ నంబర్",
+    "location": "స్థానం", "personal_info": "వ్యక్తిగత సమాచారం", "preferences": "ప్రాధాన్యతలు",
+    "security": "భద్రత", "password": "పాస్‌వర్డ్", "change_password": "పాస్‌వర్డ్ మార్చండి"
+  },
+  "weather": {
+    "title": "వాతావరణ నుంచి", "syncing": "స్థానం సమకాలీకరిస్తోంది...",
+    "loading": "రియల్‌టైమ్ వాతావరణం లోడ్ అవుతోంది...", "hourly": "గంటవారీ అంచనా",
+    "farming_intel": "వ్యవసాయ నుంచి", "ten_day": "10-రోజుల అంచనా",
+    "realtime": "రియల్‌టైమ్ మెట్రిక్స్", "visibility": "దృశ్యమానత", "air_quality": "వాయు నాణ్యత PM2.5",
+    "heat_index": "వేడి సూచిక", "feels_like": "అనిపిస్తుంది", "soil_moisture": "నేల తేమ అంచనా",
+    "model_estimate": "మోడల్ అంచనా"
+  },
+  "scanner": {
+    "title": "పంట స్కానర్", "point_camera": "కెమెరాను పంట ఆకుపై ఉంచండి",
+    "scanning": "స్కాన్ అవుతోంది...", "analyzing": "పంట విశ్లేషణ అవుతోంది...", "save_scan": "స్కాన్ సేవ్ చేయండి",
+    "scan_again": "మళ్లీ స్కాన్ చేయండి", "health_score": "ఆరోగ్య స్కోరు", "disease": "వ్యాధి",
+    "recommendations": "సిఫార్సులు"
+  },
+  "common": {
+    "loading": "లోడ్ అవుతోంది...", "error": "ఏదో తప్పు జరిగింది", "retry": "మళ్లీ ప్రయత్నించండి",
+    "cancel": "రద్దు చేయండి", "confirm": "నిర్ధారించండి", "done": "పూర్తయింది", "next": "తదుపరి", "back": "వెనక్కి",
+    "search": "వెతకండి", "select": "ఎంచుకోండి", "yes": "అవును", "no": "కాదు",
+    "active": "యాక్టివ్", "inactive": "నిష్క్రియంగా", "high": "అధిక", "medium": "మధ్యస్థ", "low": "తక్కువ"
+  },
+  "lang": {
+    "select_language": "భాష ఎంచుకోండి", "search_language": "భాష వెతకండి...",
+    "language_changed": "భాష విజయవంతంగా నవీకరించబడింది!", "current": "ప్రస్తుత"
+  }
+}

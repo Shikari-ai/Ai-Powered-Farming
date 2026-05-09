@@ -40,12 +40,12 @@
         <!-- Scanner UI Overlay -->
         <header class="scanner-header glass-panel">
             <a href="index.html" class="icon-btn"><i class="ri-arrow-left-line"></i></a>
-            <h2>AI Vision Scanner</h2>
+            <h2 data-i18n="scanner.title">AI Vision Scanner</h2>
             <button class="icon-btn" id="flip-camera"><i class="ri-camera-switch-line"></i></button>
         </header>
 
         <div class="scanner-instructions">
-            <p>Point camera at the affected crop leaves...</p>
+            <p data-i18n="scanner.instructions">Point camera at the affected crop leaves...</p>
         </div>
 
         <!-- Analysis Results Bottom Sheet -->
@@ -54,15 +54,15 @@
             
             <!-- Ready / Capture -->
             <div id="ready-state">
-                <h3>Capture a crop photo</h3>
-                <p>Your results will only appear after you capture and save a real scan.</p>
+                <h3 data-i18n="scanner.capture_title">Capture a crop photo</h3>
+                <p data-i18n="scanner.capture_desc">Your results will only appear after you capture and save a real scan.</p>
                 <div style="display:flex; gap:10px; margin-top:14px;">
                     <button class="primary-btn" id="capture-btn" style="flex:1; padding:14px; font-size:14px;">
-                        <i class="ri-camera-3-line" style="margin-right:8px;"></i> Capture
+                        <i class="ri-camera-3-line" style="margin-right:8px;"></i> <span data-i18n="scanner.capture_btn">Capture</span>
                     </button>
                     <label class="primary-btn" style="flex:1; padding:14px; font-size:14px; text-align:center; background: rgba(255,255,255,0.08); box-shadow:none;">
                         <input type="file" id="upload-input" accept="image/*" capture="environment" style="display:none;">
-                        <i class="ri-upload-2-line" style="margin-right:8px;"></i> Upload
+                        <i class="ri-upload-2-line" style="margin-right:8px;"></i> <span data-i18n="scanner.upload_btn">Upload</span>
                     </label>
                 </div>
             </div>
@@ -72,23 +72,23 @@
                 <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
                     <img id="scan-preview" alt="Scan preview" style="width:72px; height:72px; border-radius:16px; object-fit:cover; border:1px solid rgba(255,255,255,0.12);" />
                     <div style="flex:1;">
-                        <h3 style="margin-bottom:4px;">Scan details</h3>
-                        <p style="opacity:0.8;">Tell us what you’re seeing. We’ll generate recommendations from your inputs and saved history.</p>
+                        <h3 style="margin-bottom:4px;" data-i18n="scanner.details_title">Scan details</h3>
+                        <p style="opacity:0.8;" data-i18n="scanner.details_desc">Tell us what you’re seeing. We’ll generate recommendations from your inputs and saved history.</p>
                     </div>
                 </div>
 
                 <div style="display:flex; flex-direction:column; gap:10px;">
                     <div>
-                        <label style="font-size:12px; opacity:0.8;">Field (optional)</label>
+                        <label style="font-size:12px; opacity:0.8;" data-i18n="scanner.field_label">Field (optional)</label>
                         <select id="scan-field" class="glass-panel" style="width:100%; padding:12px 14px; border-radius:16px; color:white; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.10);">
-                            <option value="">No field selected</option>
+                            <option value="" data-i18n="scanner.no_field_selected">No field selected</option>
                         </select>
                     </div>
 
                     <div>
-                        <label style="font-size:12px; opacity:0.8;">Crop type</label>
+                        <label style="font-size:12px; opacity:0.8;" data-i18n="scanner.crop_label">Crop type</label>
                         <select id="scan-crop" class="glass-panel" style="width:100%; padding:12px 14px; border-radius:16px; color:white; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.10);">
-                            <option value="">Select crop</option>
+                            <option value="" data-i18n="scanner.select_crop">Select crop</option>
                             <option>Tomato</option>
                             <option>Wheat</option>
                             <option>Cotton</option>
@@ -101,7 +101,7 @@
 
                     <div>
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <label style="font-size:12px; opacity:0.8;">Observed symptoms</label>
+                            <label style="font-size:12px; opacity:0.8;" data-i18n="scanner.symptoms_label">Observed symptoms</label>
                             <span id="symptom-count" style="font-size:12px; opacity:0.7;">0 selected</span>
                         </div>
                         <div id="symptoms" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;">
@@ -110,10 +110,10 @@
                     </div>
                 </div>
 
-                <button class="primary-btn" id="analyze-btn" style="margin-top:14px;">
+                <button class="primary-btn" id="analyze-btn" style="margin-top:14px;" data-i18n="scanner.generate_btn">
                     Generate recommendations
                 </button>
-                <button class="primary-btn" id="retake-btn" style="margin-top:10px; background: rgba(255,255,255,0.08); box-shadow:none;">
+                <button class="primary-btn" id="retake-btn" style="margin-top:10px; background: rgba(255,255,255,0.08); box-shadow:none;" data-i18n="scanner.retake_btn">
                     Retake / Change photo
                 </button>
             </div>
@@ -123,22 +123,22 @@
                 <div class="result-header">
                     <div class="result-badge danger">
                         <i class="ri-leaf-line"></i>
-                        <span id="result-title">Scan result</span>
+                        <span id="result-title" data-i18n="scanner.result_title">Scan result</span>
                     </div>
                     <div class="health-score">
-                        <span class="score" id="result-health">--</span> Health
+                        <span class="score" id="result-health">--</span> <span data-i18n="scanner.health_label">Health</span>
                     </div>
                 </div>
                 
                 <div class="recommendations">
-                    <h4>Recommendations</h4>
+                    <h4 data-i18n="scanner.recommendations_title">Recommendations</h4>
                     <ul class="rec-list">
-                        <li style="opacity:0.8;">No recommendations yet.</li>
+                        <li style="opacity:0.8;" data-i18n="scanner.no_recommendations">No recommendations yet.</li>
                     </ul>
                 </div>
                 
-                <button class="primary-btn" id="save-scan-btn">Save to Cloud & Exit</button>
-                <button class="primary-btn" id="back-to-edit-btn" style="margin-top:10px; background: rgba(255,255,255,0.08); box-shadow:none;">
+                <button class="primary-btn" id="save-scan-btn" data-i18n="scanner.save_exit_btn">Save to Cloud & Exit</button>
+                <button class="primary-btn" id="back-to-edit-btn" style="margin-top:10px; background: rgba(255,255,255,0.08); box-shadow:none;" data-i18n="scanner.back_edit_btn">
                     Back to edit
                 </button>
             </div>
@@ -147,11 +147,11 @@
     </div>
 
     <nav class="bottom-nav">
-        <a href="index.html" class="b-nav-item"><i class="ri-home-5-line"></i><span>Home</span></a>
-        <a href="fields.html" class="b-nav-item"><i class="ri-leaf-line"></i><span>Fields</span></a>
+        <a href="index.html" class="b-nav-item"><i class="ri-home-5-line"></i><span data-i18n="nav.home">Home</span></a>
+        <a href="fields.html" class="b-nav-item"><i class="ri-leaf-line"></i><span data-i18n="nav.fields">Fields</span></a>
         <a href="scanner.html" class="b-nav-scan active-tab"><i class="ri-leaf-fill"></i></a>
-        <a href="assistant.html" class="b-nav-item"><i class="ri-sparkling-line"></i><span>AI</span></a>
-        <a href="profile.html" class="b-nav-item"><i class="ri-user-smile-line"></i><span>Profile</span></a>
+        <a href="assistant.html" class="b-nav-item"><i class="ri-sparkling-line"></i><span data-i18n="nav.ai">AI</span></a>
+        <a href="profile.html" class="b-nav-item"><i class="ri-user-smile-line"></i><span data-i18n="nav.profile">Profile</span></a>
     </nav>
 
     <script src="js/app.js"></script>

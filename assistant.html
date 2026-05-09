@@ -93,23 +93,23 @@
             <div class="header-left">
                 <div class="icon-btn" onclick="window.location.href='index.html'"><i class="ri-arrow-left-line"></i></div>
                 <div class="title">
-                    <h2>AI Assistant</h2>
-                    <p id="assistant-subtitle">Data-driven help for your farm</p>
+                    <h2 data-i18n="assistant.title">AI Assistant</h2>
+                    <p id="assistant-subtitle" data-i18n="assistant.subtitle">Data-driven help for your farm</p>
                 </div>
             </div>
-            <div class="icon-btn" id="assistant-clear" title="Clear chat"><i class="ri-delete-bin-6-line"></i></div>
+            <div class="icon-btn" id="assistant-clear" title="Clear chat" data-i18n-title="assistant.clear"><i class="ri-delete-bin-6-line"></i></div>
         </header>
 
         <div class="chat-wrap">
             <div class="empty" id="assistant-empty">
                 <i class="ri-sparkling-line"></i>
-                <p>
+                <p data-i18n="assistant.empty_msg">
                     No assistant history yet. This assistant only responds using your real account data
                     (fields, scans, recommendations, weather logs). Start with a scan or add a field.
                 </p>
                 <div class="cta-row">
-                    <button class="cta" onclick="window.location.href='scanner.html'">Start a scan</button>
-                    <button class="cta secondary" onclick="window.location.href='fields.html'">Add a field</button>
+                    <button class="cta" onclick="window.location.href='scanner.html'" data-i18n="assistant.start_scan">Start a scan</button>
+                    <button class="cta secondary" onclick="window.location.href='fields.html'" data-i18n="assistant.add_field">Add a field</button>
                 </div>
             </div>
 
@@ -119,7 +119,7 @@
 
     <div class="composer">
         <div class="composer-inner">
-            <input class="input" id="assistant-input" placeholder="Ask about your fields, scans, pests, or next actions…" />
+            <input class="input" id="assistant-input" placeholder="Ask about your fields, scans, pests, or next actions…" data-i18n-placeholder="assistant.placeholder" />
             <button class="send" id="assistant-send" title="Send"><i class="ri-send-plane-2-line"></i></button>
         </div>
     </div>
@@ -127,22 +127,22 @@
     <nav class="bottom-nav">
         <a href="index.html" class="b-nav-item">
             <i class="ri-home-5-line"></i>
-            <span>Home</span>
+            <span data-i18n="nav.home">Home</span>
         </a>
         <a href="fields.html" class="b-nav-item">
             <i class="ri-leaf-line"></i>
-            <span>Fields</span>
+            <span data-i18n="nav.fields">Fields</span>
         </a>
         <a href="scanner.html" class="b-nav-scan">
             <i class="ri-leaf-fill"></i>
         </a>
         <a href="assistant.html" class="b-nav-item active">
             <i class="ri-sparkling-line"></i>
-            <span>AI</span>
+            <span data-i18n="nav.ai">AI</span>
         </a>
         <a href="profile.html" class="b-nav-item">
             <i class="ri-user-smile-line"></i>
-            <span>Profile</span>
+            <span data-i18n="nav.profile">Profile</span>
         </a>
     </nav>
 

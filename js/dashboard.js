@@ -13,7 +13,15 @@ import {
     query,
     where,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getGreeting, t, applyTranslations } from "./i18n.js";
+import { t, initI18n, startI18nObserver } from "./i18n.js";
+
+function getGreeting() {
+    const hr = new Date().getHours();
+    if (hr < 12) return t("home.greeting_morning");
+    if (hr < 17) return t("home.greeting_afternoon");
+    if (hr < 21) return t("home.greeting_evening");
+    return t("home.greeting_night");
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -257,9 +265,10 @@ function updateFarmStatus(fieldsCount, scansCount) {
 
 // ─── DOMContentLoaded bootstrap ──────────────────────────────────────────────
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     // Apply i18n immediately
-    applyTranslations();
+    await initI18n();
+    startI18nObserver();
 
     // Flash greeting from cache (no name flash)
     try {
@@ -276,8 +285,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Realtime language-change listener
-    document.addEventListener("langchange", () => {
-        applyTranslations();
+    window.addEventListener("i18n:updated", () => {
         const greetEl = el("hdr-greet");
         if (greetEl) {
             const current = greetEl.textContent.replace(/,$/, "").trim();

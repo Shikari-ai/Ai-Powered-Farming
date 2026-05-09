@@ -810,10 +810,10 @@
           <span id="hdr-name">...</span>
           <span class="hdr-wave" id="hdr-wave">👋</span>
         </h2>
-        <p class="hdr-subline" id="hdr-subline">Your farm is performing great today.</p>
+        <p class="hdr-subline" id="hdr-subline" data-i18n="home.performing_great">Your farm is performing great today.</p>
         <div class="sys-badge">
           <span class="sys-dot"></span>
-          <span id="sys-label">All Systems Active</span>
+          <span id="sys-label" data-i18n="home.systems_active">All Systems Active</span>
         </div>
       </div>
 
@@ -848,7 +848,7 @@
         <div class="wc-shoot ss2"></div>
       </div>
       <div class="wcard-body">
-        <p class="wcard-lbl" data-i18n="weatherNow">Weather Now</p>
+        <p class="wcard-lbl" data-i18n="home.weather_now">Weather Now</p>
         <div class="wcard-main">
           <div class="wcard-temp-block">
             <span class="wcard-wi" id="wcard-wi">🌤️</span>
@@ -859,15 +859,15 @@
           </div>
           <div class="wcard-meta">
             <div class="wcard-met">
-              <span class="wm-lbl" data-i18n="humidity">Humidity</span>
+              <span class="wm-lbl" data-i18n="home.humidity">Humidity</span>
               <span class="wm-val"><i class="ri-drop-line"></i><b id="wcard-hum">--</b></span>
             </div>
             <div class="wcard-met">
-              <span class="wm-lbl" data-i18n="wind">Wind</span>
+              <span class="wm-lbl" data-i18n="home.wind">Wind</span>
               <span class="wm-val"><i class="ri-windy-line"></i><b id="wcard-wind">--</b></span>
             </div>
             <div class="wcard-met">
-              <span class="wm-lbl" data-i18n="rainfall">Rainfall</span>
+              <span class="wm-lbl" data-i18n="home.rainfall">Rainfall</span>
               <span class="wm-val"><i class="ri-showers-line"></i><b id="wcard-rain">--</b></span>
             </div>
           </div>
@@ -876,7 +876,7 @@
           <span class="wcard-sunrise" id="wcard-sunrise">
             <i class="ri-sun-fill"></i> Sunrise --
           </span>
-          <span class="wcard-fcst"><span data-i18n="viewForecast">View Forecast</span> <i class="ri-arrow-right-s-line"></i></span>
+          <span class="wcard-fcst"><span data-i18n="home.view_all">View Forecast</span> <i class="ri-arrow-right-s-line"></i></span>
         </div>
       </div>
     </div>
@@ -885,11 +885,11 @@
     <div class="qactions fade-up fade-up-d1">
       <a href="scanner.html" class="qa rw">
         <div class="qa-ico"><i class="ri-scan-2-line"></i></div>
-        <span data-i18n="scanCrop">Scan Crop</span>
+        <span data-i18n="nav.scan">Scan Crop</span>
       </a>
       <a href="fields.html" class="qa rw">
         <div class="qa-ico"><i class="ri-add-circle-line"></i></div>
-        <span data-i18n="addField">Add Field</span>
+        <span data-i18n="fields.add_field">Add Field</span>
       </a>
       <a href="weather.html" class="qa rw" id="qa-irrigation">
         <div class="qa-ico qa-blue"><i class="ri-water-flash-line"></i></div>
@@ -897,7 +897,7 @@
       </a>
       <a href="assistant.html" class="qa rw">
         <div class="qa-ico qa-purple"><i class="ri-sparkling-2-line"></i></div>
-        <span data-i18n="aiAssistant">AI Assistant</span>
+        <span data-i18n="nav.ai">AI Assistant</span>
       </a>
     </div>
 
@@ -906,9 +906,9 @@
       <div class="dcard-hdr">
         <div class="dcard-ttl">
           <i class="ri-leaf-line"></i>
-          <span data-i18n="cropHealthMonitor">Crop Health Monitor</span>
+          <span data-i18n="home.crop_health">Crop Health Monitor</span>
         </div>
-        <a href="scanner.html" class="dcard-lnk" data-i18n="viewAll">View All</a>
+        <a href="scanner.html" class="dcard-lnk" data-i18n="home.view_all">View All</a>
       </div>
       <div class="health-body">
         <div class="health-ring-wrap">
@@ -946,9 +946,9 @@
       <div class="dcard-hdr">
         <div class="dcard-ttl">
           <i class="ri-bug-line bug-ico"></i>
-          <span data-i18n="pestPrediction">Pest Prediction</span>
+          <span data-i18n="home.pest_prediction">Pest Prediction</span>
         </div>
-        <a href="scanner.html" class="dcard-lnk" data-i18n="viewDetails">View Details</a>
+        <a href="scanner.html" class="dcard-lnk" data-i18n="home.view_all">View Details</a>
       </div>
       <div class="pest-body">
         <div class="pest-radar">
@@ -980,7 +980,7 @@
 
     <!-- AT A GLANCE -->
     <div class="glance-section fade-up fade-up-d4">
-      <h3 class="glance-ttl" data-i18n="atAGlance">At a Glance</h3>
+      <h3 class="glance-ttl" data-i18n="home.at_a_glance">At a Glance</h3>
       <div class="glance-row">
         <div class="glance-card">
           <div class="gc-ico" style="background:rgba(16,185,129,0.12);color:#10B981">
@@ -1020,8 +1020,8 @@
     <!-- MY FIELDS -->
     <div class="mf-section" id="mf-section">
       <div class="mf-hdr">
-        <h3 class="mf-ttl" data-i18n="myFields">My Fields</h3>
-        <a href="fields.html" class="mf-all"><span data-i18n="manageAll">Manage All</span> <i class="ri-arrow-right-s-line"></i></a>
+        <h3 class="mf-ttl" data-i18n="home.my_fields">My Fields</h3>
+        <a href="fields.html" class="mf-all"><span data-i18n="home.manage_all">Manage All</span> <i class="ri-arrow-right-s-line"></i></a>
       </div>
       <div class="mf-scroll" id="dash-fields-scroll">
         <div class="mf-empty" id="dash-fields-empty">
@@ -1038,22 +1038,22 @@
   <nav class="bottom-nav">
     <a href="index.html" class="b-nav-item active">
       <i class="ri-home-5-fill"></i>
-      <span>Home</span>
+      <span data-i18n="nav.home">Home</span>
     </a>
     <a href="fields.html" class="b-nav-item">
       <i class="ri-leaf-line"></i>
-      <span>Fields</span>
+      <span data-i18n="nav.fields">Fields</span>
     </a>
     <a href="scanner.html" class="b-nav-scan">
       <i class="ri-leaf-fill"></i>
     </a>
     <a href="assistant.html" class="b-nav-item">
       <i class="ri-sparkling-line"></i>
-      <span>AI</span>
+      <span data-i18n="nav.ai">AI</span>
     </a>
     <a href="profile.html" class="b-nav-item">
       <i class="ri-user-smile-line"></i>
-      <span>Profile</span>
+      <span data-i18n="nav.profile">Profile</span>
     </a>
   </nav>
 

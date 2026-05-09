@@ -1,4 +1,5 @@
 import { auth, db } from "./auth.js";
+import { initI18n, startI18nObserver } from "./i18n.js";
 import { doc, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { openDeviceMaps } from "./maps-link.js";
 import { resolveWeatherLocation, resolveLocationApprox } from "./weather-location.js";
@@ -612,7 +613,10 @@ async function loadWeather() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  await initI18n();
+  startI18nObserver();
+
   bindImdSetup();
   qs("maps-btn")?.addEventListener("click", () => {
     const loc = lastWeatherLoc;

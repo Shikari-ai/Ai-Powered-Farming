@@ -1,0 +1,73 @@
+{
+  "_meta": { "name": "Chhattisgarhi", "nativeName": "छत्तीसगढ़ी", "flag": "🪔", "dir": "ltr" },
+  "nav": {
+    "home": "घर", "fields": "खेत", "ai": "AI", "profile": "प्रोफाइल", "scan": "स्कैन"
+  },
+  "home": {
+    "greeting_morning": "जय जोहार,", "greeting_afternoon": "राम राम,",
+    "greeting_evening": "राम राम,", "greeting_night": "शुभ राइत,",
+    "systems_active": "सब सिस्टम चालू हे", "performing_great": "आज तुंहर खेत बहुत अच्छा करत हे।",
+    "weather_now": "अभी के मौसम", "humidity": "नमी", "wind": "हवा",
+    "rainfall": "बारिस", "at_a_glance": "एक नजर में", "my_fields": "मोर खेत",
+    "manage_all": "सब देखव", "no_fields": "अभी कोनो खेत नइ हे।", "ai_insights": "AI जानकारी",
+    "crop_health": "फसल स्वास्थ्य", "pest_prediction": "कीट पूर्वानुमान", "farm_performance": "खेत प्रदर्शन",
+    "recent_alerts": "हालिया अलर्ट", "view_all": "सब देखव", "pull_refresh": "रिफ्रेश करव"
+  },
+  "fields": {
+    "title": "खेत", "subtitle": "तुंहर सब खेत के निगरानी अऊ प्रबंधन करव",
+    "total_fields": "कुल खेत", "total_area": "कुल क्षेत्रफल", "fields_healthy": "स्वस्थ खेत",
+    "attention_needed": "ध्यान देना जरूरी", "field_overview": "खेत अवलोकन",
+    "add_new_field": "नवा खेत जोड़व", "map_boundary": "नवा खेत सीमा बनाव अऊ निगरानी शुरू करव",
+    "no_fields": "अभी कोनो खेत नइ हे। निगरानी बर पहला खेत जोड़व।",
+    "add_field": "खेत जोड़व", "healthy": "स्वस्थ", "moderate": "मध्यम",
+    "at_risk": "खतरा में", "critical": "गंभीर", "active": "सक्रिय", "acres": "एकड़",
+    "good_condition": "अच्छे हालत", "needs_action": "कार्रवाई जरूरी"
+  },
+  "assistant": {
+    "title": "AI सहायक", "subtitle": "तुंहर खेत बर जानकारी",
+    "empty_msg": "अभी कोनो इतिहास नइ हे। खेत जोड़व या स्कैन करव।",
+    "start_scan": "स्कैन शुरू करव", "add_field": "खेत जोड़व",
+    "placeholder": "खेत, स्कैन, कीट के बारे में पूछव…",
+    "clear": "चैट साफ करव"
+  },
+  "profile": {
+    "title": "प्रोफाइल", "farm_owner": "खेत मालिक", "farm_overview": "खेत अवलोकन",
+    "farm_glance": "तुंहर खेत एक नजर में", "account_settings": "खाता सेटिंग",
+    "manage_info": "अपन जानकारी प्रबंधित करव", "my_farms": "मोर खेत",
+    "view_manage": "खेत देखव अऊ प्रबंधित करव", "subscription": "सदस्यता",
+    "manage_plan": "अपन योजना प्रबंधित करव", "ai_preferences": "AI प्राथमिकता",
+    "customize_ai": "AI सुझाव अनुकूलित करव", "notifications": "सूचना",
+    "manage_alerts": "अलर्ट प्रबंधित करव", "help_support": "मदद",
+    "get_help": "मदद लव", "about": "स्मार्ट फार्मिंग के बारे में",
+    "app_info": "ऐप जानकारी", "logout": "लॉगआउट", "sign_out": "साइन आउट करव",
+    "language": "भाषा", "language_sub": "ऐप के भाषा बदलव", "edit": "संपादित करव",
+    "save": "सहेजव", "save_changes": "बदलाव सहेजव", "save_preferences": "प्राथमिकता सहेजव",
+    "full_name": "पूरा नाम", "email": "ईमेल", "phone": "फोन नंबर",
+    "location": "जगह", "personal_info": "व्यक्तिगत जानकारी", "preferences": "प्राथमिकता",
+    "security": "सुरक्षा", "password": "पासवर्ड", "change_password": "पासवर्ड बदलव"
+  },
+  "weather": {
+    "title": "मौसम जानकारी", "syncing": "जगह खोजत हे...",
+    "loading": "मौसम लोड होत हे...", "hourly": "प्रति घंटा पूर्वानुमान",
+    "farming_intel": "खेती जानकारी", "ten_day": "10-दिन के पूर्वानुमान",
+    "realtime": "रियलटाइम जानकारी", "visibility": "दृश्यता", "air_quality": "हवा गुणवत्ता",
+    "heat_index": "गर्मी सूचकांक", "feels_like": "महसूस होत हे", "soil_moisture": "माटी नमी",
+    "model_estimate": "अनुमान"
+  },
+  "scanner": {
+    "title": "फसल स्कैनर", "point_camera": "कैमरा फसल के पत्ता पर लगाव",
+    "scanning": "स्कैन होत हे...", "analyzing": "फसल के जांच होत हे...", "save_scan": "स्कैन सहेजव",
+    "scan_again": "फिर से स्कैन करव", "health_score": "स्वास्थ्य स्कोर", "disease": "बीमारी",
+    "recommendations": "सुझाव"
+  },
+  "common": {
+    "loading": "लोड होत हे...", "error": "कुछ गलत होगे", "retry": "फिर से कोशिश करव",
+    "cancel": "रद्द करव", "confirm": "पुष्टि करव", "done": "हो गे", "next": "आगे", "back": "वापस",
+    "search": "खोजव", "select": "चुनव", "yes": "हव", "no": "नइ",
+    "active": "सक्रिय", "inactive": "निष्क्रिय", "high": "उच्च", "medium": "मध्यम", "low": "निम्न"
+  },
+  "lang": {
+    "select_language": "भाषा चुनव", "search_language": "भाषा खोजव...",
+    "language_changed": "भाषा सफलतापूर्वक बदल गे!", "current": "वर्तमान"
+  }
+}

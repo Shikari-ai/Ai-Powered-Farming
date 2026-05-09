@@ -189,10 +189,10 @@
     </div>
 
     <div class="tabs" role="tablist">
-      <div class="tab active" data-tab="overview" role="tab">Overview</div>
-      <div class="tab" data-tab="crops" role="tab">Crops</div>
-      <div class="tab" data-tab="health" role="tab">Health</div>
-      <div class="tab" data-tab="activity" role="tab">Activity</div>
+      <div class="tab active" data-tab="overview" role="tab" data-i18n="field_detail.tab_summary">Summary</div>
+      <div class="tab" data-tab="crops" role="tab" data-i18n="field_detail.tab_crops">Crops</div>
+      <div class="tab" data-tab="health" role="tab" data-i18n="field_detail.tab_health">Health</div>
+      <div class="tab" data-tab="activity" role="tab" data-i18n="field_detail.tab_activity">Activity</div>
     </div>
 
     <div id="panel-overview" class="panel active">
@@ -212,9 +212,9 @@
       </div>
       <div class="glass">
         <h3>Edit field</h3>
-        <label for="fd-in-name">Name</label>
+        <label for="fd-in-name" data-i18n="field_detail.field_name">Name</label>
         <input id="fd-in-name" autocomplete="off" />
-        <label for="fd-in-crop">Crop type</label>
+        <label for="fd-in-crop" data-i18n="field_detail.crop_type">Crop type</label>
         <input id="fd-in-crop" list="fd-crop-list" />
         <datalist id="fd-crop-list">
           <option value="Wheat" /><option value="Rice" /><option value="Maize" /><option value="Cotton" />
@@ -222,82 +222,82 @@
         </datalist>
         <div class="grid2">
           <div>
-            <label for="fd-in-soil">Soil type</label>
+            <label for="fd-in-soil" data-i18n="field_detail.soil_type">Soil type</label>
             <select id="fd-in-soil">
-              <option value="">— Select —</option>
-              <option value="Loamy">Loamy</option>
-              <option value="Clay">Clay</option>
-              <option value="Sandy">Sandy</option>
-              <option value="Silty">Silty</option>
-              <option value="Peaty">Peaty</option>
-              <option value="Chalky">Chalky</option>
+              <option value="" data-i18n="field_detail.select">— Select —</option>
+              <option value="Loamy" data-i18n="field_detail.soil_loamy">Loamy</option>
+              <option value="Clay" data-i18n="field_detail.soil_clay">Clay</option>
+              <option value="Sandy" data-i18n="field_detail.soil_sandy">Sandy</option>
+              <option value="Silty" data-i18n="field_detail.soil_silty">Silty</option>
+              <option value="Peaty" data-i18n="field_detail.soil_peaty">Peaty</option>
+              <option value="Chalky" data-i18n="field_detail.soil_chalky">Chalky</option>
             </select>
           </div>
           <div>
-            <label for="fd-in-irr">Irrigation</label>
+            <label for="fd-in-irr" data-i18n="field_detail.irrigation">Irrigation</label>
             <select id="fd-in-irr">
-              <option value="">— Select —</option>
-              <option value="Drip">Drip</option>
-              <option value="Sprinkler">Sprinkler</option>
-              <option value="Flood">Flood</option>
-              <option value="Rain-fed">Rain-fed</option>
-              <option value="Center pivot">Center pivot</option>
+              <option value="" data-i18n="field_detail.select">— Select —</option>
+              <option value="Drip" data-i18n="field_detail.irr_drip">Drip</option>
+              <option value="Sprinkler" data-i18n="field_detail.irr_sprinkler">Sprinkler</option>
+              <option value="Flood" data-i18n="field_detail.irr_flood">Flood</option>
+              <option value="Rain-fed" data-i18n="field_detail.irr_rain">Rain-fed</option>
+              <option value="Center pivot" data-i18n="field_detail.irr_pivot">Center pivot</option>
             </select>
           </div>
         </div>
-        <label for="fd-in-area">Area (acres)</label>
+        <label for="fd-in-area" data-i18n="field_detail.area">Area (acres)</label>
         <input id="fd-in-area" inputmode="decimal" />
-        <label for="fd-in-planted">Planted date</label>
+        <label for="fd-in-planted" data-i18n="field_detail.planted_date">Planted date</label>
         <input id="fd-in-planted" type="date" />
-        <label for="fd-in-notes">Notes</label>
-        <textarea id="fd-in-notes" placeholder="Irrigation schedule, observations…"></textarea>
-        <label>Cover image</label>
+        <label for="fd-in-notes" data-i18n="field_detail.notes">Notes</label>
+        <textarea id="fd-in-notes" data-i18n-placeholder="field_detail.notes_placeholder" placeholder="Irrigation schedule, observations…"></textarea>
+        <label data-i18n="field_detail.cover_image">Cover image</label>
         <input type="file" id="fd-cover-file" accept="image/*" />
-        <button type="button" class="btn-neon" id="fd-save-meta">Save changes</button>
-        <button type="button" class="btn-ghost btn-danger" id="fd-delete-field">Delete field</button>
+        <button type="button" class="btn-neon" id="fd-save-meta" data-i18n="field_detail.save_changes">Save changes</button>
+        <button type="button" class="btn-ghost btn-danger" id="fd-delete-field" data-i18n="field_detail.delete_field">Delete field</button>
       </div>
     </div>
 
     <div id="panel-crops" class="panel">
       <div class="glass">
-        <h3>Crop profile</h3>
+        <h3 data-i18n="field_detail.crop_profile">Crop profile</h3>
         <p id="fd-crop-summary" class="empty" style="padding:0;text-align:left;color:var(--text);">—</p>
       </div>
       <div class="glass">
-        <h3>AI recommendations</h3>
-        <div id="fd-recs-list"><div class="empty">No recommendations yet. Run a scan linked to this field.</div></div>
+        <h3 data-i18n="field_detail.ai_recs">AI recommendations</h3>
+        <div id="fd-recs-list"><div class="empty" data-i18n="field_detail.no_recs">No recommendations yet. Run a scan linked to this field.</div></div>
       </div>
     </div>
 
     <div id="panel-health" class="panel">
       <div class="glass">
-        <h3>Latest assessment</h3>
-        <div id="fd-latest-scan"><div class="empty">No scans for this field yet.</div></div>
+        <h3 data-i18n="field_detail.latest_assessment">Latest assessment</h3>
+        <div id="fd-latest-scan"><div class="empty" data-i18n="field_detail.no_scans">No scans for this field yet.</div></div>
       </div>
       <div class="glass">
-        <h3>Field intelligence</h3>
-        <div id="fd-insights"><div class="empty">Insights appear after scans and weather sync.</div></div>
+        <h3 data-i18n="field_detail.field_intel">Field intelligence</h3>
+        <div id="fd-insights"><div class="empty" data-i18n="field_detail.no_insights">Insights appear after scans and weather sync.</div></div>
       </div>
     </div>
 
     <div id="panel-activity" class="panel">
       <div class="glass">
-        <h3>Timeline</h3>
-        <div id="fd-activity-list"><div class="empty">No activity yet.</div></div>
+        <h3 data-i18n="field_detail.timeline">Timeline</h3>
+        <div id="fd-activity-list"><div class="empty" data-i18n="field_detail.no_activity">No activity yet.</div></div>
       </div>
       <div class="glass">
-        <h3>Scan history</h3>
-        <div id="fd-scans-list"><div class="empty">No scans yet.</div></div>
+        <h3 data-i18n="field_detail.scan_history">Scan history</h3>
+        <div id="fd-scans-list"><div class="empty" data-i18n="field_detail.no_scans_history">No scans yet.</div></div>
       </div>
     </div>
   </div>
 
   <nav class="bottom-nav">
-    <a href="index.html" class="b-nav-item"><i class="ri-home-5-line"></i><span>Home</span></a>
-    <a href="fields.html" class="b-nav-item active"><i class="ri-leaf-fill"></i><span>Fields</span></a>
+    <a href="index.html" class="b-nav-item"><i class="ri-home-5-line"></i><span data-i18n="nav.home">Home</span></a>
+    <a href="fields.html" class="b-nav-item active"><i class="ri-leaf-fill"></i><span data-i18n="nav.fields">Fields</span></a>
     <a href="scanner.html" class="b-nav-scan"><i class="ri-leaf-fill"></i></a>
-    <a href="assistant.html" class="b-nav-item"><i class="ri-sparkling-line"></i><span>AI</span></a>
-    <a href="profile.html" class="b-nav-item"><i class="ri-user-smile-line"></i><span>Profile</span></a>
+    <a href="assistant.html" class="b-nav-item"><i class="ri-sparkling-line"></i><span data-i18n="nav.ai">AI</span></a>
+    <a href="profile.html" class="b-nav-item"><i class="ri-user-smile-line"></i><span data-i18n="nav.profile">Profile</span></a>
   </nav>
 
   <script type="module" src="js/field-detail.js?v=20"></script>

@@ -1,0 +1,71 @@
+{
+  "_meta": { "name": "Bengali", "nativeName": "বাংলা", "flag": "🇧🇩", "dir": "ltr" },
+  "nav": { "home": "হোম", "fields": "ক্ষেত", "ai": "AI", "profile": "প্রোফাইল", "scan": "স্ক্যান" },
+  "home": {
+    "greeting_morning": "সুপ্রভাত,", "greeting_afternoon": "নমস্কার,",
+    "greeting_evening": "শুভ সন্ধ্যা,", "greeting_night": "শুভ রাত্রি,",
+    "systems_active": "সব সিস্টেম সক্রিয়", "performing_great": "আজ আপনার খামার খুব ভালো করছে।",
+    "weather_now": "এখনকার আবহাওয়া", "humidity": "আর্দ্রতা", "wind": "বাতাস",
+    "rainfall": "বৃষ্টিপাত", "at_a_glance": "এক নজরে", "my_fields": "আমার ক্ষেত",
+    "manage_all": "সব দেখুন", "no_fields": "এখনও কোনো ক্ষেত নেই।", "ai_insights": "AI অন্তর্দৃষ্টি",
+    "crop_health": "ফসলের স্বাস্থ্য", "pest_prediction": "কীটপতঙ্গ পূর্বাভাস", "farm_performance": "খামার কর্মক্ষমতা",
+    "recent_alerts": "সাম্প্রতিক সতর্কতা", "view_all": "সব দেখুন", "pull_refresh": "রিফ্রেশ করুন"
+  },
+  "fields": {
+    "title": "ক্ষেত", "subtitle": "আপনার সমস্ত ক্ষেতের পর্যবেক্ষণ এবং পরিচালনা করুন",
+    "total_fields": "মোট ক্ষেত", "total_area": "মোট এলাকা", "fields_healthy": "সুস্থ ক্ষেত",
+    "attention_needed": "মনোযোগ প্রয়োজন", "field_overview": "ক্ষেতের সংক্ষিপ্ত বিবরণ",
+    "add_new_field": "নতুন ক্ষেত যোগ করুন", "map_boundary": "নতুন ক্ষেতের সীমানা তৈরি করুন",
+    "no_fields": "এখনও কোনো ক্ষেত নেই। পর্যবেক্ষণ শুরু করতে প্রথম ক্ষেত যোগ করুন।",
+    "add_field": "ক্ষেত যোগ করুন", "healthy": "সুস্থ", "moderate": "মধ্যম",
+    "at_risk": "ঝুঁকিতে", "critical": "গুরুতর", "active": "সক্রিয়", "acres": "একর",
+    "good_condition": "ভালো অবস্থা", "needs_action": "পদক্ষেপ প্রয়োজন"
+  },
+  "assistant": {
+    "title": "AI সহকারী", "subtitle": "আপনার খামারের জন্য ডেটা-চালিত সহায়তা",
+    "empty_msg": "এখনও কোনো ইতিহাস নেই। ক্ষেত যোগ করুন বা স্ক্যান শুরু করুন।",
+    "start_scan": "স্ক্যান শুরু করুন", "add_field": "ক্ষেত যোগ করুন",
+    "placeholder": "ক্ষেত, স্ক্যান, কীটপতঙ্গ সম্পর্কে জিজ্ঞাসা করুন…",
+    "clear": "চ্যাট পরিষ্কার করুন"
+  },
+  "profile": {
+    "title": "প্রোফাইল", "farm_owner": "খামার মালিক", "farm_overview": "খামার সংক্ষিপ্ত বিবরণ",
+    "farm_glance": "এক নজরে আপনার খামার", "account_settings": "অ্যাকাউন্ট সেটিংস",
+    "manage_info": "আপনার ব্যক্তিগত তথ্য পরিচালনা করুন", "my_farms": "আমার খামার",
+    "view_manage": "খামার দেখুন এবং পরিচালনা করুন", "subscription": "সদস্যতা",
+    "manage_plan": "আপনার পরিকল্পনা পরিচালনা করুন", "ai_preferences": "AI পছন্দ",
+    "customize_ai": "AI সুপারিশ কাস্টমাইজ করুন", "notifications": "বিজ্ঞপ্তি",
+    "manage_alerts": "সতর্কতা পরিচালনা করুন", "help_support": "সহায়তা",
+    "get_help": "সাহায্য পান", "about": "স্মার্ট ফার্মিং সম্পর্কে",
+    "app_info": "অ্যাপ তথ্য", "logout": "লগআউট", "sign_out": "সাইন আউট করুন",
+    "language": "ভাষা", "language_sub": "অ্যাপের ভাষা পরিবর্তন করুন", "edit": "সম্পাদনা করুন",
+    "save": "সংরক্ষণ করুন", "save_changes": "পরিবর্তন সংরক্ষণ করুন", "save_preferences": "পছন্দ সংরক্ষণ করুন",
+    "full_name": "পুরো নাম", "email": "ইমেইল", "phone": "ফোন নম্বর",
+    "location": "অবস্থান", "personal_info": "ব্যক্তিগত তথ্য", "preferences": "পছন্দ",
+    "security": "নিরাপত্তা", "password": "পাসওয়ার্ড", "change_password": "পাসওয়ার্ড পরিবর্তন করুন"
+  },
+  "weather": {
+    "title": "আবহাওয়া তথ্য", "syncing": "অবস্থান সিঙ্ক হচ্ছে...",
+    "loading": "রিয়েলটাইম আবহাওয়া লোড হচ্ছে...", "hourly": "ঘণ্টাওয়ারি পূর্বাভাস",
+    "farming_intel": "কৃষি তথ্য", "ten_day": "১০-দিনের পূর্বাভাস",
+    "realtime": "রিয়েলটাইম মেট্রিক্স", "visibility": "দৃশ্যমানতা", "air_quality": "বায়ু মান PM2.5",
+    "heat_index": "তাপ সূচক", "feels_like": "অনুভূত হয়", "soil_moisture": "মাটির আর্দ্রতা অনুমান",
+    "model_estimate": "মডেল অনুমান"
+  },
+  "scanner": {
+    "title": "ফসল স্ক্যানার", "point_camera": "ক্যামেরা ফসলের পাতায় নিন",
+    "scanning": "স্ক্যান হচ্ছে...", "analyzing": "ফসল বিশ্লেষণ হচ্ছে...", "save_scan": "স্ক্যান সংরক্ষণ করুন",
+    "scan_again": "আবার স্ক্যান করুন", "health_score": "স্বাস্থ্য স্কোর", "disease": "রোগ",
+    "recommendations": "পরামর্শ"
+  },
+  "common": {
+    "loading": "লোড হচ্ছে...", "error": "কিছু ভুল হয়েছে", "retry": "আবার চেষ্টা করুন",
+    "cancel": "বাতিল করুন", "confirm": "নিশ্চিত করুন", "done": "সম্পন্ন", "next": "পরবর্তী", "back": "পিছনে",
+    "search": "খুঁজুন", "select": "বেছে নিন", "yes": "হ্যাঁ", "no": "না",
+    "active": "সক্রিয়", "inactive": "নিষ্ক্রিয়", "high": "উচ্চ", "medium": "মধ্যম", "low": "কম"
+  },
+  "lang": {
+    "select_language": "ভাষা বেছে নিন", "search_language": "ভাষা খুঁজুন...",
+    "language_changed": "ভাষা সফলভাবে আপডেট হয়েছে!", "current": "বর্তমান"
+  }
+}

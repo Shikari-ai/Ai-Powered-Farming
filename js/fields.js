@@ -1,4 +1,5 @@
 import { auth, db, storage } from "./auth.js";
+import { initI18n, startI18nObserver, t } from "./i18n.js";
 import { FALLBACK_LOC } from "./weather-location.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
@@ -1116,7 +1117,10 @@ function mountFieldsPage(user) {
   };
 }
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
+  await initI18n();
+  startI18nObserver();
+
   if (teardown) {
     teardown();
     teardown = null;

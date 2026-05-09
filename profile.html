@@ -79,8 +79,11 @@
       background:var(--surface);border:1px solid var(--primary);color:var(--primary);
       display:flex;align-items:center;justify-content:center;font-size:11px;z-index:3;cursor:pointer;}
     .hero-info{flex:1;}
-    .hero-name{font-size:17px;font-weight:500;display:flex;align-items:center;gap:6px;}
-    .hero-role{font-size:10px;color:var(--primary);font-weight:500;margin:3px 0 8px;}
+      <div class="hero-name">
+        <span id="profile-name">Farmer</span>
+        <i class="ri-checkbox-circle-fill" style="color:var(--primary);font-size:14px;"></i>
+      </div>
+      <div class="hero-role" data-i18n="profile.farmer">Farmer</div>
     .hero-contact{display:flex;flex-direction:column;gap:4px;}
     .hero-c{font-size:9.5px;color:var(--dim);display:flex;align-items:center;gap:5px;}
     .hero-c i{color:var(--primary);font-size:11px;}
@@ -152,14 +155,20 @@
     .ir-btn{font-size:9.5px;color:var(--primary);background:rgba(16,185,129,.1);
       border:1px solid rgba(16,185,129,.3);border-radius:8px;padding:5px 10px;
       cursor:pointer;white-space:nowrap;}
-    select#as-lang{
-      width:100%;margin-top:2px;
-      background:var(--surface);border:1px solid var(--border);border-radius:12px;
-      padding:10px 12px;font-size:14px;color:var(--txt);outline:none;cursor:pointer;
-      transition:border-color .2s;
+    /* ── LANGUAGE LIST ── */
+    .lang-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; cursor: pointer; transition: 0.2s;
     }
-    select#as-lang:focus{border-color:var(--primary);}
-    select#as-lang option{background:var(--surface);color:var(--txt);}
+    .lang-item:active { transform: scale(0.98); background: rgba(255,255,255,0.05); }
+    .lang-item.active { border-color: var(--primary); background: rgba(16,185,129,0.08); box-shadow: 0 0 20px rgba(16,185,129,0.1); }
+    .lang-left { display: flex; align-items: center; gap: 14px; }
+    .lang-flag { font-size: 24px; }
+    .lang-name { font-size: 15px; font-weight: 500; }
+    .lang-native { font-size: 11px; color: var(--dim); margin-top: 2px; }
+    .lang-check { color: var(--primary); font-size: 20px; display: none; }
+    .lang-item.active .lang-check { display: block; }
 
     /* ── FORM INPUTS ── */
     .form-wrap{margin:0 16px;display:flex;flex-direction:column;gap:12px;}
@@ -324,7 +333,7 @@
     <div class="hdr">
       <div style="display:flex;align-items:center;gap:12px;">
         <div class="hdr-back" onclick="window.location.href='index.html'"><i class="ri-arrow-left-line"></i></div>
-        <span class="hdr-title">Profile</span>
+        <span class="hdr-title" data-i18n="profile.title">Profile</span>
       </div>
       <div class="hdr-action" id="main-settings-btn" title="Account settings"><i class="ri-settings-4-line"></i></div>
     </div>
@@ -343,11 +352,11 @@
             <span id="main-name">--</span>
             <i class="ri-checkbox-circle-fill hidden" id="main-verified" style="color:var(--primary);font-size:15px;"></i>
           </div>
-          <div class="hero-role">Farm Owner</div>
+          <div class="hero-role" data-i18n="profile.farm_owner">Farm Owner</div>
           <div class="hero-contact">
             <div class="hero-c"><i class="ri-mail-line"></i><span id="main-email">--</span></div>
             <div class="hero-c"><i class="ri-phone-line"></i><span id="main-phone">Not set</span></div>
-            <div class="hero-c"><i class="ri-map-pin-line"></i><span id="main-location">Location not set</span></div>
+            <div class="hero-c"><i class="ri-map-pin-line"></i><span id="main-location" data-i18n="common.location_not_set">Location not set</span></div>
           </div>
         </div>
       </div>
@@ -357,16 +366,16 @@
     <div class="score-card">
       <div class="score-left">
         <div class="score-num" id="score-num">--</div>
-        <div class="score-lbl" id="score-lbl">Loading</div>
+        <div class="score-lbl" id="score-lbl" data-i18n="profile.no_data">Loading</div>
       </div>
       <div class="score-right">
-        <div class="score-title">Farm Intelligence Score</div>
-        <div class="score-sub">AI-powered farm health index</div>
+        <div class="score-title" data-i18n="profile.farm_intel">Farm Intelligence Score</div>
+        <div class="score-sub" data-i18n="profile.health_index">AI-powered farm health index</div>
         <div class="score-stars" id="score-stars">
           <i class="ri-star-fill"></i><i class="ri-star-fill"></i><i class="ri-star-fill"></i>
           <i class="ri-star-fill"></i><i class="ri-star-line" style="opacity:.4;"></i>
         </div>
-        <div class="score-ai-lbl">AI Rating</div>
+        <div class="score-ai-lbl" data-i18n="profile.ai_rating">AI Rating</div>
       </div>
       <i class="ri-leaf-fill score-icon"></i>
     </div>
@@ -375,48 +384,48 @@
     <div class="menu-list">
       <div class="menu-item" onclick="openPanel('panel-farm-overview')">
         <div class="mi-ic" style="color:var(--primary);"><i class="ri-home-4-line"></i></div>
-        <div class="mi-body"><h4>Farm Overview</h4><p>Your farm at a glance</p></div>
+        <div class="mi-body"><h4 data-i18n="profile.farm_overview">Farm Overview</h4><p data-i18n="profile.farm_glance">Your farm at a glance</p></div>
         <span class="mi-arr"></span>
       </div>
       <div class="menu-item" onclick="openPanel('panel-account-settings')">
         <div class="mi-ic" style="color:var(--blue);"><i class="ri-user-settings-line"></i></div>
-        <div class="mi-body"><h4>Account Settings</h4><p>Manage your personal info</p></div>
+        <div class="mi-body"><h4 data-i18n="profile.account_settings">Account Settings</h4><p data-i18n="profile.manage_info">Manage your personal info</p></div>
         <span class="mi-arr"></span>
       </div>
       <div class="menu-item" onclick="openPanel('panel-my-farms')">
         <div class="mi-ic" style="color:#84CC16;"><i class="ri-layout-grid-line"></i></div>
-        <div class="mi-body"><h4>My Farms</h4><p>View and manage your farms</p></div>
+        <div class="mi-body"><h4 data-i18n="profile.my_farms">My Farms</h4><p data-i18n="profile.view_manage">View and manage your farms</p></div>
         <span class="mi-arr"></span>
       </div>
       <div class="menu-item" onclick="openPanel('panel-subscription')">
         <div class="mi-ic" style="color:var(--yellow);"><i class="ri-vip-crown-line"></i></div>
-        <div class="mi-body"><h4>Subscription</h4><p>Manage your plan</p></div>
+        <div class="mi-body"><h4 data-i18n="profile.subscription">Subscription</h4><p data-i18n="profile.manage_plan">Manage your plan</p></div>
         <span class="mi-arr"></span>
       </div>
       <div class="menu-item" onclick="openPanel('panel-ai-prefs')">
         <div class="mi-ic" style="color:var(--purple);"><i class="ri-brain-line"></i></div>
-        <div class="mi-body"><h4>AI Preferences</h4><p>Customize AI recommendations</p></div>
+        <div class="mi-body"><h4 data-i18n="profile.ai_preferences">AI Preferences</h4><p data-i18n="profile.customize_ai">Customize AI recommendations</p></div>
         <span class="mi-arr"></span>
       </div>
       <div class="menu-item" onclick="openPanel('panel-notifications')">
         <div class="mi-ic" style="color:var(--primary);"><i class="ri-notification-3-line"></i></div>
-        <div class="mi-body"><h4>Notifications</h4><p>Manage alerts and updates</p></div>
+        <div class="mi-body"><h4 data-i18n="profile.notifications">Notifications</h4><p data-i18n="profile.manage_alerts">Manage alerts and updates</p></div>
         <span class="mi-arr"></span>
       </div>
       <div class="menu-item" onclick="openPanel('panel-help')">
         <div class="mi-ic" style="color:var(--dim);"><i class="ri-question-line"></i></div>
-        <div class="mi-body"><h4>Help &amp; Support</h4><p>Get help and contact support</p></div>
+        <div class="mi-body"><h4 data-i18n="profile.help_support">Help &amp; Support</h4><p data-i18n="profile.get_help">Get help and contact support</p></div>
         <span class="mi-arr"></span>
       </div>
       <div class="menu-item" onclick="openPanel('panel-about')">
         <div class="mi-ic" style="color:var(--primary);"><i class="ri-information-line"></i></div>
-        <div class="mi-body"><h4>About Smart Farming</h4><p>App info and version</p></div>
+        <div class="mi-body"><h4 data-i18n="profile.about">About Smart Farming</h4><p data-i18n="profile.app_info">App info and version</p></div>
         <span class="mi-arr"></span>
       </div>
       <!-- logout -->
       <div class="menu-item" id="logout-btn" style="border-color:rgba(239,68,68,.25);">
         <div class="mi-ic" style="color:var(--red);background:rgba(239,68,68,.08);"><i class="ri-logout-box-r-line"></i></div>
-        <div class="mi-body"><h4 style="color:var(--red);">Logout</h4><p>Sign out of your smart farm</p></div>
+        <div class="mi-body"><h4 style="color:var(--red);" data-i18n="profile.logout">Logout</h4><p data-i18n="profile.sign_out">Sign out of your smart farm</p></div>
       </div>
     </div>
     <div style="height:8px;"></div>
@@ -507,12 +516,13 @@
     </div>
     <div class="sec-h">Preferences</div>
     <div class="info-card">
-      <div class="info-row" style="align-items:flex-start;">
+      <div class="info-row" style="cursor:pointer;" onclick="openPanel('panel-language')">
         <div class="ir-ic"><i class="ri-global-line"></i></div>
         <div class="ir-body">
-          <div class="ir-label">App language</div>
-          <select id="as-lang" aria-label="App language"></select>
+          <div class="ir-label" data-i18n="profile.language">App language</div>
+          <div class="ir-val" id="current-lang-name">English</div>
         </div>
+        <i class="ri-arrow-right-s-line" style="color:var(--dim);"></i>
       </div>
     </div>
     <div class="sec-h">Security</div>
@@ -1019,6 +1029,29 @@
     <a href="assistant.html" class="b-nav-item"><i class="ri-sparkling-line"></i><span>AI</span></a>
     <a href="profile.html" class="b-nav-item active"><i class="ri-user-smile-fill"></i><span>Profile</span></a>
   </nav>
+
+  <!-- ════════════════════════════════════════
+       PANEL: LANGUAGE SELECTION
+  ════════════════════════════════════════ -->
+  <div id="panel-language" class="panel">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="closePanel('panel-language')"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title" data-i18n="profile.language">Language</span>
+      </div>
+      <div style="width:38px;"></div>
+    </div>
+    
+    <div style="padding: 16px;">
+      <div class="search-bar" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px;display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+        <i class="ri-search-line" style="color:var(--dim);"></i>
+        <input type="text" id="lang-search" placeholder="Search language..." style="background:transparent;border:none;color:var(--txt);font-size:14px;outline:none;width:100%;" data-i18n-placeholder="lang.search_language">
+      </div>
+      <div class="lang-list" id="lang-list" style="display:flex;flex-direction:column;gap:10px;">
+        <!-- Language items injected via JS -->
+      </div>
+    </div>
+  </div><!-- /panel-language -->
 
 </div><!-- /shell -->
 
