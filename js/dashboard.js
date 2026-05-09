@@ -552,6 +552,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     (async () => {
+        await initI18n();
+        startI18nObserver();
         await auth.authStateReady();
 
         onAuthStateChanged(auth, (user) => {

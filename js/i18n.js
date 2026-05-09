@@ -75,6 +75,9 @@ function _applyToDom() {
   document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) {
     el.setAttribute('placeholder', t(el.getAttribute('data-i18n-placeholder')));
   });
+  document.querySelectorAll('[data-i18n-title]').forEach(function(el) {
+    el.setAttribute('title', t(el.getAttribute('data-i18n-title')));
+  });
   document.documentElement.lang = _currentLang;
   window.dispatchEvent(new CustomEvent('i18n:updated', { detail: { lang: _currentLang, t: t } }));
 }

@@ -107,7 +107,9 @@
     "syncing": "Syncing...", "need_https": "HTTPS required for GPS", "approx": "approx",
     "allow_location": "Allow location for this site in your browser, then reopen dashboard.",
     "no_data_saved": "No data saved yet. Capture a crop scan to start your farm's history!",
-    "health": "Health", "location_not_set": "Location not set"
+    "health": "Health", "location_not_set": "Location not set",
+    "no_notifications": "No notifications yet.",
+    "notif_desc": "Field alerts and scan updates appear here."
   },
   "field_detail": {
     "tab_summary": "Summary", "tab_crops": "Crops", "tab_health": "Health", "tab_activity": "Activity",
