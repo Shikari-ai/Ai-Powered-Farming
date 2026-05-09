@@ -256,8 +256,8 @@
             width: 100%; max-width: 480px;
             background: rgba(3, 6, 9, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             border-top: 1px solid rgba(255,255,255,0.05);
-            display: flex; justify-content: space-around; align-items: center;
-            padding: 8px 20px calc(8px + env(safe-area-inset-bottom, 16px));
+            display: grid; grid-template-columns: repeat(5, 1fr); justify-items: center; align-items: center;
+            padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 16px));
             z-index: 1000;
         }
         .b-nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-dim); text-decoration: none; transition: 0.3s; }
@@ -288,11 +288,53 @@
         .field-input { width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.25); color: white; outline: none; }
         .btn-outline { width: 100%; padding: 10px; border: 1px solid var(--neon); border-radius: 12px; color: var(--neon); font-size: 11px; font-weight: 500; background: rgba(57,255,20,0.08); cursor: pointer; }
         .btn-ghost { width: 100%; padding: 10px; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; color: var(--text-main); font-size: 11px; font-weight: 500; background: rgba(255,255,255,0.05); cursor: pointer; }
-        .field-map-wrap { border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; overflow: hidden; background: #0a0f16; }
-        .field-map { height: 260px; width: 100%; }
-        .leaflet-control-zoom a { background: rgba(10,17,24,0.9) !important; color: #fff !important; border-bottom: 1px solid rgba(255,255,255,0.1) !important; }
-        .leaflet-control-attribution { display: none; }
+        .field-map-wrap {
+            border: 1px solid rgba(57,255,20,0.2); border-radius: 14px; overflow: hidden;
+            background: #0a0f16; position: relative;
+            transition: transform 0.5s cubic-bezier(0.16,1,0.3,1), box-shadow 0.5s;
+        }
+        .field-map-wrap.mode-3d {
+            transform: perspective(720px) rotateX(28deg) scale(1.1);
+            transform-origin: center 70%;
+            box-shadow: 0 24px 48px rgba(0,0,0,0.85);
+        }
+        .field-map { height: 280px; width: 100%; cursor: crosshair; }
+        .leaflet-control-zoom { display: none; }
+        .leaflet-control-attribution { display: none !important; }
         .map-toolbar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+        .map-layer-row { display: flex; gap: 8px; margin-top: 8px; }
+        .map-layer-row .btn-ghost { flex: 1; font-size: 11px; }
+        .map-layer-row .btn-ghost.active { background: rgba(57,255,20,0.18); border-color: var(--primary); color: var(--primary); }
+
+        /* Search autocomplete dropdown */
+        .search-wrap { position: relative; margin-bottom: 10px; }
+        .search-row { display: flex; gap: 8px; }
+        #map-search-results {
+            position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+            background: #0a0e0a; border: 1px solid rgba(57,255,20,0.25);
+            border-radius: 12px; overflow: hidden; z-index: 2000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7); display: none;
+            max-height: 190px; overflow-y: auto;
+        }
+        .sr-item {
+            display: flex; align-items: flex-start; gap: 9px;
+            padding: 10px 12px; cursor: pointer; font-size: 12px; line-height: 1.4;
+            border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s;
+        }
+        .sr-item:last-child { border-bottom: none; }
+        .sr-item:hover, .sr-item.sr-focused { background: rgba(57,255,20,0.1); }
+        .sr-item i { color: var(--primary); font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+        .sr-item span { color: var(--text-main); }
+
+        /* Map toast */
+        #map-toast {
+            position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: #111; border: 1px solid rgba(57,255,20,0.3); color: var(--text-main);
+            border-radius: 10px; padding: 8px 14px; font-size: 12px;
+            z-index: 500; opacity: 0; transition: opacity 0.3s, transform 0.3s;
+            pointer-events: none; white-space: nowrap;
+        }
+        #map-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     </style>
 </head>
 <body>
@@ -453,16 +495,37 @@
             </div>
 
             <div id="wiz-step-2" class="hidden">
-                <p style="font-size:12px; color:var(--text-dim); margin-bottom:8px;">Tap the map to trace boundaries (3+ points). Area fills in automatically.</p>
-                <div class="field-map-wrap">
+                <p style="font-size:12px; color:var(--text-dim); margin-bottom:8px;">Tap the satellite map to trace your field boundary (3+ points).</p>
+
+                <!-- Search with autocomplete -->
+                <div class="search-wrap">
+                    <div class="search-row">
+                        <input class="field-input" id="map-search-input" placeholder="Search village, city or region…" style="flex:1; padding:10px 14px; font-size:12px; margin-bottom:0;" autocomplete="off"/>
+                        <button class="btn-ghost" id="map-search-btn" type="button" style="width:40px; padding:0; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><i class="ri-search-line" style="font-size:16px;"></i></button>
+                    </div>
+                    <div id="map-search-results"></div>
+                </div>
+
+                <!-- Map container -->
+                <div class="field-map-wrap" id="field-map-wrap">
                     <div id="field-map" class="field-map"></div>
+                    <div id="map-toast"></div>
                 </div>
+
+                <!-- Toolbar row 1 -->
                 <div class="map-toolbar">
-                    <button class="btn-ghost" id="map-undo-btn" type="button">Undo</button>
-                    <button class="btn-ghost" id="map-clear-btn" type="button">Clear</button>
-                    <button class="btn-ghost" id="map-center-btn" type="button">My location</button>
+                    <button class="btn-ghost" id="map-undo-btn" type="button"><i class="ri-arrow-go-back-line"></i> Undo</button>
+                    <button class="btn-ghost" id="map-clear-btn" type="button"><i class="ri-delete-bin-line"></i> Clear</button>
+                    <button class="btn-ghost" id="map-center-btn" type="button"><i class="ri-crosshair-line"></i> My GPS</button>
                 </div>
-                <p id="map-help-text" style="font-size:11px; color:var(--text-dim); line-height:1.45;">Tap corners along your fence line. You can edit later from this screen.</p>
+                <!-- Toolbar row 2: layer + 3D -->
+                <div class="map-layer-row">
+                    <button class="btn-ghost active" id="map-satellite-btn" type="button">🛰 Satellite</button>
+                    <button class="btn-ghost" id="map-street-btn" type="button">🗺 Street</button>
+                    <button class="btn-ghost" id="map-3d-btn" type="button">⬡ 3D Tilt</button>
+                </div>
+
+                <p id="map-help-text" style="font-size:11px; color:var(--text-dim); line-height:1.45; margin-top:8px;">Tap your field corners on the satellite view. Area calculates automatically.</p>
             </div>
 
             <div id="wiz-step-3" class="hidden">
@@ -513,6 +576,7 @@
                 <input class="field-input" type="file" id="field-cover" accept="image/*"/>
             </div>
 
+            <div id="wiz-snack" style="display:none; font-size:12px; color:var(--danger); background:rgba(255,77,77,0.08); border:1px solid rgba(255,77,77,0.2); border-radius:10px; padding:8px 12px; margin-bottom:4px;"></div>
             <div class="wiz-actions">
                 <button type="button" class="btn-neon-outline hidden" id="wiz-back-btn">Back</button>
                 <button type="button" class="btn-neon-primary" id="wiz-next-btn">Next</button>

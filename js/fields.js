@@ -272,6 +272,15 @@ function mountFieldsPage(user) {
   let fieldMapById = new Map();
   let latestWeatherMoisture = null;
 
+  function wizSnack(msg) {
+    const s = el("wiz-snack");
+    if (!s) return;
+    s.textContent = msg;
+    s.style.display = "block";
+    clearTimeout(s._t);
+    s._t = setTimeout(() => { s.style.display = "none"; }, 3500);
+  }
+
   unsubs.push(
     onSnapshot(query(collection(db, "weather_logs"), where("userId", "==", user.uid), limit(40)), (snap) => {
       let best = 0;
@@ -294,19 +303,90 @@ function mountFieldsPage(user) {
   let markersLayer = null;
   let boundaryLayer = null;
   let drawingPoints = [];
+  let satelliteLayer = null;
+  let streetLayer = null;
+  let labelsLayer = null;
+  let is3D = false;
+  let isSatellite = true;
+
+  // Map toast helper
+  function mapToast(msg, ms = 2800) {
+    const t = el("map-toast");
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove("show"), ms);
+  }
+
+  function setActiveLayerBtns(sat) {
+    el("map-satellite-btn")?.classList.toggle("active", sat);
+    el("map-street-btn")?.classList.toggle("active", !sat);
+  }
+
+  function switchLayer(satellite) {
+    if (!map) return;
+    isSatellite = satellite;
+    if (satellite) {
+      if (streetLayer) map.removeLayer(streetLayer);
+      if (satelliteLayer && !map.hasLayer(satelliteLayer)) satelliteLayer.addTo(map);
+      if (labelsLayer && !map.hasLayer(labelsLayer)) labelsLayer.addTo(map);
+    } else {
+      if (satelliteLayer) map.removeLayer(satelliteLayer);
+      if (labelsLayer) map.removeLayer(labelsLayer);
+      if (streetLayer && !map.hasLayer(streetLayer)) streetLayer.addTo(map);
+    }
+    setActiveLayerBtns(satellite);
+  }
+
+  function toggle3D() {
+    is3D = !is3D;
+    const wrap = el("field-map-wrap");
+    if (wrap) wrap.classList.toggle("mode-3d", is3D);
+    const btn = el("map-3d-btn");
+    if (btn) btn.classList.toggle("active", is3D);
+    setTimeout(() => map?.invalidateSize(), 520);
+  }
 
   function initMapIfNeeded() {
     if (map || !window.L) return;
     const mapNode = el("field-map");
     if (!mapNode) return;
-    map = window.L.map(mapNode, { zoomControl: true, attributionControl: false });
-    window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 20 }).addTo(map);
-    map.setView(FALLBACK_MAP_CENTER, 14);
-    getLiveDeviceCenter().then(([lat, lng]) => {
-      if (map) map.setView([lat, lng], 14);
+
+    map = window.L.map(mapNode, {
+      zoomControl: false,
+      attributionControl: false,
+      maxZoom: 20,
     });
+
+    // Satellite: ESRI World Imagery (free, no key)
+    satelliteLayer = window.L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      { maxZoom: 20, tileSize: 256 }
+    ).addTo(map);
+
+    // Labels overlay on satellite
+    labelsLayer = window.L.tileLayer(
+      "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+      { maxZoom: 20, opacity: 0.75 }
+    ).addTo(map);
+
+    // Street tiles (fallback / alternative)
+    streetLayer = window.L.tileLayer(
+      "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      { maxZoom: 20 }
+    );
+
+    map.setView(FALLBACK_MAP_CENTER, 15);
+
+    // Center on device GPS
+    getLiveDeviceCenter().then(([lat, lng]) => {
+      if (map) map.setView([lat, lng], 16);
+    });
+
     markersLayer = window.L.layerGroup().addTo(map);
     boundaryLayer = window.L.layerGroup().addTo(map);
+
     map.on("click", (evt) => {
       drawingPoints.push([evt.latlng.lat, evt.latlng.lng]);
       redrawDrawing();
@@ -510,12 +590,117 @@ function mountFieldsPage(user) {
       getLiveDeviceCenter().then(([lat, lng]) => map?.setView([lat, lng], 16));
     });
 
+    // Layer + 3D toggles
+    el("map-satellite-btn")?.addEventListener("click", () => switchLayer(true));
+    el("map-street-btn")?.addEventListener("click", () => switchLayer(false));
+    el("map-3d-btn")?.addEventListener("click", toggle3D);
+
+    // ── Autocomplete search ──────────────────────────────────────
+    let searchDebounce;
+    let srFocusIdx = -1;
+
+    function hideSearchDropdown() {
+      const dd = el("map-search-results");
+      if (dd) dd.style.display = "none";
+      srFocusIdx = -1;
+    }
+
+    function selectSearchResult(lat, lon, label) {
+      if (!map) return;
+      map.setView([parseFloat(lat), parseFloat(lon)], 16);
+      const inp = el("map-search-input");
+      if (inp) inp.value = label;
+      hideSearchDropdown();
+    }
+
+    async function fetchSuggestions(q) {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&limit=6&q=${encodeURIComponent(q)}&addressdetails=0`,
+          { headers: { "Accept-Language": "en" } }
+        );
+        const data = await res.json();
+        const dd = el("map-search-results");
+        if (!dd) return;
+        if (!data.length) { dd.style.display = "none"; return; }
+
+        dd.innerHTML = data.map((r) =>
+          `<div class="sr-item" data-lat="${r.lat}" data-lon="${r.lon}" data-name="${r.display_name.replace(/"/g, "&quot;")}">
+            <i class="ri-map-pin-2-line"></i>
+            <span>${r.display_name}</span>
+          </div>`
+        ).join("");
+
+        dd.style.display = "block";
+
+        dd.querySelectorAll(".sr-item").forEach((item) => {
+          item.addEventListener("click", () => {
+            selectSearchResult(item.dataset.lat, item.dataset.lon, item.dataset.name);
+          });
+          item.addEventListener("mousedown", (e) => e.preventDefault()); // keep input focus
+        });
+      } catch (e) {
+        console.warn("Geocoding error", e);
+      }
+    }
+
+    const searchInput = el("map-search-input");
+    searchInput?.addEventListener("input", (e) => {
+      clearTimeout(searchDebounce);
+      const q = e.target.value.trim();
+      if (q.length < 2) { hideSearchDropdown(); return; }
+      searchDebounce = setTimeout(() => fetchSuggestions(q), 380);
+    });
+
+    searchInput?.addEventListener("keydown", (e) => {
+      const dd = el("map-search-results");
+      const items = dd?.querySelectorAll(".sr-item") || [];
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        srFocusIdx = Math.min(srFocusIdx + 1, items.length - 1);
+        items.forEach((it, i) => it.classList.toggle("sr-focused", i === srFocusIdx));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        srFocusIdx = Math.max(srFocusIdx - 1, -1);
+        items.forEach((it, i) => it.classList.toggle("sr-focused", i === srFocusIdx));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (srFocusIdx >= 0 && items[srFocusIdx]) {
+          const item = items[srFocusIdx];
+          selectSearchResult(item.dataset.lat, item.dataset.lon, item.dataset.name);
+        } else {
+          // Direct geocode on Enter if no dropdown item focused
+          const q = searchInput.value.trim();
+          if (q) fetchSuggestions(q).then(() => {
+            const first = el("map-search-results")?.querySelector(".sr-item");
+            if (first) first.click();
+          });
+        }
+      } else if (e.key === "Escape") {
+        hideSearchDropdown();
+      }
+    });
+
+    searchInput?.addEventListener("blur", () => {
+      setTimeout(hideSearchDropdown, 200);
+    });
+
+    el("map-search-btn")?.addEventListener("click", () => {
+      const q = searchInput?.value.trim();
+      if (!q) return;
+      const focused = el("map-search-results")?.querySelector(".sr-item");
+      if (focused) { focused.click(); return; }
+      fetchSuggestions(q).then(() => {
+        setTimeout(() => el("map-search-results")?.querySelector(".sr-item")?.click(), 100);
+      });
+    });
+
     el("wiz-next-btn")?.addEventListener("click", async () => {
       if (wizardStep < 4) {
         if (wizardStep === 1) {
           const n = (el("field-name")?.value || "").trim();
           if (!n) {
-            alert("Enter a field name.");
+            wizSnack("Please enter a field name.");
             return;
           }
         }
@@ -569,7 +754,7 @@ function mountFieldsPage(user) {
     const manualArea = areaRaw ? Number(areaRaw) : null;
 
     if (!name) {
-      alert("Please enter a field name.");
+      wizSnack("Please enter a field name.");
       return;
     }
 
@@ -669,7 +854,7 @@ function mountFieldsPage(user) {
       updateWizardUi();
     } catch (e) {
       console.error(e);
-      alert(`Failed to save field: ${e.message}`);
+      wizSnack(`Failed to save: ${e.message}`);
     } finally {
       if (btn) {
         btn.disabled = false;
