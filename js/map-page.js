@@ -8,7 +8,7 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/fi
 import {
   collection, query, where, onSnapshot, orderBy, limit,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { resolveLocationApprox, resolveLoc } from "./weather-location.js";
+import { resolveLocationApprox } from "./weather-location.js";
 import { runLocationIntelligence, CATEGORIES } from "./location-intelligence.js";
 import { NAVIC_GPS_OPTIONS, detectGNSSSource, navicBadgeHTML } from "./navic.js";
 
