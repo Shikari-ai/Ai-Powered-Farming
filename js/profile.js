@@ -1,4 +1,5 @@
 import { auth, db, storage, logoutUser } from "./auth.js";
+import { LANGUAGES, setLanguage, getLang } from "./i18n.js";
 import { onAuthStateChanged, updateProfile, sendPasswordResetEmail }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
@@ -225,6 +226,37 @@ function wireStatic() {
     swal({ title: "Rate your experience", html: "How is Smart Farming working for you?", input: "textarea", inputPlaceholder: "Your feedback...", confirmButtonText: "Send" })
       .then(r => { if (r.isConfirmed && r.value) snack("Thank you! Your feedback was received."); })
   );
+
+  /* account settings — app language */
+  const langSel = el("as-lang");
+  if (langSel) {
+    langSel.innerHTML = LANGUAGES.map(
+      (L) => `<option value="${L.code}">${L.native} — ${L.name}</option>`
+    ).join("");
+    const syncLangSelect = () => {
+      const cur = getLang();
+      if (LANGUAGES.some((L) => L.code === cur)) langSel.value = cur;
+    };
+    syncLangSelect();
+    document.addEventListener("langchange", syncLangSelect);
+    langSel.addEventListener("change", async () => {
+      const code = langSel.value;
+      setLanguage(code);
+      snack("Language updated");
+      const u = auth.currentUser;
+      if (u) {
+        try {
+          await setDoc(
+            doc(db, "users", u.uid),
+            { langPreference: code, updatedAt: serverTimestamp() },
+            { merge: true }
+          );
+        } catch (e) {
+          console.warn("langPreference save:", e);
+        }
+      }
+    });
+  }
 }
 
 /* ─── auth-dependent wiring ───────────── */

@@ -152,6 +152,14 @@
     .ir-btn{font-size:9.5px;color:var(--primary);background:rgba(16,185,129,.1);
       border:1px solid rgba(16,185,129,.3);border-radius:8px;padding:5px 10px;
       cursor:pointer;white-space:nowrap;}
+    select#as-lang{
+      width:100%;margin-top:2px;
+      background:var(--surface);border:1px solid var(--border);border-radius:12px;
+      padding:10px 12px;font-size:14px;color:var(--txt);outline:none;cursor:pointer;
+      transition:border-color .2s;
+    }
+    select#as-lang:focus{border-color:var(--primary);}
+    select#as-lang option{background:var(--surface);color:var(--txt);}
 
     /* ── FORM INPUTS ── */
     .form-wrap{margin:0 16px;display:flex;flex-direction:column;gap:12px;}
@@ -495,6 +503,16 @@
         <div class="ir-ic"><i class="ri-map-pin-line"></i></div>
         <div class="ir-body"><div class="ir-label">Location</div><div class="ir-val" id="as-location">Not set</div></div>
         <div class="ir-btn" onclick="openPanel('panel-edit-profile')">Edit</div>
+      </div>
+    </div>
+    <div class="sec-h">Preferences</div>
+    <div class="info-card">
+      <div class="info-row" style="align-items:flex-start;">
+        <div class="ir-ic"><i class="ri-global-line"></i></div>
+        <div class="ir-body">
+          <div class="ir-label">App language</div>
+          <select id="as-lang" aria-label="App language"></select>
+        </div>
       </div>
     </div>
     <div class="sec-h">Security</div>

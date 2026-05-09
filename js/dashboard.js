@@ -8,7 +8,6 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/fi
 import {
     collection,
     doc,
-    getDoc,
     limit,
     onSnapshot,
     query,
@@ -559,22 +558,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            const uref = doc(db, "users", user.uid);
-            getDoc(uref)
-                .then((snap) => {
-                    const done = snap.exists() && snap.data()?.onboardingCompleted === true;
-                    if (!done) {
-                        window.location.replace("onboarding.html");
-                        return;
-                    }
-                    revealDashboard();
-                    mountHome(user);
-                })
-                .catch((e) => {
-                    console.warn("[dashboard] onboarding gate:", e?.message || e);
-                    revealDashboard();
-                    mountHome(user);
-                });
+            revealDashboard();
+            mountHome(user);
         });
     })();
 });
