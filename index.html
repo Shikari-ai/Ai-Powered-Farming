@@ -60,15 +60,25 @@
       overflow: hidden;
     }
 
-    /* ── HEADER ── */
+    /* ── HEADER ── pinned while dashboard scrolls */
     .hdr {
       display: flex;
       align-items: flex-start;
       gap: 10px;
-      padding: 48px 18px 12px;
+      padding-top: calc(44px + env(safe-area-inset-top, 0px));
+      padding-bottom: 12px;
+      padding-left: 18px;
+      padding-right: 18px;
+      margin-left: -16px;
+      margin-right: -16px;
+      position: sticky;
+      top: 0;
+      z-index: 48;
       flex-shrink: 0;
-      position: relative;
-      z-index: 20;
+      background: rgba(7, 12, 9, 0.76);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     }
     .hdr-menu {
       width: 38px; height: 38px;
@@ -136,7 +146,7 @@
       border-radius: 9px;
       display: flex; align-items: center; justify-content: center;
       padding: 0 4px;
-      border: 2px solid var(--bg);
+      border: 2px solid rgba(7, 12, 9, 0.95);
     }
     .notif-cnt.hidden { display: none; }
     .hdr-avatar {
@@ -152,7 +162,9 @@
 
     /* ── MAIN SCROLL ── */
     .dash-scroll {
-      flex: 1; overflow-y: auto; overflow-x: hidden;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto; overflow-x: hidden;
       padding: 0 16px 100px;
       -webkit-overflow-scrolling: touch;
       scroll-behavior: smooth;
@@ -741,42 +753,42 @@
 <body>
 <div class="app">
 
-  <!-- ════ HEADER ════ -->
-  <header class="hdr">
-    <button class="hdr-menu rw" id="hdr-menu-btn" aria-label="Menu">
-      <i class="ri-menu-2-line"></i>
-    </button>
-
-    <div class="hdr-mid">
-      <p class="hdr-greet" id="hdr-greet">Good evening,</p>
-      <h2 class="hdr-name">
-        <span id="hdr-name">...</span>
-        <span class="hdr-wave" id="hdr-wave">👋</span>
-      </h2>
-      <p class="hdr-subline" id="hdr-subline">Your farm is performing great today.</p>
-      <div class="sys-badge">
-        <span class="sys-dot"></span>
-        <span id="sys-label">All Systems Active</span>
-      </div>
-    </div>
-
-    <div class="hdr-right">
-      <div class="notif-wrap">
-        <button class="notif-btn rw" id="notif-btn" aria-label="Notifications">
-          <i class="ri-notification-3-line"></i>
-        </button>
-        <span class="notif-cnt hidden" id="notif-badge">0</span>
-      </div>
-      <div class="hdr-avatar rw" id="hdr-avatar-wrap" onclick="window.location.href='profile.html'">
-        <img id="hdr-avatar-img"
-          src="https://ui-avatars.com/api/?name=User&background=10B981&color=fff&size=80"
-          alt="Profile">
-      </div>
-    </div>
-  </header>
-
   <!-- ════ MAIN SCROLL ════ -->
   <main class="dash-scroll" id="dash-scroll">
+
+    <!-- ════ HEADER (sticky: menu, greeting, bell, avatar stay at top while scrolling) ════ -->
+    <header class="hdr">
+      <button class="hdr-menu rw" id="hdr-menu-btn" aria-label="Menu">
+        <i class="ri-menu-2-line"></i>
+      </button>
+
+      <div class="hdr-mid">
+        <p class="hdr-greet" id="hdr-greet">Good evening,</p>
+        <h2 class="hdr-name">
+          <span id="hdr-name">...</span>
+          <span class="hdr-wave" id="hdr-wave">👋</span>
+        </h2>
+        <p class="hdr-subline" id="hdr-subline">Your farm is performing great today.</p>
+        <div class="sys-badge">
+          <span class="sys-dot"></span>
+          <span id="sys-label">All Systems Active</span>
+        </div>
+      </div>
+
+      <div class="hdr-right">
+        <div class="notif-wrap">
+          <button class="notif-btn rw" id="notif-btn" aria-label="Notifications">
+            <i class="ri-notification-3-line"></i>
+          </button>
+          <span class="notif-cnt hidden" id="notif-badge">0</span>
+        </div>
+        <div class="hdr-avatar rw" id="hdr-avatar-wrap" onclick="window.location.href='profile.html'">
+          <img id="hdr-avatar-img"
+            src="https://ui-avatars.com/api/?name=User&background=10B981&color=fff&size=80"
+            alt="Profile">
+        </div>
+      </div>
+    </header>
 
     <!-- WEATHER CARD -->
     <div class="wcard wc-sunny fade-up" id="wcard" onclick="window.location.href='weather.html'">
