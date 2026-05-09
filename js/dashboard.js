@@ -8,6 +8,7 @@ import {
     query,
     where,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { runLocationIntelligence, CATEGORIES } from "./location-intelligence.js";
 
 function el(id) {
     return document.getElementById(id);
@@ -347,5 +348,127 @@ document.addEventListener("DOMContentLoaded", () => {
             recs.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
             renderInsights(el("dash-insights-list"), recs);
         });
+
+        // 6) Location intelligence
+        startLocationIntelligence(user.uid);
     });
 });
+
+/* ══════════════════════════════════════════════════════════════════
+   LOCATION INTELLIGENCE UI
+══════════════════════════════════════════════════════════════════ */
+
+function renderLIAddress(address) {
+    if (!address) return;
+    const chipsEl = el("lic-addr-chips");
+    const lineEl  = el("lic-address-line");
+    if (!chipsEl || !lineEl) return;
+
+    const chips = [];
+    if (address.village) chips.push({ text: `📍 ${address.village}`, primary: true });
+    if (address.district) chips.push({ text: address.district });
+    if (address.state)    chips.push({ text: address.state });
+    if (address.road)     chips.push({ text: `🛣 ${address.road}` });
+
+    chipsEl.innerHTML = chips.map(c =>
+        `<span class="lic-addr-chip${c.primary ? " primary" : ""}">${c.text}</span>`
+    ).join("");
+
+    const summary = [address.village, address.district, address.state].filter(Boolean).join(", ");
+    if (lineEl && summary) lineEl.textContent = summary;
+}
+
+function renderLIPlaces(places) {
+    const container = el("lic-places");
+    if (!container) return;
+    if (!places?.length) {
+        container.innerHTML = `<p style="font-size:12px;color:rgba(255,255,255,0.3);text-align:center;padding:12px 0;">No nearby places found in 2.5 km radius</p>`;
+        return;
+    }
+
+    // Show top 8 sorted by distance, colour-coded by category
+    container.innerHTML = places.slice(0, 8).map((p, i) => {
+        const cat = CATEGORIES[p.category] || { icon: "📍", color: "#94A3B8", label: p.category };
+        const delay = i * 60;
+        return `
+        <div class="lic-place" style="animation-delay:${delay}ms;">
+            <div class="lic-place-icon" style="border-color:${cat.color}22; background:${cat.color}11;">${cat.icon}</div>
+            <div class="lic-place-info">
+                <div class="lic-place-name">${p.name}</div>
+                <div class="lic-place-type">${cat.label}</div>
+            </div>
+            <div class="lic-place-dist" style="color:${cat.color};">${p.distLabel}</div>
+        </div>`;
+    }).join("");
+}
+
+function renderLIInsights(insights) {
+    const container = el("lic-insights");
+    const title     = el("lic-insights-title");
+    if (!container) return;
+    if (!insights?.length) { if (title) title.style.display = "none"; return; }
+
+    if (title) title.style.display = "block";
+    container.innerHTML = insights.map((ins, i) => {
+        const cls = ins.priority === "high" ? "lic-insight-high" : ins.priority === "medium" ? "lic-insight-medium" : "";
+        return `
+        <div class="lic-insight ${cls}" style="animation-delay:${i * 80}ms;">
+            <span class="lic-insight-icon">${ins.icon}</span>
+            <span>${ins.text}</span>
+        </div>`;
+    }).join("");
+}
+
+function renderLIAccuracy(accuracy) {
+    const accFill  = el("lic-acc-fill");
+    const accLabel = el("lic-acc-label");
+    const accVal   = el("lic-acc-val");
+    if (!accFill) return;
+
+    // Map accuracy in metres to a quality percentage (lower = better)
+    const quality = accuracy <= 5 ? 100 : accuracy <= 20 ? 90 : accuracy <= 100 ? 70 : accuracy <= 500 ? 40 : 15;
+    accFill.style.width = `${quality}%`;
+    const src = accuracy > 1000 ? "IP-based" : "GPS";
+    if (accLabel) accLabel.textContent = src;
+    if (accVal)   accVal.textContent   = accuracy ? `±${Math.round(accuracy)}m` : "--";
+}
+
+function renderLICoords(coords) {
+    const el_ = el("lic-coords-txt");
+    if (!el_ || !coords) return;
+    el_.textContent = `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`;
+}
+
+function onLocationUpdate(data) {
+    if (data.error) { return; }
+
+    const { coords, address, places, insights, accuracy, phase } = data;
+
+    if (coords)   renderLICoords(coords);
+    if (accuracy !== undefined) renderLIAccuracy(accuracy);
+    if (address)  renderLIAddress(address);
+    if (places?.length)   renderLIPlaces(places);
+    if (insights?.length) renderLIInsights(insights);
+
+    // Phase badge: dim card during approximate phase
+    const card = el("loc-intel-card");
+    if (card) card.style.opacity = phase === "approximate" ? "0.75" : "1";
+}
+
+function startLocationIntelligence(uid) {
+    runLocationIntelligence(uid, onLocationUpdate, { radius: 2500, persist: true });
+
+    // Refresh button
+    const btn = el("lic-refresh-btn");
+    btn?.addEventListener("click", () => {
+        btn.classList.add("spinning");
+        // Reset to skeleton loading state
+        const places = el("lic-places");
+        if (places) places.innerHTML = [1,2,3].map(() => '<div class="lic-skeleton"></div>').join("");
+
+        runLocationIntelligence(uid, (data) => {
+            btn.classList.remove("spinning");
+            onLocationUpdate(data);
+        }, { radius: 2500, persist: true });
+    });
+}
