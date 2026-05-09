@@ -177,12 +177,16 @@
         /* ─── Forms Wrapper (sliding) ─── */
         .forms-wrapper {
             position: relative; overflow: hidden;
+            min-height: 280px;
             transition: height 0.45s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .form-section {
             position: absolute; top: 0; left: 0; width: 100%;
             transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
         }
+        /* Active section flows in normal layout so the wrapper sizes itself
+           even if the JS height-measurer doesn't run. */
+        .form-section.state-center { position: relative; }
         .form-section.state-center { transform: translateX(0);     opacity: 1; pointer-events: all; }
         .form-section.state-left   { transform: translateX(-110%); opacity: 0; pointer-events: none; }
         .form-section.state-right  { transform: translateX(110%);  opacity: 0; pointer-events: none; }
