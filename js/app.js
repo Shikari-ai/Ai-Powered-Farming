@@ -184,17 +184,38 @@ async function updateWeatherForLocation(city, lat, lon) {
         const current = weatherData.current;
         const desc = getWeatherDescription(current.weather_code);
         
-        const wTemp = document.getElementById('w-temp');
-        const wHum = document.getElementById('w-hum');
-        const wWind = document.getElementById('w-wind');
-        const wDesc = document.getElementById('w-desc');
-        const wRain = document.getElementById('w-rain');
-        const wSunrise = document.getElementById('w-sunrise');
-        
-        if (wTemp) wTemp.innerHTML = `${Math.round(current.temperature_2m)}°C`;
-        if (wHum) wHum.innerHTML = `<i class="ri-drop-line"></i> ${Math.round(current.relative_humidity_2m)}%`;
-        if (wWind) wWind.innerHTML = `<i class="ri-windy-line"></i> ${Math.round(current.wind_speed_10m)} km/h`;
-        if (wDesc) wDesc.innerHTML = desc;
+        // Support both legacy IDs and new premium dashboard IDs
+        const wTemp = document.getElementById('wcard-temp') || document.getElementById('w-temp');
+        const wHum = document.getElementById('wcard-hum') || document.getElementById('w-hum');
+        const wWind = document.getElementById('wcard-wind') || document.getElementById('w-wind');
+        const wDesc = document.getElementById('wcard-cond') || document.getElementById('w-desc');
+        const wRain = document.getElementById('wcard-rain') || document.getElementById('w-rain');
+        const wSunrise = document.getElementById('wcard-sunrise') || document.getElementById('w-sunrise');
+
+        if (wTemp) wTemp.textContent = `${Math.round(current.temperature_2m)}°C`;
+        if (wHum) wHum.textContent = `${Math.round(current.relative_humidity_2m)}%`;
+        if (wWind) wWind.textContent = `${Math.round(current.wind_speed_10m)} km/h`;
+        if (wDesc) wDesc.textContent = desc;
+
+        // Update weather emoji icon and card background class
+        const wIcon = document.getElementById('wcard-wi');
+        const wCard = document.getElementById('wcard');
+        const code = current.weather_code || 0;
+        const isDay = (weatherData.hourly?.is_day?.[0] ?? 1) === 1;
+        let emoji = "🌤️", bgClass = "wc-sunny";
+        if (!isDay) { emoji = "🌙"; bgClass = "wc-night"; }
+        else if (code === 0) { emoji = "☀️"; bgClass = "wc-sunny"; }
+        else if (code <= 3) { emoji = "🌤️"; bgClass = "wc-sunny"; }
+        else if (code <= 48) { emoji = "🌫️"; bgClass = "wc-fog"; }
+        else if (code <= 67) { emoji = "🌧️"; bgClass = "wc-rainy"; }
+        else if (code <= 77) { emoji = "❄️"; bgClass = "wc-snow"; }
+        else if (code <= 82) { emoji = "⛈️"; bgClass = "wc-rainy"; }
+        else { emoji = "⛈️"; bgClass = "wc-rainy"; }
+        if (wIcon) wIcon.textContent = emoji;
+        if (wCard) {
+            wCard.classList.remove("wc-sunny", "wc-cloudy", "wc-rainy", "wc-night", "wc-fog", "wc-snow");
+            wCard.classList.add(bgClass);
+        }
 
         // Rain probability: closest hourly slot to the current timestamp (real data only)
         try {
@@ -216,7 +237,13 @@ async function updateWeatherForLocation(city, lat, lon) {
         try {
             if (weatherData.daily && weatherData.daily.sunrise && weatherData.daily.sunrise[0] && wSunrise) {
                 const sr = new Date(weatherData.daily.sunrise[0]);
-                wSunrise.innerHTML = `<i class="ri-sun-fill"></i> Sunrise ${sr.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+                const timeStr = sr.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                // New premium card: plain text since icon is already in HTML
+                if (wSunrise.id === 'wcard-sunrise') {
+                    wSunrise.innerHTML = `<i class="ri-sun-fill"></i> Sunrise ${timeStr}`;
+                } else {
+                    wSunrise.innerHTML = `<i class="ri-sun-fill"></i> Sunrise ${timeStr}`;
+                }
             }
         } catch {}
 
@@ -663,11 +690,9 @@ document.addEventListener('DOMContentLoaded', () => {
         initCamera();
     }
 
-    const weatherCard = document.getElementById("weather-card");
+    // Support both new premium card id ("wcard") and legacy id ("weather-card")
+    const weatherCard = document.getElementById("wcard") || document.getElementById("weather-card");
     if (weatherCard) {
-        weatherCard.addEventListener("click", () => {
-            window.location.href = "weather.html";
-        });
         // Start weather immediately — no modal, no auth wait
         loadHomeWeather();
     }

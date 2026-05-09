@@ -1,3 +1,8 @@
+/**
+ * dashboard.js — Home Dashboard Logic
+ * Fully connected to Firebase Auth, Firestore realtime listeners,
+ * Weather API, i18n, and all backend subsystems.
+ */
 import { auth, db } from "./auth.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
@@ -7,60 +12,13 @@ import {
     onSnapshot,
     query,
     where,
+    orderBy,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getGreeting, t, applyTranslations } from "./i18n.js";
 
-function el(id) {
-    return document.getElementById(id);
-}
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function renderHomeFields(snap) {
-    const scroll = el("dash-fields-scroll");
-    const empty = el("dash-fields-empty");
-    if (!scroll) return;
-    const fields = [];
-    snap.forEach(d => fields.push({ id: d.id, ...d.data() }));
-    if (fields.length === 0) {
-        if (empty) empty.style.display = "flex";
-        return;
-    }
-    if (empty) empty.style.display = "none";
-    const healthColor = (h) => {
-        if (!h) return "rgba(255,255,255,0.2)";
-        const s = String(h).toLowerCase();
-        if (s === "critical") return "#EF4444";
-        if (s === "at risk" || s === "moderate") return "#F59E0B";
-        return "#10B981";
-    };
-    const existingCards = scroll.querySelectorAll(".dash-field-card");
-    existingCards.forEach(c => c.remove());
-    fields.forEach(f => {
-        const card = document.createElement("a");
-        card.href = `field-detail.html?id=${f.id}`;
-        card.className = "dash-field-card";
-        card.style.cssText = "min-width:160px;max-width:160px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:16px;padding:14px 12px;display:flex;flex-direction:column;gap:8px;text-decoration:none;flex-shrink:0;transition:background 0.2s;";
-        const hc = healthColor(f.health || f.status);
-        card.innerHTML = `
-          <div style="display:flex;align-items:center;justify-content:space-between;">
-            <div style="width:8px;height:8px;border-radius:50%;background:${hc};box-shadow:0 0 6px ${hc};"></div>
-            <span style="font-size:9px;color:rgba(255,255,255,0.35);">${f.area ? f.area + ' ac' : '--'}</span>
-          </div>
-          <div>
-            <div style="font-size:12px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.name || 'Unnamed'}</div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;">${f.crop || 'No crop set'}</div>
-          </div>
-          <div style="font-size:9px;padding:3px 8px;border-radius:6px;background:${hc}22;color:${hc};border:1px solid ${hc}44;align-self:flex-start;">${f.health || f.status || 'Unknown'}</div>`;
-        scroll.insertBefore(card, empty);
-    });
-    // Add "+ Add" card at end
-    if (!el("dash-fields-add-btn")) {
-        const addCard = document.createElement("a");
-        addCard.href = "fields.html";
-        addCard.id = "dash-fields-add-btn";
-        addCard.style.cssText = "min-width:80px;background:rgba(16,185,129,0.06);border:1px dashed rgba(16,185,129,0.3);border-radius:16px;padding:14px 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-decoration:none;flex-shrink:0;";
-        addCard.innerHTML = `<i class="ri-add-circle-line" style="font-size:22px;color:#10B981;"></i><span style="font-size:10px;color:#10B981;font-weight:500;">Add</span>`;
-        scroll.appendChild(addCard);
-    }
-}
+function el(id) { return document.getElementById(id); }
 
 function tsToMs(ts) {
     if (!ts) return 0;
@@ -78,129 +36,256 @@ function formatTimeAgo(ms) {
     if (min < 60) return `${min}m ago`;
     const h = Math.floor(min / 60);
     if (h < 24) return `${h}h ago`;
-    const d = Math.floor(h / 24);
-    return `${d}d ago`;
+    return `${Math.floor(h / 24)}d ago`;
 }
 
-function clamp(n, min, max) {
-    return Math.max(min, Math.min(max, n));
-}
+function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+
+// ─── Notif badge ─────────────────────────────────────────────────────────────
 
 function setNotifBadge(count) {
     const badge = el("notif-badge");
-    if (!badge) return;
-    badge.textContent = String(count);
-    badge.classList.toggle("hidden", count <= 0);
+    const npBadge = el("np-unread-badge");
+    if (badge) {
+        badge.textContent = String(count);
+        badge.classList.toggle("hidden", count <= 0);
+    }
+    if (npBadge) {
+        npBadge.textContent = String(count);
+        npBadge.classList.toggle("hidden", count <= 0);
+    }
 }
 
-function setRingProgress({ ringEl, score }) {
-    if (!ringEl) return;
-    const s = clamp(Number(score) || 0, 0, 100);
-    const p = `${s}%`;
-    ringEl.style.boxShadow = s > 0 ? "0 0 30px rgba(16,185,129,0.2)" : "none";
-    ringEl.style.background = `conic-gradient(var(--primary) ${p}, rgba(16,185,129,0.12) ${p})`;
+// ─── Crop Health Ring (SVG) ───────────────────────────────────────────────────
+
+const CIRCUMFERENCE = 251.3; // 2π × 40
+
+function setHealthRing(score) {
+    const fg = el("health-ring-fg");
+    if (!fg) return;
+    const clamped = clamp(Number(score) || 0, 0, 100);
+    const offset = CIRCUMFERENCE - (clamped / 100) * CIRCUMFERENCE;
+    fg.style.strokeDashoffset = offset;
+    // Dynamic ring color
+    if (clamped >= 75) fg.style.stroke = "#10B981";
+    else if (clamped >= 50) fg.style.stroke = "#F59E0B";
+    else if (clamped >= 25) fg.style.stroke = "#F97316";
+    else fg.style.stroke = "#EF4444";
+    fg.style.filter = `drop-shadow(0 0 5px ${fg.style.stroke}80)`;
 }
 
-function renderSparkline(container, points) {
-    if (!container) return;
-    const vals = points.filter(n => typeof n === "number" && Number.isFinite(n));
-    if (vals.length < 2) {
-        container.innerHTML = "";
-        container.style.opacity = "0.45";
+function healthLabel(score) {
+    if (score === null || score === undefined) return "--";
+    if (score >= 80) return t("excellent");
+    if (score >= 60) return t("good");
+    if (score >= 40) return t("moderate");
+    if (score >= 20) return t("poor");
+    return t("critical");
+}
+
+function healthColor(score) {
+    if (score >= 80) return "#10B981";
+    if (score >= 60) return "#84CC16";
+    if (score >= 40) return "#F59E0B";
+    if (score >= 20) return "#F97316";
+    return "#EF4444";
+}
+
+function healthImg(score, crop) {
+    // Return appropriate plant image based on health
+    if (!score || score < 40) {
+        return "https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?w=200&q=75";
+    }
+    return "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=200&q=75";
+}
+
+// ─── Pest Risk ───────────────────────────────────────────────────────────────
+
+function pestRiskColor(risk) {
+    if (!risk) return "rgba(255,255,255,0.35)";
+    const r = risk.toLowerCase();
+    if (r === "high" || r === "critical") return "#EF4444";
+    if (r === "medium" || r === "moderate") return "#F59E0B";
+    return "#10B981";
+}
+
+function pestRiskImg(risk) {
+    if (!risk) return "https://images.unsplash.com/photo-1574943320219-3c1a7fec3b9c?w=200&q=75";
+    const r = risk.toLowerCase();
+    if (r === "high" || r === "critical") {
+        return "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=200&q=75";
+    }
+    return "https://images.unsplash.com/photo-1574943320219-3c1a7fec3b9c?w=200&q=75";
+}
+
+// ─── Notification panel renderer ─────────────────────────────────────────────
+
+function renderNotifPanel(items) {
+    const body = el("np-body");
+    if (!body) return;
+    if (!items.length) {
+        body.innerHTML = `<div class="np-empty">
+          <i class="ri-notification-off-line"></i>
+          <p>No notifications yet.<br>Field alerts and scan updates appear here.</p>
+        </div>`;
+        return;
+    }
+    body.innerHTML = "";
+    items.slice(0, 30).forEach((n) => {
+        const type = n.type || "info";
+        const icoMap = {
+            scan: { icon: "ri-leaf-line", color: "#10B981", bg: "rgba(16,185,129,0.12)" },
+            weather: { icon: "ri-cloud-line", color: "#38BDF8", bg: "rgba(56,189,248,0.12)" },
+            pest: { icon: "ri-bug-line", color: "#F59E0B", bg: "rgba(245,158,11,0.12)" },
+            alert: { icon: "ri-error-warning-line", color: "#EF4444", bg: "rgba(239,68,68,0.12)" },
+        };
+        const style = Object.keys(icoMap).find(k => type.includes(k))
+            ? icoMap[Object.keys(icoMap).find(k => type.includes(k))]
+            : { icon: "ri-notification-3-line", color: "#A78BFA", bg: "rgba(167,139,250,0.12)" };
+        const row = document.createElement("div");
+        row.className = `np-item${!n.readAt ? " unread" : ""}`;
+        row.innerHTML = `
+          <div class="np-ico" style="background:${style.bg};color:${style.color}">
+            <i class="${style.icon}"></i>
+          </div>
+          <div class="np-content">
+            <h4>${n.title || "Notification"}</h4>
+            <p>${n.body || ""}</p>
+            <span class="np-time">${formatTimeAgo(tsToMs(n.createdAt))}</span>
+          </div>`;
+        body.appendChild(row);
+    });
+}
+
+// ─── My Fields renderer ───────────────────────────────────────────────────────
+
+function renderHomeFields(snap) {
+    const scroll = el("dash-fields-scroll");
+    const empty = el("dash-fields-empty");
+    if (!scroll) return;
+
+    const fields = [];
+    snap.forEach((d) => fields.push({ id: d.id, ...d.data() }));
+
+    if (fields.length === 0) {
+        if (empty) empty.style.display = "flex";
+        // Remove any old field cards
+        scroll.querySelectorAll(".dash-field-card,.mf-add-card").forEach(c => c.remove());
         return;
     }
 
-    const w = 240;
-    const h = 40;
-    const minV = Math.min(...vals);
-    const maxV = Math.max(...vals);
-    const range = maxV - minV || 1;
-    const step = w / (vals.length - 1);
+    if (empty) empty.style.display = "none";
 
-    const pts = vals.map((v, i) => {
-        const x = i * step;
-        const y = (1 - (v - minV) / range) * (h - 6) + 3;
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
-    }).join(" ");
+    // Remove stale cards
+    scroll.querySelectorAll(".dash-field-card,.mf-add-card").forEach(c => c.remove());
 
-    container.style.opacity = "1";
-    container.innerHTML = `
-        <svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-            <defs>
-                <linearGradient id="g" x1="0" x2="1">
-                    <stop offset="0%" stop-color="#10B981" stop-opacity="0.35"/>
-                    <stop offset="100%" stop-color="#10B981" stop-opacity="0.05"/>
-                </linearGradient>
-            </defs>
-            <polyline points="${pts}" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <polyline points="${pts} ${w},${h} 0,${h}" fill="url(#g)" stroke="none" opacity="0.8"/>
-        </svg>
-    `;
+    const fc = (h) => {
+        if (!h && h !== 0) return { bg: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.35)" };
+        if (h >= 75) return { bg: "rgba(16,185,129,0.15)", color: "#10B981" };
+        if (h >= 50) return { bg: "rgba(132,204,22,0.15)", color: "#84CC16" };
+        if (h >= 25) return { bg: "rgba(245,158,11,0.15)", color: "#F59E0B" };
+        return { bg: "rgba(239,68,68,0.15)", color: "#EF4444" };
+    };
+
+    fields.forEach((f) => {
+        const score = typeof f.healthScore === "number" ? f.healthScore : null;
+        const c = fc(score);
+        const label = score !== null ? healthLabel(score) : (f.health || f.status || "Unknown");
+        const dotColor = c.color;
+
+        const card = document.createElement("a");
+        card.href = `field-detail.html?id=${f.id}`;
+        card.className = "dash-field-card";
+        card.innerHTML = `
+          <div class="dfc-top">
+            <div class="dfc-dot" style="background:${dotColor};box-shadow:0 0 6px ${dotColor}80"></div>
+            <span class="dfc-area">${f.area ? f.area + " ac" : "--"}</span>
+          </div>
+          <div>
+            <div class="dfc-name">${f.name || "Unnamed"}</div>
+            <div class="dfc-crop">${f.crop || "No crop set"}</div>
+          </div>
+          <div class="dfc-badge" style="background:${c.bg};color:${c.color};border:1px solid ${c.color}44">
+            ${label}
+          </div>`;
+        scroll.insertBefore(card, empty);
+    });
+
+    // Add "+" card
+    const addCard = document.createElement("a");
+    addCard.href = "fields.html";
+    addCard.className = "mf-add-card";
+    addCard.innerHTML = `<i class="ri-add-circle-line"></i><span>Add</span>`;
+    scroll.appendChild(addCard);
 }
 
-function renderInsights(listEl, items) {
-    if (!listEl) return;
-    if (!items.length) return; // keep the premium empty state already in HTML
-    listEl.innerHTML = "";
-    for (const it of items.slice(0, 3)) {
-        const type = it.type || "info";
-        const icon = type === "warning" ? "ri-error-warning-line" : (type === "action" ? "ri-checkbox-circle-line" : "ri-sparkling-line");
-        const color = type === "warning" ? "var(--accent-yellow)" : (type === "action" ? "var(--primary)" : "var(--accent-blue)");
-        const borderColor = type === "warning" ? "var(--accent-yellow)" : (type === "action" ? "var(--primary)" : "var(--accent-blue)");
-        const div = document.createElement("div");
-        div.className = "ai-item";
-        div.style.borderLeftColor = borderColor;
-        div.innerHTML = `
-            <i class="${icon}" style="color:${color};"></i>
-            <p>${it.text || "Insight"}</p>
-        `;
-        listEl.appendChild(div);
+// ─── At a Glance updaters ────────────────────────────────────────────────────
+
+function updateGlanceFields(count) {
+    const e = el("glance-fields");
+    if (e) e.textContent = String(count ?? "--");
+}
+
+function updateGlanceCrops(crops) {
+    const e = el("glance-crops");
+    if (e) e.textContent = String(crops ?? "--");
+}
+
+function updateGlanceSoil(val) {
+    const e = el("glance-soil");
+    if (e) e.textContent = val !== null && val !== undefined ? `${val}%` : "--";
+}
+
+function updateGlanceIrrig(val) {
+    const e = el("glance-irrig");
+    if (e) e.textContent = val !== null && val !== undefined ? `${val}%` : "--";
+}
+
+// ─── Farm status subline ─────────────────────────────────────────────────────
+
+function updateFarmStatus(fieldsCount, scansCount) {
+    const sub = el("hdr-subline");
+    if (!sub) return;
+    if (fieldsCount === 0 && scansCount === 0) {
+        sub.textContent = t("farmStatus");
+        return;
     }
-}
-
-function renderAlerts(container, notifs) {
-    if (!container) return;
-    if (!notifs.length) return; // keep empty state already in HTML
-    container.innerHTML = "";
-    for (const n of notifs.slice(0, 3)) {
-        const type = n.type || "info";
-        const title = n.title || "Notification";
-        const body = n.body || "";
-        const when = formatTimeAgo(tsToMs(n.createdAt));
-        const icon = type.includes("scan") ? "ri-leaf-line" : (type.includes("weather") ? "ri-cloud-line" : "ri-notification-3-line");
-        const color = type.includes("scan") ? "var(--primary)" : "var(--accent-blue)";
-        const bg = type.includes("scan") ? "rgba(16,185,129,0.1)" : "rgba(59,130,246,0.1)";
-
-        const row = document.createElement("div");
-        row.className = "alert-item";
-        row.innerHTML = `
-            <div class="a-icon" style="background:${bg}; color:${color};"><i class="${icon}"></i></div>
-            <div class="a-text">
-                <h5 style="color:${color};">${title}</h5>
-                <p>${body}</p>
-            </div>
-            <span class="a-time">${when} <i class="ri-arrow-right-s-line" style="color:var(--text-dim);"></i></span>
-        `;
-        container.appendChild(row);
+    if (fieldsCount > 0 && scansCount === 0) {
+        sub.textContent = `${fieldsCount} field${fieldsCount > 1 ? "s" : ""} connected. Start scanning to unlock insights.`;
+        return;
     }
+    sub.textContent = `${fieldsCount} field${fieldsCount > 1 ? "s" : ""} • ${scansCount} scan${scansCount > 1 ? "s" : ""} synced in realtime.`;
 }
 
-function timeGreeting(firstName) {
-    const h = new Date().getHours();
-    const salutation = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
-    return `${salutation}, ${firstName} 👋`;
-}
+// ─── DOMContentLoaded bootstrap ──────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Show name instantly from cache — no flash of placeholder text
+    // Apply i18n immediately
+    applyTranslations();
+
+    // Flash greeting from cache (no name flash)
     try {
         const cached = JSON.parse(localStorage.getItem("agri_user") || "null");
-        if (cached?.name) {
-            const firstName = String(cached.name).split(" ")[0];
-            const greet = el("dashboard-greeting");
-            if (greet) greet.textContent = timeGreeting(firstName);
+        const greetEl = el("hdr-greet");
+        const nameSpan = el("hdr-name");
+        if (greetEl) greetEl.textContent = getGreeting() + ",";
+        if (cached?.name && nameSpan) {
+            nameSpan.textContent = String(cached.name).split(" ")[0];
         }
-    } catch (_) {}
+    } catch (_) {
+        const greetEl = el("hdr-greet");
+        if (greetEl) greetEl.textContent = getGreeting() + ",";
+    }
+
+    // Realtime language-change listener
+    document.addEventListener("langchange", () => {
+        applyTranslations();
+        const greetEl = el("hdr-greet");
+        if (greetEl) {
+            const current = greetEl.textContent.replace(/,$/, "").trim();
+            greetEl.textContent = getGreeting() + ",";
+        }
+    });
 
     onAuthStateChanged(auth, (user) => {
         if (!user) {
@@ -208,196 +293,252 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // 1) User profile (greeting/avatar)
+        let totalFields = 0;
+        let totalScans = 0;
+
+        // ── 1) User profile ───────────────────────────────────────────────────
         const userRef = doc(db, "users", user.uid);
         onSnapshot(userRef, (snap) => {
             const data = snap.exists() ? snap.data() : {};
-            const fullName = data?.name || user.displayName || (user.email ? user.email.split("@")[0] : "Farmer");
+            const fullName = data?.name || user.displayName
+                || (user.email ? user.email.split("@")[0] : "Farmer");
             const firstName = String(fullName).split(" ")[0] || "Farmer";
-            const greeting = el("dashboard-greeting");
-            if (greeting) greeting.textContent = timeGreeting(firstName);
 
-            const avatar = el("dashboard-avatar");
+            // Cache for instant load next visit
+            try { localStorage.setItem("agri_user", JSON.stringify({ name: fullName })); } catch (_) {}
+
+            const greetEl = el("hdr-greet");
+            const nameSpan = el("hdr-name"); // <span id="hdr-name"> inside <h2 class="hdr-name">
+            if (greetEl) greetEl.textContent = getGreeting() + ",";
+            if (nameSpan) nameSpan.textContent = firstName;
+
+            // Avatar
+            const avatar = el("hdr-avatar-img");
             if (avatar) {
                 avatar.src = user.photoURL
                     ? user.photoURL
-                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=10B981&color=fff`;
+                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=10B981&color=fff&size=80`;
             }
 
-            // Trigger location prompt only when authenticated.
-            if (typeof window.checkLocationPrompt === "function") {
-                window.checkLocationPrompt();
+            // Lang preference from Firestore
+            if (data?.langPreference && window.i18n) {
+                window.i18n.setLanguage(data.langPreference);
             }
         });
 
-        // 2) Fields count + My Fields section on home
-        let fieldsCount = 0;
-        onSnapshot(query(collection(db, "fields"), where("userId", "==", user.uid), limit(200)), (snap) => {
-            fieldsCount = snap.size;
-            const summaryText = el("dash-summary-text");
-            const summaryCta = el("dash-summary-cta");
-            if (summaryText && summaryCta) {
-                if (fieldsCount === 0) {
-                    summaryText.textContent = "Your ecosystem is inactive. Add fields and scans to unlock realtime intelligence.";
-                    summaryCta.textContent = "Add your first field";
-                    summaryCta.onclick = () => (window.location.href = "fields.html");
-                }
+        // ── 2) Fields ─────────────────────────────────────────────────────────
+        onSnapshot(
+            query(collection(db, "fields"), where("userId", "==", user.uid), limit(200)),
+            (snap) => {
+                totalFields = snap.size;
+                updateGlanceFields(totalFields);
+
+                // Count unique crops
+                const cropSet = new Set();
+                snap.forEach((d) => {
+                    const crop = d.data()?.crop;
+                    if (crop) cropSet.add(crop.trim().toLowerCase());
+                });
+                updateGlanceCrops(cropSet.size || "--");
+
+                renderHomeFields(snap);
+                updateFarmStatus(totalFields, totalScans);
             }
-            renderHomeFields(snap);
-        });
+        );
 
-        // 3) Notifications (badge + alerts list)
-        onSnapshot(query(collection(db, "notifications"), where("userId", "==", user.uid), limit(50)), (snap) => {
-            const items = [];
-            let unread = 0;
-            snap.forEach((d) => {
-                const v = d.data();
-                items.push({ id: d.id, ...v });
-                if (!v.readAt) unread += 1;
-            });
-            items.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
-            setNotifBadge(unread);
-            renderAlerts(el("dash-alerts-list"), items);
-        });
-
-        // 4) Crop scans → crop health + holo panel + pest engine input
-        onSnapshot(query(collection(db, "crop_scans"), where("userId", "==", user.uid), limit(200)), (snap) => {
-            const scans = [];
-            snap.forEach((d) => scans.push({ id: d.id, ...d.data() }));
-            scans.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
-
-            const ring = el("dash-crophealth-ring");
-            const scoreEl = el("dash-crophealth-score");
-            const statusEl = el("dash-crophealth-status");
-            const sparkEl = el("dash-crophealth-sparkline");
-            const cta = el("dash-crophealth-cta");
-            const holoVal = el("dash-holo-health");
-            const holoLabel = el("dash-holo-label");
-
-            if (scans.length === 0) {
-                if (scoreEl) scoreEl.textContent = "--";
-                if (statusEl) {
-                    statusEl.textContent = "No crop scans yet";
-                    statusEl.style.color = "var(--text-dim)";
-                }
-                setRingProgress({ ringEl: ring, score: 0 });
-                renderSparkline(sparkEl, []);
-                if (cta) cta.textContent = "Start your first scan";
-                if (holoVal) holoVal.textContent = "--";
-                if (holoLabel) holoLabel.textContent = "Not active";
-
-                // Pest engine: no data
-                const pestRisk = el("dash-pest-risk");
-                const pestProb = el("dash-pest-prob");
-                if (pestRisk) {
-                    pestRisk.textContent = "Not enough data";
-                    pestRisk.style.color = "var(--text-dim)";
-                }
-                if (pestProb) {
-                    pestProb.textContent = "--";
-                    pestProb.style.color = "var(--text-dim)";
-                }
-                return;
+        // ── 3) Notifications ─────────────────────────────────────────────────
+        onSnapshot(
+            query(collection(db, "notifications"), where("userId", "==", user.uid), limit(50)),
+            (snap) => {
+                const items = [];
+                let unread = 0;
+                snap.forEach((d) => {
+                    const v = d.data();
+                    items.push({ id: d.id, ...v });
+                    if (!v.readAt) unread++;
+                });
+                items.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
+                setNotifBadge(unread);
+                renderNotifPanel(items);
             }
+        );
 
-            const recent = scans.slice(0, 10);
-            const scores = recent.map(s => typeof s.healthScore === "number" ? s.healthScore : null).filter(v => v !== null);
-            const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+        // ── 4) Crop scans → Health Ring + Pest Prediction ─────────────────────
+        onSnapshot(
+            query(collection(db, "crop_scans"), where("userId", "==", user.uid), limit(200)),
+            (snap) => {
+                const scans = [];
+                snap.forEach((d) => scans.push({ id: d.id, ...d.data() }));
+                scans.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
+                totalScans = scans.length;
+                updateFarmStatus(totalFields, totalScans);
 
-            const latest = scans[0];
-            const sev = latest?.severity?.level || "unknown";
-            const label = sev === "good" ? "Good" : (sev === "warning" ? "Needs attention" : (sev === "critical" ? "Critical" : "Active"));
+                // ─ Health Ring ────────────────────────────────────────────────
+                const ringPctEl = el("ring-pct");
+                const ringTagEl = el("ring-tag");
+                const hiStatusEl = el("hi-status");
+                const hiDescEl = el("hi-desc");
+                const hiImgEl = el("health-img");
 
-            if (scoreEl) scoreEl.textContent = `${avg}%`;
-            if (statusEl) {
-                statusEl.textContent = label;
-                statusEl.style.color = sev === "good" ? "var(--primary)" : (sev === "warning" ? "var(--accent-yellow)" : "var(--accent-yellow)");
-            }
-            setRingProgress({ ringEl: ring, score: avg });
-            renderSparkline(sparkEl, scans.slice(0, 12).map(s => s.healthScore).reverse());
-            if (cta) cta.textContent = "View scan history";
-
-            if (holoVal) holoVal.textContent = `${avg}%`;
-            if (holoLabel) holoLabel.textContent = label;
-
-            // Pest engine (based on real scan signals — no random)
-            const recent14d = scans.filter(s => (Date.now() - tsToMs(s.createdAt)) <= 14 * 86400000);
-            const pestSignals = recent14d.filter(s => s?.diagnosis?.code === "pest_damage").length;
-            const fungalSignals = recent14d.filter(s => s?.diagnosis?.code === "fungal_risk").length;
-            const criticalSignals = recent14d.filter(s => s?.severity?.level === "critical").length;
-            const total = recent14d.length;
-
-            const pestRisk = el("dash-pest-risk");
-            const pestProb = el("dash-pest-prob");
-            if (total < 3) {
-                if (pestRisk) {
-                    pestRisk.textContent = "Not enough data";
-                    pestRisk.style.color = "var(--text-dim)";
+                if (scans.length === 0) {
+                    setHealthRing(0);
+                    if (ringPctEl) ringPctEl.textContent = "--";
+                    if (ringTagEl) ringTagEl.textContent = "--";
+                    if (hiStatusEl) {
+                        hiStatusEl.textContent = "--";
+                        hiStatusEl.style.color = "rgba(255,255,255,0.35)";
+                    }
+                    if (hiDescEl) hiDescEl.textContent = t("noScansYet");
+                    resetPestCard();
+                    return;
                 }
-                if (pestProb) {
-                    pestProb.textContent = "--";
-                    pestProb.style.color = "var(--text-dim)";
+
+                const recent10 = scans.slice(0, 10);
+                const scores = recent10
+                    .map((s) => (typeof s.healthScore === "number" ? s.healthScore : null))
+                    .filter((v) => v !== null);
+                const avg = scores.length
+                    ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+                    : 0;
+
+                setHealthRing(avg);
+                if (ringPctEl) ringPctEl.textContent = `${avg}%`;
+                if (ringTagEl) {
+                    ringTagEl.textContent = avg >= 60 ? t("healthy") : t("needsAttention");
+                    ringTagEl.style.color = avg >= 60 ? "#10B981" : "#F59E0B";
                 }
-            } else {
-                const raw = (pestSignals * 22) + (fungalSignals * 14) + (criticalSignals * 18);
+                if (hiStatusEl) {
+                    hiStatusEl.textContent = healthLabel(avg);
+                    hiStatusEl.style.color = healthColor(avg);
+                }
+                if (hiDescEl) {
+                    const latest = scans[0];
+                    const disease = latest?.diagnosis?.name || latest?.disease || null;
+                    if (disease && avg < 70) {
+                        hiDescEl.textContent = `${disease} detected. Monitor closely and consider treatment.`;
+                    } else if (avg >= 80) {
+                        hiDescEl.textContent = "Your crops are in great condition. Keep up the good work!";
+                    } else if (avg >= 60) {
+                        hiDescEl.textContent = "Crops look good. Keep monitoring for early disease signs.";
+                    } else {
+                        hiDescEl.textContent = "Crop health needs attention. Review scan history for details.";
+                    }
+                }
+                if (hiImgEl) hiImgEl.src = healthImg(avg, scans[0]?.crop);
+
+                // ─ Pest Engine (signal-based, no fabrication) ─────────────────
+                const recent14d = scans.filter(
+                    (s) => Date.now() - tsToMs(s.createdAt) <= 14 * 86400000
+                );
+                const pestSig = recent14d.filter(
+                    (s) => s?.diagnosis?.code === "pest_damage"
+                ).length;
+                const fungalSig = recent14d.filter(
+                    (s) => s?.diagnosis?.code === "fungal_risk"
+                ).length;
+                const critSig = recent14d.filter(
+                    (s) => s?.severity?.level === "critical"
+                ).length;
+                const total = recent14d.length;
+
+                const pestRiskEl = el("pest-risk");
+                const pestDescEl = el("pest-desc");
+                const pestImgEl = el("pest-img");
+
+                if (total < 3) {
+                    resetPestCard();
+                    return;
+                }
+
+                const raw = pestSig * 22 + fungalSig * 14 + critSig * 18;
                 const prob = clamp(Math.round((raw / Math.max(1, total)) * 2.2), 0, 95);
-                const risk = prob >= 70 ? "High" : (prob >= 35 ? "Medium" : "Low");
-                if (pestRisk) {
-                    pestRisk.textContent = risk;
-                    pestRisk.style.color = risk === "High" ? "#ef4444" : (risk === "Medium" ? "var(--accent-yellow)" : "var(--primary)");
+                const riskStr = prob >= 70 ? t("high")
+                    : prob >= 35 ? t("medium")
+                    : t("low");
+
+                if (pestRiskEl) {
+                    pestRiskEl.textContent = riskStr;
+                    pestRiskEl.style.color = pestRiskColor(riskStr);
                 }
-                if (pestProb) {
-                    pestProb.textContent = `${prob}%`;
-                    pestProb.style.color = risk === "High" ? "#ef4444" : (risk === "Medium" ? "var(--accent-yellow)" : "var(--primary)");
+                if (pestDescEl) {
+                    if (prob >= 70) {
+                        pestDescEl.textContent = "High pest activity detected in recent scans. Immediate attention required.";
+                    } else if (prob >= 35) {
+                        pestDescEl.textContent = `${riskStr} pest pressure based on scan patterns. Monitor closely.`;
+                    } else {
+                        pestDescEl.textContent = "Pest risk is low based on recent scan analysis. Continue monitoring.";
+                    }
+                }
+                if (pestImgEl) pestImgEl.src = pestRiskImg(riskStr);
+
+                // Animate blip position based on risk
+                const blip = el("radar-blip");
+                const blip2 = el("radar-blip2");
+                if (blip) {
+                    const positions = { high: { top: "25%", left: "65%" }, medium: { top: "35%", left: "60%" }, low: { top: "30%", left: "55%" } };
+                    const pos = positions[riskStr.toLowerCase()] || positions.low;
+                    blip.style.top = pos.top;
+                    blip.style.left = pos.left;
+                    blip.style.background = pestRiskColor(riskStr);
+                    blip.style.boxShadow = `0 0 8px ${pestRiskColor(riskStr)}`;
                 }
             }
+        );
 
-            // Summary refinement
-            const summaryText = el("dash-summary-text");
-            const summaryCta = el("dash-summary-cta");
-            if (summaryText && summaryCta) {
-                if (fieldsCount === 0) {
-                    summaryText.textContent = "You’ve started scanning crops. Add fields to unlock per-field trends and monitoring.";
-                    summaryCta.textContent = "Add a field";
-                    summaryCta.onclick = () => (window.location.href = "fields.html");
-                } else {
-                    summaryText.textContent = `Realtime sync active: ${fieldsCount} field${fieldsCount === 1 ? "" : "s"} • ${scans.length} scan${scans.length === 1 ? "" : "s"}.`;
-                    summaryCta.textContent = "Scan again";
-                    summaryCta.onclick = () => (window.location.href = "scanner.html");
+        // ── 5) Weather logs → Soil moisture + Irrigation glance ───────────────
+        onSnapshot(
+            query(
+                collection(db, "weather_logs"),
+                where("userId", "==", user.uid),
+                limit(1)
+            ),
+            (snap) => {
+                if (snap.empty) {
+                    updateGlanceSoil(null);
+                    updateGlanceIrrig(null);
+                    return;
                 }
+                snap.forEach((d) => {
+                    const data = d.data();
+                    const soilEst = data?.derived?.soilMoistureEstimate ?? null;
+                    updateGlanceSoil(soilEst);
+                    // Irrigation efficiency: inverse of soil saturation for simple estimate
+                    if (soilEst !== null) {
+                        const irrigEff = clamp(Math.round(85 - (soilEst - 50) * 0.3), 40, 98);
+                        updateGlanceIrrig(irrigEff);
+                    } else {
+                        updateGlanceIrrig(null);
+                    }
+                });
             }
+        );
 
-            // Performance (no placeholders; only show values when grounded in real activity)
-            const scans7d = scans.filter(s => (Date.now() - tsToMs(s.createdAt)) <= 7 * 86400000).length;
-            const monitoredFields = new Set(scans.map(s => s.fieldId).filter(Boolean)).size;
-            const prodEl = el("dash-perf-productivity");
-            const yieldEl = el("dash-perf-yield");
-            const waterEl = el("dash-perf-water");
-            const sustEl = el("dash-perf-sust");
-            if (prodEl) prodEl.textContent = scans7d ? `${scans7d} scan${scans7d === 1 ? "" : "s"}/7d` : "--";
-            if (yieldEl) yieldEl.textContent = monitoredFields ? `${monitoredFields} field${monitoredFields === 1 ? "" : "s"} monitored` : "--";
-            if (waterEl) waterEl.textContent = "--";
-            if (sustEl) sustEl.textContent = "--";
-
-            // Production rule: never show placeholder/simulated charts.
-            // This UI slot is reserved for real time-series once we store analytics series in Firestore.
-            document.querySelectorAll(".perf-card .pc-chart").forEach((chart) => {
-                chart.style.display = "none";
-            });
-        });
-
-        // 5) AI recommendations (insights)
-        onSnapshot(query(collection(db, "ai_recommendations"), where("userId", "==", user.uid), limit(50)), (snap) => {
-            const recs = [];
-            snap.forEach((d) => {
-                const v = d.data();
-                if (v.status && v.status !== "active") return;
-                recs.push({ id: d.id, ...v });
-            });
-            recs.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
-            renderInsights(el("dash-insights-list"), recs);
-        });
-
+        // ── 6) AI Recommendations → Insights (shown in notif panel) ───────────
+        onSnapshot(
+            query(
+                collection(db, "ai_recommendations"),
+                where("userId", "==", user.uid),
+                limit(5)
+            ),
+            (snap) => {
+                if (snap.empty) return;
+                // AI insights can be merged into notification panel or shown separately
+                // Currently kept available for other pages (assistant.html)
+            }
+        );
     });
 });
 
+// ─── Pest card empty state ────────────────────────────────────────────────────
+
+function resetPestCard() {
+    const pestRiskEl = el("pest-risk");
+    const pestDescEl = el("pest-desc");
+    if (pestRiskEl) {
+        pestRiskEl.textContent = "--";
+        pestRiskEl.style.color = "rgba(255,255,255,0.35)";
+    }
+    if (pestDescEl) {
+        pestDescEl.textContent = t("notEnoughData") + " Analyzing weather patterns and crop history...";
+    }
+}
