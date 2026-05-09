@@ -288,53 +288,125 @@
         .field-input { width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.25); color: white; outline: none; }
         .btn-outline { width: 100%; padding: 10px; border: 1px solid var(--neon); border-radius: 12px; color: var(--neon); font-size: 11px; font-weight: 500; background: rgba(57,255,20,0.08); cursor: pointer; }
         .btn-ghost { width: 100%; padding: 10px; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; color: var(--text-main); font-size: 11px; font-weight: 500; background: rgba(255,255,255,0.05); cursor: pointer; }
-        .field-map-wrap {
-            border: 1px solid rgba(57,255,20,0.2); border-radius: 14px; overflow: hidden;
-            background: #0a0f16; position: relative;
-            transition: transform 0.5s cubic-bezier(0.16,1,0.3,1), box-shadow 0.5s;
-        }
-        .field-map-wrap.mode-3d {
-            transform: perspective(720px) rotateX(28deg) scale(1.1);
-            transform-origin: center 70%;
-            box-shadow: 0 24px 48px rgba(0,0,0,0.85);
-        }
-        .field-map { height: 280px; width: 100%; cursor: crosshair; }
-        .leaflet-control-zoom { display: none; }
+        .leaflet-control-zoom { display: none !important; }
         .leaflet-control-attribution { display: none !important; }
-        .map-toolbar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
-        .map-layer-row { display: flex; gap: 8px; margin-top: 8px; }
-        .map-layer-row .btn-ghost { flex: 1; font-size: 11px; }
-        .map-layer-row .btn-ghost.active { background: rgba(57,255,20,0.18); border-color: var(--primary); color: var(--primary); }
 
-        /* Search autocomplete dropdown */
-        .search-wrap { position: relative; margin-bottom: 10px; }
-        .search-row { display: flex; gap: 8px; }
-        #map-search-results {
-            position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-            background: #0a0e0a; border: 1px solid rgba(57,255,20,0.25);
-            border-radius: 12px; overflow: hidden; z-index: 2000;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.7); display: none;
-            max-height: 190px; overflow-y: auto;
+        /* ── Full-screen map overlay ── */
+        #field-map-fullscreen {
+            position: fixed; inset: 0; z-index: 4000; background: #000;
+            display: flex; flex-direction: column;
+        }
+        #fms-map { position: absolute; inset: 0; z-index: 1; cursor: crosshair; }
+
+        /* Header bar */
+        .fms-hdr {
+            position: absolute; top: 0; left: 0; right: 0; z-index: 20;
+            padding: 14px 14px calc(14px + env(safe-area-inset-top, 0px));
+            background: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, transparent 100%);
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        }
+        .fms-back-btn {
+            width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+            border: 1px solid rgba(57,255,20,0.25); background: rgba(0,0,0,0.65);
+            color: var(--text-main); font-size: 20px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+        .fms-hdr-info { flex: 1; text-align: center; }
+        .fms-hdr-info h4 { font-size: 13px; font-weight: 600; color: var(--neon); }
+        .fms-hdr-info p  { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+        .fms-confirm-hdr-btn {
+            padding: 10px 16px; border-radius: 12px; border: none;
+            background: var(--neon); color: #000; font-size: 12px; font-weight: 700;
+            cursor: pointer; box-shadow: 0 0 18px var(--primary-glow); flex-shrink: 0;
+        }
+
+        /* Search */
+        .fms-search-wrap {
+            position: absolute; top: 72px; left: 14px; right: 14px; z-index: 20;
+        }
+        .fms-search-row { display: flex; gap: 8px; }
+        .fms-search-input {
+            flex: 1; padding: 11px 14px; border-radius: 14px;
+            background: rgba(4, 8, 4, 0.88); border: 1px solid rgba(57,255,20,0.3);
+            color: white; font-size: 13px; outline: none; font-family: 'Outfit', sans-serif;
+            backdrop-filter: blur(12px);
+        }
+        .fms-search-input::placeholder { color: rgba(255,255,255,0.3); }
+        .fms-search-btn {
+            width: 46px; height: 46px; border-radius: 14px; flex-shrink: 0;
+            border: 1px solid rgba(57,255,20,0.3); background: rgba(4,8,4,0.88);
+            color: var(--neon); font-size: 18px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(12px);
+        }
+        #fms-search-results {
+            position: absolute; top: calc(100% + 5px); left: 0; right: 0;
+            background: rgba(5, 9, 5, 0.96); border: 1px solid rgba(57,255,20,0.22);
+            border-radius: 14px; overflow: hidden; z-index: 300;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.85); display: none;
+            max-height: 240px; overflow-y: auto; backdrop-filter: blur(16px);
         }
         .sr-item {
-            display: flex; align-items: flex-start; gap: 9px;
-            padding: 10px 12px; cursor: pointer; font-size: 12px; line-height: 1.4;
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 11px 14px; cursor: pointer;
             border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s;
         }
         .sr-item:last-child { border-bottom: none; }
         .sr-item:hover, .sr-item.sr-focused { background: rgba(57,255,20,0.1); }
-        .sr-item i { color: var(--primary); font-size: 14px; flex-shrink: 0; margin-top: 1px; }
-        .sr-item span { color: var(--text-main); }
+        .sr-item i { color: var(--primary); font-size: 15px; flex-shrink: 0; margin-top: 2px; }
+        .sr-name { font-size: 13px; color: var(--text-main); font-weight: 500; }
+        .sr-addr { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
 
-        /* Map toast */
-        #map-toast {
-            position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%) translateY(20px);
-            background: #111; border: 1px solid rgba(57,255,20,0.3); color: var(--text-main);
-            border-radius: 10px; padding: 8px 14px; font-size: 12px;
-            z-index: 500; opacity: 0; transition: opacity 0.3s, transform 0.3s;
-            pointer-events: none; white-space: nowrap;
+        /* GPS badge */
+        .fms-gps-badge {
+            position: absolute; top: 78px; right: 14px; z-index: 20;
+            padding: 5px 10px; border-radius: 8px; font-size: 10px; font-weight: 500;
+            background: rgba(0,0,0,0.75); border: 1px solid rgba(57,255,20,0.3);
+            color: var(--neon); display: none; backdrop-filter: blur(8px);
         }
-        #map-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* Bottom toolbar */
+        .fms-toolbar {
+            position: absolute; bottom: 0; left: 0; right: 0; z-index: 20;
+            padding: 20px 14px calc(20px + env(safe-area-inset-bottom, 0px));
+            background: linear-gradient(0deg, rgba(0,0,0,0.92) 0%, transparent 100%);
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .fms-help-txt { font-size: 11px; color: rgba(255,255,255,0.4); text-align: center; }
+        .fms-btn-row { display: flex; gap: 7px; }
+        .fms-tool-btn {
+            flex: 1; padding: 9px 4px; border-radius: 11px; font-size: 11px; font-weight: 500;
+            border: 1px solid rgba(57,255,20,0.18); background: rgba(0,0,0,0.65);
+            color: var(--text-main); cursor: pointer; backdrop-filter: blur(8px);
+        }
+        .fms-tool-btn.active { background: rgba(57,255,20,0.18); border-color: var(--primary); color: var(--primary); }
+        .fms-confirm-full-btn {
+            width: 100%; padding: 15px; border-radius: 16px; border: none;
+            background: var(--neon); color: #000; font-weight: 700; font-size: 15px;
+            cursor: pointer; box-shadow: 0 0 28px var(--primary-glow);
+        }
+
+        /* FMS toast */
+        #fms-toast {
+            position: absolute; bottom: 160px; left: 50%; transform: translateX(-50%);
+            background: rgba(8,12,8,0.92); border: 1px solid rgba(57,255,20,0.3);
+            color: white; border-radius: 10px; padding: 8px 16px; font-size: 12px;
+            z-index: 200; white-space: nowrap; backdrop-filter: blur(10px);
+            pointer-events: none; opacity: 0; transition: opacity 0.3s;
+        }
+        #fms-toast.show { opacity: 1; }
+
+        /* 3D tilt on map container */
+        #fms-map.mode-3d {
+            transform: perspective(900px) rotateX(28deg) scale(1.12);
+            transform-origin: center 65%;
+        }
+        #fms-map { transition: transform 0.5s cubic-bezier(0.16,1,0.3,1); }
+
+        /* Keep wiz step 2 in modal as empty placeholder */
+        .field-map-wrap { border: 1px solid rgba(57,255,20,0.2); border-radius: 14px; overflow: hidden; background: #0a0f16; }
+        .field-map { height: 280px; width: 100%; }
     </style>
 </head>
 <body>
@@ -494,39 +566,8 @@
                 <input class="field-input" id="field-name" placeholder="e.g. Green Valley Farm" autocomplete="off"/>
             </div>
 
-            <div id="wiz-step-2" class="hidden">
-                <p style="font-size:12px; color:var(--text-dim); margin-bottom:8px;">Tap the satellite map to trace your field boundary (3+ points).</p>
-
-                <!-- Search with autocomplete -->
-                <div class="search-wrap">
-                    <div class="search-row">
-                        <input class="field-input" id="map-search-input" placeholder="Search village, city or region…" style="flex:1; padding:10px 14px; font-size:12px; margin-bottom:0;" autocomplete="off"/>
-                        <button class="btn-ghost" id="map-search-btn" type="button" style="width:40px; padding:0; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><i class="ri-search-line" style="font-size:16px;"></i></button>
-                    </div>
-                    <div id="map-search-results"></div>
-                </div>
-
-                <!-- Map container -->
-                <div class="field-map-wrap" id="field-map-wrap">
-                    <div id="field-map" class="field-map"></div>
-                    <div id="map-toast"></div>
-                </div>
-
-                <!-- Toolbar row 1 -->
-                <div class="map-toolbar">
-                    <button class="btn-ghost" id="map-undo-btn" type="button"><i class="ri-arrow-go-back-line"></i> Undo</button>
-                    <button class="btn-ghost" id="map-clear-btn" type="button"><i class="ri-delete-bin-line"></i> Clear</button>
-                    <button class="btn-ghost" id="map-center-btn" type="button"><i class="ri-crosshair-line"></i> My GPS</button>
-                </div>
-                <!-- Toolbar row 2: layer + 3D -->
-                <div class="map-layer-row">
-                    <button class="btn-ghost active" id="map-satellite-btn" type="button">🛰 Satellite</button>
-                    <button class="btn-ghost" id="map-street-btn" type="button">🗺 Street</button>
-                    <button class="btn-ghost" id="map-3d-btn" type="button">⬡ 3D Tilt</button>
-                </div>
-
-                <p id="map-help-text" style="font-size:11px; color:var(--text-dim); line-height:1.45; margin-top:8px;">Tap your field corners on the satellite view. Area calculates automatically.</p>
-            </div>
+            <!-- Step 2 is handled by the full-screen map overlay -->
+            <div id="wiz-step-2" class="hidden"></div>
 
             <div id="wiz-step-3" class="hidden">
                 <input class="field-input" id="field-crop" placeholder="Main crop (e.g. Wheat)" list="crop-list"/>
@@ -585,8 +626,60 @@
         </div>
     </div>
 
+    <!-- ════════════ FULL-SCREEN MAP OVERLAY ════════════ -->
+    <div id="field-map-fullscreen" class="hidden">
+
+        <!-- Header -->
+        <div class="fms-hdr">
+            <button class="fms-back-btn" id="fms-back-btn"><i class="ri-arrow-left-line"></i></button>
+            <div class="fms-hdr-info">
+                <h4>Map Your Field</h4>
+                <p id="fms-points-label">Tap the satellite map to drop boundary corners</p>
+            </div>
+            <button class="fms-confirm-hdr-btn" id="fms-confirm-hdr-btn">Confirm ✓</button>
+        </div>
+
+        <!-- Search -->
+        <div class="fms-search-wrap">
+            <div class="fms-search-row" style="position:relative;">
+                <input class="fms-search-input" id="fms-search-input"
+                       placeholder="Search any village, city, landmark…" autocomplete="off"/>
+                <button class="fms-search-btn" id="fms-search-btn" type="button">
+                    <i class="ri-search-line"></i>
+                </button>
+                <div id="fms-search-results"></div>
+            </div>
+        </div>
+
+        <!-- GPS accuracy badge -->
+        <div class="fms-gps-badge" id="fms-gps-badge">
+            <i class="ri-crosshair-2-line"></i> <span id="fms-accuracy-text">Locating…</span>
+        </div>
+
+        <!-- Leaflet map fills the background -->
+        <div id="fms-map"></div>
+
+        <!-- Toast -->
+        <div id="fms-toast"></div>
+
+        <!-- Bottom toolbar -->
+        <div class="fms-toolbar">
+            <p class="fms-help-txt" id="fms-help-text">Drop 3+ corner points along your fence line to draw a polygon</p>
+            <div class="fms-btn-row">
+                <button class="fms-tool-btn" id="fms-undo-btn"><i class="ri-arrow-go-back-line"></i> Undo</button>
+                <button class="fms-tool-btn" id="fms-clear-btn"><i class="ri-delete-bin-line"></i> Clear</button>
+                <button class="fms-tool-btn" id="fms-gps-btn"><i class="ri-crosshair-line"></i> GPS</button>
+                <button class="fms-tool-btn" id="fms-3d-btn">⬡ 3D</button>
+                <button class="fms-tool-btn active" id="fms-sat-btn">🛰 Sat</button>
+                <button class="fms-tool-btn" id="fms-str-btn">🗺 Map</button>
+            </div>
+            <button class="fms-confirm-full-btn" id="fms-confirm-full-btn">✓ Confirm Field Boundary</button>
+        </div>
+    </div>
+    <!-- ════════════ END FULL-SCREEN MAP ════════════ -->
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script type="module" src="js/fields.js?v=12"></script>
+    <script type="module" src="js/fields.js?v=13"></script>
     <script type="module" src="js/interaction-engine.js?v=1"></script>
 </body>
 </html>

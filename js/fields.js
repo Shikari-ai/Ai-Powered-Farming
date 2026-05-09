@@ -140,12 +140,21 @@ function clearDraft() {
 let wizardStep = 1;
 
 function updateWizardUi() {
+  // Step 2 = full-screen map — handle separately
+  if (wizardStep === 2) {
+    openFmsMap();
+    return;
+  }
+
+  // Close full-screen if open
+  el("field-map-fullscreen")?.classList.add("hidden");
+
   for (let i = 1; i <= 4; i++) {
     el(`wiz-step-${i}`)?.classList.toggle("hidden", i !== wizardStep);
   }
   const prog = el("wizard-progress-fill");
   if (prog) prog.style.width = `${(wizardStep / 4) * 100}%`;
-  el("wizard-step-label") && (el("wizard-step-label").textContent = `Step ${wizardStep} of 4`);
+  el("wizard-step-label") && (el("wizard-step-label").textContent = `Step ${wizardStep === 2 ? 3 : wizardStep} of 4`);
   el("wiz-back-btn")?.classList.toggle("hidden", wizardStep === 1);
   const next = el("wiz-next-btn");
   if (next) next.textContent = wizardStep === 4 ? "Save field" : "Next";
@@ -271,6 +280,234 @@ function mountFieldsPage(user) {
   let scans = [];
   let fieldMapById = new Map();
   let latestWeatherMoisture = null;
+  let fmsUiBound = false;
+  let accuracyMarker = null;
+  let accuracyCircle = null;
+
+  /* ══════════════════════════════════════════════════
+     FULL-SCREEN MAP OVERLAY FUNCTIONS
+  ══════════════════════════════════════════════════ */
+
+  function openFmsMap() {
+    el("add-field-modal")?.classList.add("hidden");
+    el("field-map-fullscreen")?.classList.remove("hidden");
+    initMapIfNeeded();
+    setTimeout(() => {
+      map?.invalidateSize();
+      if (drawingPoints.length >= 1) {
+        redrawDrawing();
+        try {
+          map?.fitBounds(window.L.latLngBounds(drawingPoints), { padding: [60, 60], maxZoom: 17 });
+        } catch (_) {}
+      } else {
+        // First time: center on user GPS
+        centerOnGPSHighAccuracy(true); // silent = just center, no badge
+      }
+    }, 180);
+    updateFmsPointsLabel();
+    if (!fmsUiBound) initFmsBindings();
+  }
+
+  function closeFmsMap() {
+    el("field-map-fullscreen")?.classList.add("hidden");
+    wizardStep = 1;
+    // Re-show the modal at step 1
+    el("field-map-fullscreen")?.classList.add("hidden");
+    for (let i = 1; i <= 4; i++) {
+      el(`wiz-step-${i}`)?.classList.toggle("hidden", i !== 1);
+    }
+    el("wiz-back-btn")?.classList.add("hidden");
+    el("wiz-next-btn") && (el("wiz-next-btn").textContent = "Next");
+    el("add-field-modal")?.classList.remove("hidden");
+  }
+
+  function confirmFmsMap() {
+    el("field-map-fullscreen")?.classList.add("hidden");
+    wizardStep = 3;
+    el("add-field-modal")?.classList.remove("hidden");
+    for (let i = 1; i <= 4; i++) {
+      el(`wiz-step-${i}`)?.classList.toggle("hidden", i !== 3);
+    }
+    el("wizard-step-label") && (el("wizard-step-label").textContent = "Step 3 of 4");
+    const prog = el("wizard-progress-fill");
+    if (prog) prog.style.width = "75%";
+    el("wiz-back-btn")?.classList.remove("hidden");
+    el("wiz-next-btn") && (el("wiz-next-btn").textContent = "Next");
+    persistDraft();
+  }
+
+  function centerOnGPSHighAccuracy(silent = false) {
+    const badge = el("fms-gps-badge");
+    const accText = el("fms-accuracy-text");
+    if (!silent && badge) badge.style.display = "block";
+    if (!silent && accText) accText.textContent = "Locating…";
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lng, accuracy: acc } = pos.coords;
+        if (!map) return;
+        map.setView([lat, lng], acc < 50 ? 19 : acc < 200 ? 17 : 15);
+
+        if (accuracyCircle) { map.removeLayer(accuracyCircle); accuracyCircle = null; }
+        if (accuracyMarker) { map.removeLayer(accuracyMarker); accuracyMarker = null; }
+
+        accuracyCircle = window.L.circle([lat, lng], {
+          radius: acc, color: "#39ff14", weight: 1.5,
+          fillColor: "#39ff14", fillOpacity: 0.07,
+        }).addTo(map);
+
+        accuracyMarker = window.L.circleMarker([lat, lng], {
+          radius: 8, color: "#fff", fillColor: "#39ff14",
+          fillOpacity: 1, weight: 2.5,
+        }).bindTooltip("You are here", { permanent: false }).addTo(map);
+
+        if (!silent) {
+          if (badge) badge.style.display = "block";
+          if (accText) accText.textContent = `±${Math.round(acc)} m`;
+          fmsToast(`Located! Accuracy: ±${Math.round(acc)} m`);
+        }
+      },
+      (err) => {
+        if (!silent) {
+          if (badge) badge.style.display = "none";
+          fmsToast("GPS unavailable: " + err.message);
+        }
+        // Fallback center
+        getLiveDeviceCenter().then(([lat, lng]) => {
+          if (map && !accuracyMarker) map.setView([lat, lng], 15);
+        });
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
+  }
+
+  function initFmsBindings() {
+    if (fmsUiBound) return;
+    fmsUiBound = true;
+
+    el("fms-back-btn")?.addEventListener("click", closeFmsMap);
+    el("fms-confirm-hdr-btn")?.addEventListener("click", confirmFmsMap);
+    el("fms-confirm-full-btn")?.addEventListener("click", confirmFmsMap);
+
+    el("fms-undo-btn")?.addEventListener("click", () => {
+      drawingPoints.pop();
+      redrawDrawing();
+      updateFmsPointsLabel();
+    });
+    el("fms-clear-btn")?.addEventListener("click", () => {
+      clearDrawing();
+      updateFmsPointsLabel();
+    });
+    el("fms-gps-btn")?.addEventListener("click", () => centerOnGPSHighAccuracy(false));
+    el("fms-3d-btn")?.addEventListener("click", toggle3D);
+    el("fms-sat-btn")?.addEventListener("click", () => switchLayer(true));
+    el("fms-str-btn")?.addEventListener("click", () => switchLayer(false));
+
+    setupFmsSearch();
+  }
+
+  function setupFmsSearch() {
+    let searchDebounce;
+    let srFocusIdx = -1;
+
+    function hideFmsDropdown() {
+      const dd = el("fms-search-results");
+      if (dd) dd.style.display = "none";
+      srFocusIdx = -1;
+    }
+
+    function selectFmsResult(lat, lon, label) {
+      if (!map) return;
+      map.setView([parseFloat(lat), parseFloat(lon)], 17);
+      const inp = el("fms-search-input");
+      if (inp) inp.value = label;
+      hideFmsDropdown();
+    }
+
+    async function fetchFmsSuggestions(q) {
+      try {
+        // Add viewbox bias from current map center
+        let url = `https://nominatim.openstreetmap.org/search?format=json&limit=8&q=${encodeURIComponent(q)}&addressdetails=1&namedetails=1`;
+        const center = map?.getCenter();
+        if (center) {
+          const d = 6;
+          url += `&viewbox=${center.lng - d},${center.lat + d},${center.lng + d},${center.lat - d}&bounded=0`;
+        }
+        const res = await fetch(url, { headers: { "Accept-Language": "en" } });
+        const data = await res.json();
+        const dd = el("fms-search-results");
+        if (!dd) return;
+        if (!data.length) { dd.style.display = "none"; fmsToast("No results found"); return; }
+
+        dd.innerHTML = data.map((r) => {
+          const parts = r.display_name.split(", ");
+          const name = parts.slice(0, 2).join(", ");
+          const addr = parts.slice(2, 5).join(", ");
+          return `<div class="sr-item" data-lat="${r.lat}" data-lon="${r.lon}" data-name="${name}">
+            <i class="ri-map-pin-2-line"></i>
+            <div>
+              <div class="sr-name">${name}</div>
+              ${addr ? `<div class="sr-addr">${addr}</div>` : ""}
+            </div>
+          </div>`;
+        }).join("");
+        dd.style.display = "block";
+
+        dd.querySelectorAll(".sr-item").forEach((item) => {
+          item.addEventListener("mousedown", (e) => e.preventDefault());
+          item.addEventListener("click", () => {
+            selectFmsResult(item.dataset.lat, item.dataset.lon, item.dataset.name);
+          });
+        });
+      } catch (e) {
+        console.warn("Search error", e);
+        fmsToast("Search failed — check connection");
+      }
+    }
+
+    const inp = el("fms-search-input");
+    inp?.addEventListener("input", (e) => {
+      clearTimeout(searchDebounce);
+      const q = e.target.value.trim();
+      if (q.length < 2) { hideFmsDropdown(); return; }
+      searchDebounce = setTimeout(() => fetchFmsSuggestions(q), 350);
+    });
+
+    inp?.addEventListener("keydown", (e) => {
+      const dd = el("fms-search-results");
+      const items = dd?.querySelectorAll(".sr-item") || [];
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        srFocusIdx = Math.min(srFocusIdx + 1, items.length - 1);
+        items.forEach((it, i) => it.classList.toggle("sr-focused", i === srFocusIdx));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        srFocusIdx = Math.max(srFocusIdx - 1, -1);
+        items.forEach((it, i) => it.classList.toggle("sr-focused", i === srFocusIdx));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (srFocusIdx >= 0 && items[srFocusIdx]) {
+          const item = items[srFocusIdx];
+          selectFmsResult(item.dataset.lat, item.dataset.lon, item.dataset.name);
+        } else {
+          const q = inp.value.trim();
+          if (q) fetchFmsSuggestions(q);
+        }
+      } else if (e.key === "Escape") {
+        hideFmsDropdown();
+      }
+    });
+
+    inp?.addEventListener("blur", () => setTimeout(hideFmsDropdown, 200));
+
+    el("fms-search-btn")?.addEventListener("click", () => {
+      const q = inp?.value.trim();
+      if (!q) return;
+      fetchFmsSuggestions(q);
+    });
+  }
+
+  /* END FULL-SCREEN MAP FUNCTIONS */
 
   function wizSnack(msg) {
     const s = el("wiz-snack");
@@ -309,9 +546,9 @@ function mountFieldsPage(user) {
   let is3D = false;
   let isSatellite = true;
 
-  // Map toast helper
-  function mapToast(msg, ms = 2800) {
-    const t = el("map-toast");
+  // FMS toast
+  function fmsToast(msg, ms = 3000) {
+    const t = el("fms-toast");
     if (!t) return;
     t.textContent = msg;
     t.classList.add("show");
@@ -320,8 +557,8 @@ function mountFieldsPage(user) {
   }
 
   function setActiveLayerBtns(sat) {
-    el("map-satellite-btn")?.classList.toggle("active", sat);
-    el("map-street-btn")?.classList.toggle("active", !sat);
+    el("fms-sat-btn")?.classList.toggle("active", sat);
+    el("fms-str-btn")?.classList.toggle("active", !sat);
   }
 
   function switchLayer(satellite) {
@@ -341,16 +578,14 @@ function mountFieldsPage(user) {
 
   function toggle3D() {
     is3D = !is3D;
-    const wrap = el("field-map-wrap");
-    if (wrap) wrap.classList.toggle("mode-3d", is3D);
-    const btn = el("map-3d-btn");
-    if (btn) btn.classList.toggle("active", is3D);
+    el("fms-map")?.classList.toggle("mode-3d", is3D);
+    el("fms-3d-btn")?.classList.toggle("active", is3D);
     setTimeout(() => map?.invalidateSize(), 520);
   }
 
   function initMapIfNeeded() {
     if (map || !window.L) return;
-    const mapNode = el("field-map");
+    const mapNode = el("fms-map");
     if (!mapNode) return;
 
     map = window.L.map(mapNode, {
@@ -359,30 +594,25 @@ function mountFieldsPage(user) {
       maxZoom: 20,
     });
 
-    // Satellite: ESRI World Imagery (free, no key)
+    // Satellite: ESRI World Imagery (free, no key needed)
     satelliteLayer = window.L.tileLayer(
       "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-      { maxZoom: 20, tileSize: 256 }
+      { maxZoom: 20 }
     ).addTo(map);
 
-    // Labels overlay on satellite
+    // Labels overlay (roads, place names)
     labelsLayer = window.L.tileLayer(
       "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-      { maxZoom: 20, opacity: 0.75 }
+      { maxZoom: 20, opacity: 0.8 }
     ).addTo(map);
 
-    // Street tiles (fallback / alternative)
+    // Street tiles alternative
     streetLayer = window.L.tileLayer(
       "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
       { maxZoom: 20 }
     );
 
-    map.setView(FALLBACK_MAP_CENTER, 15);
-
-    // Center on device GPS
-    getLiveDeviceCenter().then(([lat, lng]) => {
-      if (map) map.setView([lat, lng], 16);
-    });
+    map.setView(FALLBACK_MAP_CENTER, 14);
 
     markersLayer = window.L.layerGroup().addTo(map);
     boundaryLayer = window.L.layerGroup().addTo(map);
@@ -390,8 +620,18 @@ function mountFieldsPage(user) {
     map.on("click", (evt) => {
       drawingPoints.push([evt.latlng.lat, evt.latlng.lng]);
       redrawDrawing();
+      updateFmsPointsLabel();
       persistDraft();
     });
+  }
+
+  function updateFmsPointsLabel() {
+    const n = drawingPoints.length;
+    const lbl = el("fms-points-label");
+    if (!lbl) return;
+    if (n === 0) lbl.textContent = "Tap the satellite map to drop boundary corners";
+    else if (n < 3) lbl.textContent = `${n} point${n > 1 ? "s" : ""} — add ${3 - n} more to close polygon`;
+    else lbl.textContent = `${n} points — polygon drawn ✓`;
   }
 
   function redrawDrawing() {
@@ -446,8 +686,6 @@ function mountFieldsPage(user) {
     loadDraft();
     updateWizardUi();
     window.openAddFieldModal();
-    initMapIfNeeded();
-    setTimeout(() => map?.invalidateSize(), 120);
   }
 
   function openFieldModalForEdit(fieldId) {
@@ -468,14 +706,6 @@ function mountFieldsPage(user) {
       : [];
     updateWizardUi();
     window.openAddFieldModal();
-    initMapIfNeeded();
-    setTimeout(() => {
-      map?.invalidateSize();
-      redrawDrawing();
-      if (drawingPoints.length >= 1) {
-        map?.fitBounds(window.L.latLngBounds(drawingPoints), { padding: [20, 20], maxZoom: 17 });
-      }
-    }, 120);
   }
 
   function wireListClicks() {
@@ -581,119 +811,6 @@ function mountFieldsPage(user) {
     if (fieldsUiBound) return;
     fieldsUiBound = true;
     el("add-field-cta")?.addEventListener("click", openFieldModalForCreate);
-    el("map-undo-btn")?.addEventListener("click", () => {
-      drawingPoints.pop();
-      redrawDrawing();
-    });
-    el("map-clear-btn")?.addEventListener("click", clearDrawing);
-    el("map-center-btn")?.addEventListener("click", () => {
-      getLiveDeviceCenter().then(([lat, lng]) => map?.setView([lat, lng], 16));
-    });
-
-    // Layer + 3D toggles
-    el("map-satellite-btn")?.addEventListener("click", () => switchLayer(true));
-    el("map-street-btn")?.addEventListener("click", () => switchLayer(false));
-    el("map-3d-btn")?.addEventListener("click", toggle3D);
-
-    // ── Autocomplete search ──────────────────────────────────────
-    let searchDebounce;
-    let srFocusIdx = -1;
-
-    function hideSearchDropdown() {
-      const dd = el("map-search-results");
-      if (dd) dd.style.display = "none";
-      srFocusIdx = -1;
-    }
-
-    function selectSearchResult(lat, lon, label) {
-      if (!map) return;
-      map.setView([parseFloat(lat), parseFloat(lon)], 16);
-      const inp = el("map-search-input");
-      if (inp) inp.value = label;
-      hideSearchDropdown();
-    }
-
-    async function fetchSuggestions(q) {
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&limit=6&q=${encodeURIComponent(q)}&addressdetails=0`,
-          { headers: { "Accept-Language": "en" } }
-        );
-        const data = await res.json();
-        const dd = el("map-search-results");
-        if (!dd) return;
-        if (!data.length) { dd.style.display = "none"; return; }
-
-        dd.innerHTML = data.map((r) =>
-          `<div class="sr-item" data-lat="${r.lat}" data-lon="${r.lon}" data-name="${r.display_name.replace(/"/g, "&quot;")}">
-            <i class="ri-map-pin-2-line"></i>
-            <span>${r.display_name}</span>
-          </div>`
-        ).join("");
-
-        dd.style.display = "block";
-
-        dd.querySelectorAll(".sr-item").forEach((item) => {
-          item.addEventListener("click", () => {
-            selectSearchResult(item.dataset.lat, item.dataset.lon, item.dataset.name);
-          });
-          item.addEventListener("mousedown", (e) => e.preventDefault()); // keep input focus
-        });
-      } catch (e) {
-        console.warn("Geocoding error", e);
-      }
-    }
-
-    const searchInput = el("map-search-input");
-    searchInput?.addEventListener("input", (e) => {
-      clearTimeout(searchDebounce);
-      const q = e.target.value.trim();
-      if (q.length < 2) { hideSearchDropdown(); return; }
-      searchDebounce = setTimeout(() => fetchSuggestions(q), 380);
-    });
-
-    searchInput?.addEventListener("keydown", (e) => {
-      const dd = el("map-search-results");
-      const items = dd?.querySelectorAll(".sr-item") || [];
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        srFocusIdx = Math.min(srFocusIdx + 1, items.length - 1);
-        items.forEach((it, i) => it.classList.toggle("sr-focused", i === srFocusIdx));
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        srFocusIdx = Math.max(srFocusIdx - 1, -1);
-        items.forEach((it, i) => it.classList.toggle("sr-focused", i === srFocusIdx));
-      } else if (e.key === "Enter") {
-        e.preventDefault();
-        if (srFocusIdx >= 0 && items[srFocusIdx]) {
-          const item = items[srFocusIdx];
-          selectSearchResult(item.dataset.lat, item.dataset.lon, item.dataset.name);
-        } else {
-          // Direct geocode on Enter if no dropdown item focused
-          const q = searchInput.value.trim();
-          if (q) fetchSuggestions(q).then(() => {
-            const first = el("map-search-results")?.querySelector(".sr-item");
-            if (first) first.click();
-          });
-        }
-      } else if (e.key === "Escape") {
-        hideSearchDropdown();
-      }
-    });
-
-    searchInput?.addEventListener("blur", () => {
-      setTimeout(hideSearchDropdown, 200);
-    });
-
-    el("map-search-btn")?.addEventListener("click", () => {
-      const q = searchInput?.value.trim();
-      if (!q) return;
-      const focused = el("map-search-results")?.querySelector(".sr-item");
-      if (focused) { focused.click(); return; }
-      fetchSuggestions(q).then(() => {
-        setTimeout(() => el("map-search-results")?.querySelector(".sr-item")?.click(), 100);
-      });
-    });
 
     el("wiz-next-btn")?.addEventListener("click", async () => {
       if (wizardStep < 4) {
