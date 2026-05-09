@@ -22,18 +22,30 @@
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Smart Farming — Sign in</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <style>
         :root {
             --primary: #10b981;
             --primary-glow: rgba(16, 185, 129, 0.55);
             --primary-dim: #059669;
+            --mint-bright: #5eead4;
             --card: rgba(20, 25, 30, 0.92);
             --card-border: rgba(255, 255, 255, 0.08);
             --field-bg: rgba(12, 16, 22, 0.85);
             --text: #ffffff;
             --muted: #9ca3af;
+            --google-spin-dur: 5.2s;
+            --g-red: #ea4335;
+            --g-yellow: #fbbc05;
+            --g-green: #34a853;
+            --g-blue: #4285f4;
+            --tilt-x: 0deg;
+            --tilt-y: 0deg;
+            --parallax-x: 0px;
+            --parallax-y: 0px;
+            --card-tx: 0deg;
+            --card-ty: 0deg;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -55,10 +67,16 @@
             inset: 0;
             z-index: 0;
             background:
-                linear-gradient(160deg, rgba(15, 23, 42, 0.55) 0%, rgba(6, 78, 59, 0.35) 100%),
+                linear-gradient(160deg, rgba(15, 23, 42, 0.52) 0%, rgba(6, 78, 59, 0.38) 100%),
                 url('https://images.unsplash.com/photo-1523348837708-ccddcda28030?auto=format&fit=crop&w=1920&q=85') center/cover no-repeat;
             filter: blur(14px);
             transform: scale(1.07);
+            animation: aliveBgPulse 22s ease-in-out infinite alternate;
+        }
+
+        @keyframes aliveBgPulse {
+            0% { opacity: 0.92; transform: scale(1.06); }
+            100% { opacity: 1; transform: scale(1.092); }
         }
 
         .page-bg-fallback {
@@ -68,59 +86,497 @@
             background: linear-gradient(145deg, #0f172a 0%, #064e3b 50%, #022c22 100%);
         }
 
+        /* Living atmosphere — aurora washes + film texture */
+        .page-aurora {
+            pointer-events: none;
+            position: fixed;
+            inset: -25%;
+            z-index: 0;
+            opacity: 0.75;
+            mix-blend-mode: screen;
+            background:
+                radial-gradient(ellipse 42% 38% at 18% 32%, rgba(16, 185, 129, 0.28) 0%, transparent 58%),
+                radial-gradient(ellipse 38% 36% at 82% 64%, rgba(45, 212, 191, 0.18) 0%, transparent 52%),
+                radial-gradient(ellipse 32% 40% at 48% 12%, rgba(52, 211, 153, 0.2) 0%, transparent 48%),
+                radial-gradient(ellipse 28% 30% at 72% 22%, rgba(167, 243, 208, 0.12) 0%, transparent 50%);
+            animation: auroraDrift 32s ease-in-out infinite alternate;
+        }
+
+        @keyframes auroraDrift {
+            0% { transform: translate(-2%, -1%) rotate(-2deg) scale(1); }
+            100% { transform: translate(3%, 2%) rotate(3deg) scale(1.06); }
+        }
+
+        .page-motes {
+            pointer-events: none;
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .page-motes::before,
+        .page-motes::after {
+            content: '';
+            position: absolute;
+            width: 220%;
+            height: 220%;
+            left: -60%;
+            top: -60%;
+            background-image:
+                radial-gradient(1.5px 1.5px at 10% 20%, rgba(209, 250, 229, 0.45) 50%, transparent 52%),
+                radial-gradient(1px 1px at 70% 80%, rgba(167, 243, 208, 0.35) 50%, transparent 52%),
+                radial-gradient(1.2px 1.2px at 40% 60%, rgba(255, 255, 255, 0.2) 50%, transparent 52%),
+                radial-gradient(1px 1px at 88% 30%, rgba(52, 211, 153, 0.3) 50%, transparent 52%),
+                radial-gradient(1.3px 1.3px at 25% 90%, rgba(204, 251, 241, 0.25) 50%, transparent 52%);
+            background-size: 100% 100%;
+            animation: motesFloat 52s linear infinite;
+            opacity: 0.65;
+        }
+
+        .page-motes::after {
+            animation-duration: 78s;
+            animation-direction: reverse;
+            opacity: 0.4;
+            transform: rotate(180deg);
+        }
+
+        @keyframes motesFloat {
+            from { transform: translateY(0) translateX(0); }
+            to { transform: translateY(-16%) translateX(-4%); }
+        }
+
+        .page-alive-vignette {
+            pointer-events: none;
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            background: radial-gradient(ellipse 70% 55% at 50% 45%, transparent 35%, rgba(2, 6, 23, 0.55) 100%);
+            mix-blend-mode: multiply;
+            opacity: 0.85;
+            animation: vignettePulse 18s ease-in-out infinite alternate;
+        }
+
+        @keyframes vignettePulse {
+            from { opacity: 0.75; transform: scale(1); }
+            to { opacity: 0.92; transform: scale(1.02); }
+        }
+
+        .page-filmgrain {
+            pointer-events: none;
+            position: fixed;
+            inset: 0;
+            z-index: 2;
+            opacity: 0.045;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            animation: grainShift 9s steps(6) infinite;
+            mix-blend-mode: overlay;
+        }
+
+        @keyframes grainShift {
+            0%, 100% { transform: translate(0, 0); }
+            25% { transform: translate(-1.2%, 0.6%); }
+            50% { transform: translate(0.8%, -0.4%); }
+            75% { transform: translate(-0.4%, -0.8%); }
+        }
+
         .wrap {
             width: 100%;
             max-width: 420px;
             position: relative;
-            z-index: 1;
+            z-index: 3;
+            transition: transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+            transform: translate(var(--parallax-x), var(--parallax-y));
         }
 
+        /* —— Alive brand orb + leaf sculpture —— */
         .brand {
             text-align: center;
-            margin-bottom: 26px;
+            margin-bottom: 28px;
+            perspective: 900px;
         }
 
-        .brand .logo {
-            width: 72px;
-            height: 72px;
-            margin: 0 auto 16px;
-            border-radius: 50%;
-            background: rgba(16, 185, 129, 0.08);
-            border: 1px solid rgba(16, 185, 129, 0.35);
-            box-shadow: 0 0 28px rgba(16, 185, 129, 0.25), inset 0 0 20px rgba(16, 185, 129, 0.06);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--primary);
-            font-size: 34px;
+        .brand-alive {
+            position: relative;
+            width: min(148px, 38vw);
+            height: min(148px, 38vw);
+            margin: 0 auto 18px;
+            transform-style: preserve-3d;
+            transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+            transform:
+                rotateX(var(--tilt-x, 0deg))
+                rotateY(var(--tilt-y, 0deg))
+                translateZ(0);
         }
+
+        .brand-halo-soft {
+            position: absolute;
+            inset: -18%;
+            border-radius: 50%;
+            background: radial-gradient(circle at 40% 35%, rgba(110, 231, 183, 0.35) 0%, transparent 58%);
+            animation: haloBreathe 5.5s ease-in-out infinite alternate;
+            filter: blur(12px);
+        }
+
+        .brand-ring-outer {
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            padding: 1px;
+            background: conic-gradient(from 210deg,
+                rgba(167,243,208,0.15),
+                rgba(16,185,129,0.55),
+                rgba(45,212,191,0.35),
+                rgba(209,250,229,0.2),
+                rgba(16,185,129,0.5),
+                rgba(167,243,208,0.15));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask-composite: exclude;
+            animation: ringWhirl 16s linear infinite;
+            transform-origin: center center;
+            opacity: 0.9;
+            box-shadow: 0 0 40px rgba(16, 185, 129, 0.15), inset 0 0 20px rgba(16, 185, 129, 0.08);
+        }
+
+        .brand-ring-inner {
+            position: absolute;
+            inset: 6px;
+            border-radius: 50%;
+            padding: 1px;
+            background: conic-gradient(from 120deg,
+                transparent 40%,
+                rgba(52, 211, 153, 0.45),
+                transparent 70%);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask-composite: exclude;
+            animation: ringWhirl 11s linear infinite reverse;
+            transform-origin: center center;
+            opacity: 0.85;
+        }
+
+        @keyframes ringWhirl {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes haloBreathe {
+            from { transform: scale(0.94); opacity: 0.7; filter: blur(14px); }
+            to { transform: scale(1.08); opacity: 1; filter: blur(18px); }
+        }
+
+        .brand-glare-sweep {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .brand-glare-sweep::after {
+            content: '';
+            position: absolute;
+            width: 36%;
+            height: 140%;
+            left: -20%;
+            top: -20%;
+            background: linear-gradient(116deg,
+                transparent 42%,
+                rgba(255,255,255,0.06) 48%,
+                rgba(236,253,245,0.35) 50%,
+                rgba(255,255,255,0.06) 52%,
+                transparent 56%);
+            animation: glarePass 14s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            opacity: 0.85;
+        }
+
+        @keyframes glarePass {
+            0%, 12% { transform: translate(-30%, -10%) rotate(-12deg); opacity: 0; }
+            24% { opacity: 0.95; }
+            48%, 100% { transform: translate(220%, 20%) rotate(-12deg); opacity: 0; }
+        }
+
+        .brand-leaf-shell {
+            position: absolute;
+            inset: 12px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background:
+                radial-gradient(circle at 35% 32%, rgba(52,211,153,0.18) 0%, transparent 45%),
+                radial-gradient(circle at 70% 70%, rgba(6,95,70,0.35) 0%, rgba(15,23,42,0.92) 70%);
+            box-shadow:
+                inset 0 2px 12px rgba(167,243,208,0.12),
+                inset 0 -6px 20px rgba(0,0,0,0.45),
+                0 0 0 1px rgba(16, 185, 129, 0.22),
+                0 12px 36px rgba(0, 0, 0, 0.38);
+            overflow: visible;
+            z-index: 2;
+        }
+
+        .brand-leaf-bio {
+            position: absolute;
+            inset: auto;
+            width: 68%;
+            height: 68%;
+            border-radius: 50%;
+            background: radial-gradient(circle at 50% 50%, rgba(16,185,129,0.42) 0%, transparent 65%);
+            filter: blur(20px);
+            animation: bioPulse 3.8s ease-in-out infinite alternate;
+            z-index: 0;
+        }
+
+        @keyframes bioPulse {
+            from { transform: scale(0.88); opacity: 0.45; }
+            to { transform: scale(1.12); opacity: 0.85; }
+        }
+
+        .brand-leaf-sway {
+            position: relative;
+            z-index: 2;
+            width: 56%;
+            height: 56%;
+            display: grid;
+            place-items: center;
+            transform-origin: 50% 85%;
+            animation: leafSway 6.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes leafSway {
+            0% { transform: rotate(-5deg) translateY(1px); }
+            100% { transform: rotate(5deg) translateY(-2px); }
+        }
+
+        .brand-leaf-sway::before {
+            content: '';
+            position: absolute;
+            inset: -18%;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(110,231,183,0.22) 0%, transparent 68%);
+            animation: leafAura 4.2s ease-in-out infinite alternate;
+        }
+
+        @keyframes leafAura {
+            from { transform: scale(0.9); opacity: 0.5; }
+            to { transform: scale(1.15); opacity: 0.95; }
+        }
+
+        .brand-leaf-icon {
+            font-size: clamp(2.35rem, 8.2vw, 3rem);
+            line-height: 1;
+            display: block;
+            background: linear-gradient(158deg,
+                #ccfbf1 0%,
+                #5eead4 14%,
+                #34d399 42%,
+                var(--primary) 62%,
+                #047857 100%);
+            background-size: 220% 220%;
+            animation: leafLive 5.2s ease-in-out infinite alternate, leafHueDrift 16s ease-in-out infinite alternate;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            -webkit-text-fill-color: transparent;
+            filter:
+                drop-shadow(0 2px 5px rgba(6,95,59,0.62))
+                drop-shadow(0 0 26px rgba(52,211,153,0.48));
+            transform-origin: 50% 88%;
+        }
+
+        @keyframes leafHueDrift {
+            0% { background-position: 0% 20%; }
+            100% { background-position: 100% 80%; }
+        }
+
+        @keyframes leafLive {
+            0% {
+                transform: scale(0.97) rotate(-1.75deg);
+                filter:
+                    brightness(1) saturate(1)
+                    drop-shadow(0 2px 5px rgba(6,95,59,0.55))
+                    drop-shadow(0 0 18px rgba(52,211,153,0.42));
+            }
+            100% {
+                transform: scale(1.045) rotate(1.65deg);
+                filter:
+                    brightness(1.08) saturate(1.1)
+                    drop-shadow(0 3px 9px rgba(6,95,59,0.68))
+                    drop-shadow(0 0 34px rgba(110,231,183,0.58));
+            }
+        }
+
+        .brand-spores {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 4;
+            animation: sporeField 20s linear infinite;
+        }
+
+        @keyframes sporeField {
+            to { transform: rotate(360deg); }
+        }
+
+        .brand-spores span {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            border-radius: 50%;
+            left: 50%;
+            top: 50%;
+            margin: -1.5px 0 0 -1.5px;
+            background: radial-gradient(circle at 30% 30%, #f0fdf4 0%, rgba(52,211,153,0.95) 42%, transparent 72%);
+            box-shadow: 0 0 10px rgba(167,243,208,0.95);
+            animation: sporeTwinkle 2.9s ease-in-out infinite alternate;
+        }
+
+        .brand-spores span:nth-child(1) { transform: rotate(0deg) translateY(calc(-1 * min(62px, 15.5vw))); animation-delay: 0s; }
+        .brand-spores span:nth-child(2) { transform: rotate(60deg) translateY(calc(-1 * min(62px, 15.5vw))); animation-delay: 0.4s; }
+        .brand-spores span:nth-child(3) { transform: rotate(120deg) translateY(calc(-1 * min(62px, 15.5vw))); animation-delay: 0.75s; }
+        .brand-spores span:nth-child(4) { transform: rotate(180deg) translateY(calc(-1 * min(62px, 15.5vw))); animation-delay: 1.1s; }
+        .brand-spores span:nth-child(5) { transform: rotate(240deg) translateY(calc(-1 * min(62px, 15.5vw))); animation-delay: 1.45s; }
+        .brand-spores span:nth-child(6) { transform: rotate(300deg) translateY(calc(-1 * min(62px, 15.5vw))); animation-delay: 1.85s; }
+
+        @keyframes sporeTwinkle {
+            from {
+                opacity: 0.3;
+                box-shadow: 0 0 4px rgba(167,243,208,0.45);
+                filter: brightness(0.95);
+            }
+            to {
+                opacity: 1;
+                box-shadow: 0 0 14px rgba(236,253,245,0.9);
+                filter: brightness(1.25);
+            }
+        }
+
 
         .brand h1 {
-            font-size: 1.75rem;
-            font-weight: 700;
-            letter-spacing: -0.02em;
+            font-family: 'Syne', 'Inter', system-ui, sans-serif;
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            line-height: 1.08;
+            text-wrap: balance;
         }
 
-        .brand h1 .brand-smart { color: #fff; }
-        .brand h1 .brand-farming { color: var(--primary); }
+        .brand h1 .brand-smart {
+            color: #fff;
+            text-shadow:
+                0 0 40px rgba(255,255,255,0.08),
+                0 24px 48px rgba(0,0,0,0.35);
+            animation: smartGlass 14s ease-in-out infinite alternate;
+        }
+
+        @keyframes smartGlass {
+            from { text-shadow: 0 0 32px rgba(255,255,255,0.05), 0 20px 40px rgba(0,0,0,0.3); }
+            to { text-shadow: 0 0 52px rgba(255,255,255,0.12), 0 28px 56px rgba(0,0,0,0.42); }
+        }
+
+        .brand h1 .brand-farming {
+            background: linear-gradient(125deg, #34d399 12%, var(--primary) 38%, #5eead4 62%, #a7f3d0 88%);
+            background-size: 240% auto;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: farmingShimmer 14s linear infinite alternate;
+            filter: drop-shadow(0 0 28px rgba(52,211,153,0.35));
+        }
+
+        @keyframes farmingShimmer {
+            0% { background-position: 0% center; filter: hue-rotate(0deg); }
+            100% { background-position: 100% center; filter: hue-rotate(-6deg); }
+        }
 
         .brand .tagline {
-            font-size: 0.72rem;
+            font-family: 'Inter', system-ui, sans-serif;
+            font-size: 0.68rem;
             font-weight: 600;
-            letter-spacing: 0.22em;
-            color: rgba(255, 255, 255, 0.88);
-            margin-top: 8px;
+            letter-spacing: 0.32em;
+            color: rgba(255, 255, 255, 0.72);
+            margin-top: 10px;
             text-transform: uppercase;
+            opacity: 0.92;
+            animation: taglineDrift 20s ease-in-out infinite alternate;
+        }
+
+        @keyframes taglineDrift {
+            from { letter-spacing: 0.29em; opacity: 0.82; }
+            to { letter-spacing: 0.36em; opacity: 0.98; }
         }
 
         .card {
-            background: var(--card);
-            border: 1px solid var(--card-border);
+            position: relative;
+            background: rgba(22, 28, 38, 0.94);
+            border: 1px solid rgba(255, 255, 255, 0.081);
             border-radius: 28px;
             padding: 28px 24px 26px;
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(26px);
+            -webkit-backdrop-filter: blur(26px);
+            isolation: isolate;
+            overflow: hidden;
+            transform-style: preserve-3d;
+            transition:
+                transform 0.72s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.62s cubic-bezier(0.22, 1, 0.36, 1);
+            box-shadow:
+                0 26px 64px rgba(0, 0, 0, 0.52),
+                inset 0 1px 0 rgba(255,255,255,0.065),
+                0 0 0 1px rgba(15,118,110,0.12) inset;
+            transform:
+                perspective(980px)
+                rotateX(var(--card-tx, 0deg))
+                rotateY(var(--card-ty, 0deg));
+            animation: cardAura 11s ease-in-out infinite alternate;
+        }
+
+        @keyframes cardAura {
+            0% {
+                box-shadow:
+                    0 26px 64px rgba(0, 0, 0, 0.52),
+                    inset 0 1px 0 rgba(255,255,255,0.065),
+                    0 0 60px -40px rgba(16,185,129,0.14);
+            }
+            100% {
+                box-shadow:
+                    0 28px 72px rgba(0, 0, 0, 0.54),
+                    inset 0 1px 0 rgba(255,255,255,0.08),
+                    0 0 72px -28px rgba(52,211,153,0.22);
+            }
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            width: 220%;
+            height: 220%;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 0;
+            background: conic-gradient(
+                from 200deg,
+                rgba(209,250,229,0.08),
+                rgba(16,185,129,0.28),
+                rgba(52,211,153,0.12),
+                rgba(45,212,191,0.15),
+                rgba(167,243,208,0.1),
+                rgba(209,250,229,0.08)
+            );
+            animation: aliveCardRibbon 54s linear infinite;
+            opacity: 0.22;
+            filter: blur(0.75px);
+        }
+
+        @keyframes aliveCardRibbon {
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .card > * {
+            position: relative;
+            z-index: 2;
         }
 
         #dynamic-header { margin-bottom: 22px; }
@@ -335,38 +791,310 @@
             background: rgba(255, 255, 255, 0.12);
         }
 
-        .social-btn {
+        .social-google-wrap {
+            position: relative;
             width: 100%;
+            border-radius: 15px;
+            overflow: hidden;
+            isolation: isolate;
+        }
+
+        .social-google-orbit {
+            position: absolute;
+            width: 190%;
+            height: 210%;
+            left: 50%;
+            top: 50%;
+            z-index: 0;
+            background: conic-gradient(
+                from 0deg,
+                var(--g-blue) 0deg,
+                var(--g-red) 90deg,
+                var(--g-yellow) 180deg,
+                var(--g-green) 270deg,
+                var(--g-blue) 360deg
+            );
+            opacity: 0.98;
+            animation: googleOrbRotate var(--google-spin-dur) linear infinite;
+        }
+
+        .social-google-inner {
+            position: relative;
+            z-index: 1;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 12px;
             padding: 14px 16px;
-            border-radius: 14px;
-            border: 1px solid rgba(0, 0, 0, 0.06);
-            background: #fff;
-            color: #111827;
-            font-size: 0.875rem;
-            font-weight: 600;
+            margin: 2px;
+            width: calc(100% - 4px);
+            border-radius: 13px;
+            border: none;
             cursor: pointer;
             font-family: inherit;
-            transition: background 0.2s, transform 0.15s;
+            background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,1),
+                0 1px 0 rgba(255,255,255,0.06);
+            color: #0f172a;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: transform 0.18s ease, filter 0.2s ease;
         }
 
-        .social-btn:hover { background: #f9fafb; }
-        .social-btn:active { transform: scale(0.99); }
+        .social-google-inner:hover {
+            filter: brightness(1.03);
+            transform: translateY(-0.5px);
+        }
 
-        .social-btn + .social-btn { margin-top: 12px; }
+        .social-google-inner:active { transform: scale(0.992) translateY(0); }
 
-        .social-btn .g-logo {
+        .g-logo-badge {
+            position: relative;
+            width: 32px;
+            height: 32px;
             flex-shrink: 0;
-            display: block;
+            display: grid;
+            place-items: center;
         }
 
-        .social-btn .apple-ico {
+        .g-logo-ring {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 130%;
+            height: 130%;
+            border-radius: 50%;
+            background: conic-gradient(
+                from 0deg,
+                var(--g-blue) 0deg,
+                var(--g-red) 90deg,
+                var(--g-yellow) 180deg,
+                var(--g-green) 270deg,
+                var(--g-blue) 360deg
+            );
+            padding: 2.5px;
+            box-sizing: border-box;
+            -webkit-mask:
+                linear-gradient(#fff 0 0) content-box,
+                linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask:
+                linear-gradient(#fff 0 0) content-box,
+                linear-gradient(#fff 0 0);
+            mask-composite: exclude;
+            animation: googleOrbRotate var(--google-spin-dur) linear infinite;
+        }
+
+        .g-logo-face {
+            position: relative;
+            z-index: 1;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: linear-gradient(160deg, #fff 40%, #f3f6f9 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.95);
+        }
+
+        .social-google-inner .g-logo {
+            display: block;
+            width: 19px;
+            height: 19px;
+            filter: drop-shadow(0 1px 1px rgba(15,23,42,0.06));
+        }
+
+        .social-apple-wrap {
+            position: relative;
+            width: 100%;
+            margin-top: 12px;
+            border-radius: 15px;
+            overflow: hidden;
+            isolation: isolate;
+            animation: appleFrameGlow 3.8s ease-in-out infinite;
+        }
+
+        @keyframes appleFrameGlow {
+            0%, 100% {
+                box-shadow:
+                    0 0 0 1px rgba(185, 28, 28, 0.4),
+                    0 12px 40px rgba(67, 7, 12, 0.55),
+                    0 0 48px rgba(220, 38, 38, 0.22);
+            }
+            45% {
+                box-shadow:
+                    0 0 0 1px rgba(248, 113, 113, 0.55),
+                    0 14px 48px rgba(127, 29, 29, 0.6),
+                    0 0 64px rgba(239, 68, 68, 0.35);
+            }
+        }
+
+        .apple-fx-layer {
+            pointer-events: none;
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            overflow: hidden;
+            z-index: 0;
+            background:
+                radial-gradient(ellipse 80% 65% at 50% -20%, rgba(220,38,38,0.38) 0%, transparent 55%),
+                radial-gradient(ellipse 90% 50% at 80% 100%, rgba(127,29,29,0.35) 0%, transparent 50%);
+            opacity: 0.92;
+        }
+
+        .apple-shimmer {
+            position: absolute;
+            inset: -40% -20%;
+            background: linear-gradient(
+                118deg,
+                transparent 42%,
+                rgba(254,202,202,0.12) 49%,
+                rgba(254,226,226,0.18) 50%,
+                rgba(254,202,202,0.08) 51%,
+                transparent 56%
+            );
+            animation: appleSweep 11s ease-in-out infinite;
+        }
+
+        .apple-dot {
+            position: absolute;
+            left: var(--ax);
+            top: calc(-16% + var(--ay, 0px));
+            width: var(--asz, 3px);
+            height: var(--asz, 3px);
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 30%, rgba(255,237,237,1) 0%, rgba(252,165,165,0.95) 40%, rgba(185,28,28,0.75) 100%);
+            box-shadow:
+                0 0 6px rgba(248,113,113,0.95),
+                0 0 14px rgba(220,38,38,0.45);
+            animation: appleFall var(--alen, 3.8s) cubic-bezier(.22, .61, .36, .98) infinite;
+            animation-delay: var(--ad, 0s);
+            opacity: 0;
+        }
+
+        .social-apple-inner {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 14px 16px;
+            margin: 2px;
+            width: calc(100% - 4px);
+            border-radius: 13px;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 600;
+            letter-spacing: 0.015em;
+            color: #fef2f2;
+            background: linear-gradient(168deg,
+                #251014 0%,
+                #120608 42%,
+                #1f0a0f 76%,
+                #2d1118 100%);
+            box-shadow:
+                inset 0 1px 0 rgba(255,220,220,0.14),
+                inset 0 -1px 0 rgba(67,10,14,0.55),
+                0 1px 0 rgba(248,113,113,0.08);
+            transition: transform 0.18s ease, filter 0.22s ease, box-shadow 0.22s ease;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.45);
+        }
+
+        .social-apple-inner:hover {
+            filter: brightness(1.12) saturate(1.06);
+            box-shadow:
+                inset 0 1px 0 rgba(255,220,220,0.22),
+                inset 0 -1px 0 rgba(67,10,14,0.45),
+                0 0 28px rgba(220,38,38,0.35);
+            transform: translateY(-1px);
+        }
+
+        .social-apple-inner:active {
+            transform: scale(0.993) translateY(0);
+        }
+
+        .social-apple-inner .apple-ico {
             font-size: 22px;
-            color: #000;
+            color: #fff7f8;
             line-height: 1;
+            filter: drop-shadow(0 2px 6px rgba(220,38,38,0.45));
+        }
+
+        @keyframes googleOrbRotate {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        @keyframes appleSweep {
+            0%, 12% { transform: translate(-8%, -6%) rotate(0deg); opacity: 0.7; }
+            50% { transform: translate(6%, 10%) rotate(2deg); opacity: 1; }
+            100% { transform: translate(18%, -4%) rotate(0deg); opacity: 0.75; }
+        }
+
+        @keyframes appleFall {
+            0% {
+                transform: translateY(-4px) scale(0.6);
+                opacity: 0;
+            }
+            12% {
+                opacity: 0.92;
+                transform: translateY(6px) scale(1);
+            }
+            55% {
+                opacity: 0.75;
+            }
+            100% {
+                transform: translateY(58px) scale(0.35);
+                opacity: 0;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .page-bg,
+            .page-aurora,
+            .page-motes::before,
+            .page-motes::after,
+            .page-alive-vignette,
+            .page-filmgrain,
+            .brand-halo-soft,
+            .brand-ring-outer,
+            .brand-ring-inner,
+            .brand-glare-sweep::after,
+            .brand-leaf-bio,
+            .brand-leaf-sway,
+            .brand-leaf-sway::before,
+            .brand-leaf-icon,
+            .brand-spores,
+            .brand-spores span,
+            .brand h1 .brand-smart,
+            .brand h1 .brand-farming,
+            .brand .tagline,
+            .social-google-orbit,
+            .g-logo-ring,
+            .apple-dot,
+            .apple-shimmer,
+            .social-apple-wrap,
+            .card,
+            .card::before {
+                animation: none !important;
+            }
+            .page-bg {
+                opacity: 1;
+                transform: scale(1.07);
+            }
+            .social-apple-wrap {
+                box-shadow: 0 0 0 1px rgba(185,28,28,0.35), 0 8px 28px rgba(40,10,14,0.5);
+            }
+            .brand-spores span { opacity: 0.72; filter: none !important; }
+            .brand h1 .brand-farming {
+                background-position: 50% center;
+                filter: none !important;
+            }
         }
 
         .security-badge {
@@ -427,17 +1155,35 @@
 <body>
     <div class="page-bg-fallback" aria-hidden="true"></div>
     <div class="page-bg" aria-hidden="true"></div>
+    <div class="page-aurora" aria-hidden="true"></div>
+    <div class="page-motes" aria-hidden="true"></div>
+    <div class="page-alive-vignette" aria-hidden="true"></div>
+    <div class="page-filmgrain" aria-hidden="true"></div>
 
     <div class="login-toast" id="login-toast"></div>
 
     <div class="wrap">
         <div class="brand">
-            <div class="logo"><i class="ri-leaf-fill"></i></div>
+            <div class="brand-alive" id="brand-alive" role="img" aria-label="Smart Farming living emblem">
+                <div class="brand-halo-soft" aria-hidden="true"></div>
+                <div class="brand-ring-outer" aria-hidden="true"></div>
+                <div class="brand-ring-inner" aria-hidden="true"></div>
+                <div class="brand-glare-sweep" aria-hidden="true"></div>
+                <div class="brand-leaf-shell">
+                    <div class="brand-leaf-bio" aria-hidden="true"></div>
+                    <div class="brand-leaf-sway">
+                        <i class="ri-leaf-fill brand-leaf-icon" aria-hidden="true"></i>
+                    </div>
+                </div>
+                <div class="brand-spores" aria-hidden="true">
+                    <span></span><span></span><span></span><span></span><span></span><span></span>
+                </div>
+            </div>
             <h1><span class="brand-smart" data-i18n="auth.title_smart">Smart</span> <span class="brand-farming" data-i18n="auth.title_farming">Farming</span></h1>
             <p class="tagline" data-i18n="auth.subtitle_caps">AI Powered Agriculture</p>
         </div>
 
-        <div class="card">
+        <div class="card" id="login-card">
             <div id="dynamic-header">
                 <h2 class="welcome-text" data-i18n="auth.welcome_back">Welcome Back!</h2>
                 <p class="sub-text" data-i18n="auth.signin_desc">Sign in to continue your smart farming journey</p>
@@ -544,21 +1290,43 @@
 
             <div class="divider"><span data-i18n="auth.or_continue">or continue with</span></div>
 
-            <button type="button" class="social-btn" id="btn-google" aria-label="Continue with Google">
-                <!-- Official Google full-color logomark (product icon) -->
-                <svg class="g-logo" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 48 48" aria-hidden="true">
-                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                </svg>
-                <span data-i18n="auth.google_btn">Continue with Google</span>
-            </button>
+            <div class="social-google-wrap">
+                <div class="social-google-orbit" aria-hidden="true"></div>
+                <button type="button" class="social-google-inner" id="btn-google" aria-label="Continue with Google">
+                    <span class="g-logo-badge">
+                        <span class="g-logo-ring" aria-hidden="true"></span>
+                        <span class="g-logo-face">
+                            <svg class="g-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="22" height="22" aria-hidden="true">
+                              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                            </svg>
+                        </span>
+                    </span>
+                    <span data-i18n="auth.google_btn">Continue with Google</span>
+                </button>
+            </div>
 
-            <button type="button" class="social-btn" id="btn-apple" aria-label="Continue with Apple">
-                <i class="ri-apple-fill apple-ico" aria-hidden="true"></i>
-                <span data-i18n="auth.apple_btn">Continue with Apple</span>
-            </button>
+            <div class="social-apple-wrap">
+                <div class="apple-fx-layer" aria-hidden="true">
+                    <div class="apple-shimmer"></div>
+                    <span class="apple-dot" style="--ax: 9%; --ad: 0s; --alen: 4.1s; --asz: 3px;"></span>
+                    <span class="apple-dot" style="--ax: 22%; --ad: -0.7s; --alen: 3.6s; --asz: 4px; --ay: 4px;"></span>
+                    <span class="apple-dot" style="--ax: 38%; --ad: -1.4s; --alen: 4.4s; --asz: 2.5px;"></span>
+                    <span class="apple-dot" style="--ax: 52%; --ad: -2.1s; --alen: 3.9s; --asz: 3.5px; --ay: -2px;"></span>
+                    <span class="apple-dot" style="--ax: 66%; --ad: -0.9s; --alen: 4.6s; --asz: 2px;"></span>
+                    <span class="apple-dot" style="--ax: 78%; --ad: -2.8s; --alen: 3.4s; --asz: 4px; --ay: 6px;"></span>
+                    <span class="apple-dot" style="--ax: 88%; --ad: -1.6s; --alen: 4.2s; --asz: 3px;"></span>
+                    <span class="apple-dot" style="--ax: 15%; --ad: -3.2s; --alen: 4.8s; --asz: 2px; --ay: 8px;"></span>
+                    <span class="apple-dot" style="--ax: 44%; --ad: -2.4s; --alen: 3.2s; --asz: 3px;"></span>
+                    <span class="apple-dot" style="--ax: 59%; --ad: -4s; --alen: 4.5s; --asz: 2.5px; --ay: 3px;"></span>
+                </div>
+                <button type="button" class="social-apple-inner" id="btn-apple" aria-label="Continue with Apple">
+                    <i class="ri-apple-fill apple-ico" aria-hidden="true"></i>
+                    <span data-i18n="auth.apple_btn">Continue with Apple</span>
+                </button>
+            </div>
         </div>
 
         <div class="security-badge">
@@ -571,6 +1339,41 @@
         import { auth, loginWithEmailPwd, signUpWithEmail, loginWithGoogle, loginWithApple } from './js/auth.js';
         import { initI18n, startI18nObserver, t } from './js/i18n.js';
         import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        (function setupAliveParallax() {
+            const root = document.documentElement;
+            const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+            let raf = 0;
+            function clearMotionVars() {
+                root.style.removeProperty('--parallax-x');
+                root.style.removeProperty('--parallax-y');
+                root.style.removeProperty('--tilt-x');
+                root.style.removeProperty('--tilt-y');
+                root.style.removeProperty('--card-tx');
+                root.style.removeProperty('--card-ty');
+            }
+            function onMove(e) {
+                if (mq.matches) return;
+                cancelAnimationFrame(raf);
+                raf = requestAnimationFrame(function () {
+                    var w = window.innerWidth || 1;
+                    var h = window.innerHeight || 1;
+                    var nx = (e.clientX / w - 0.5) * 2;
+                    var ny = (e.clientY / h - 0.5) * 2;
+                    root.style.setProperty('--parallax-x', (nx * 10).toFixed(2) + 'px');
+                    root.style.setProperty('--parallax-y', (ny * 7).toFixed(2) + 'px');
+                    root.style.setProperty('--tilt-y', (nx * 14).toFixed(2) + 'deg');
+                    root.style.setProperty('--tilt-x', ((-ny) * 11).toFixed(2) + 'deg');
+                    root.style.setProperty('--card-ty', (nx * 4.8).toFixed(2) + 'deg');
+                    root.style.setProperty('--card-tx', ((-ny) * 3.4).toFixed(2) + 'deg');
+                });
+            }
+            window.addEventListener('mousemove', onMove, { passive: true });
+            mq.addEventListener('change', function () {
+                if (mq.matches) clearMotionVars();
+            });
+            if (mq.matches) clearMotionVars();
+        })();
 
         function primaryBtnLoading() {
             return '<span class="primary-btn-label" style="flex:1;text-align:center"><i class="ri-loader-4-line spin"></i></span>';
