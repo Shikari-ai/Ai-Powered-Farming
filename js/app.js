@@ -166,6 +166,118 @@ function getWeatherDescription(code) {
     return "Variable Weather";
 }
 
+/** Home weather card: solar time phase for sky / sun / moon (uses API local dates). */
+function computeWcardTimePhase(nowMs, sunriseIso, sunsetIso) {
+    if (!sunriseIso || !sunsetIso) return "midday";
+    const sr = new Date(sunriseIso).getTime();
+    const ss = new Date(sunsetIso).getTime();
+    if (!(sr < ss) || !Number.isFinite(sr) || !Number.isFinite(ss)) return "midday";
+    const m = 60 * 1000;
+    const dawnEnd = sr + 55 * m;
+    const eveningStart = ss - 85 * m;
+    const duskEnd = ss + 42 * m;
+    if (nowMs < sr - 30 * m) return "night";
+    if (nowMs < dawnEnd) return "dawn";
+    if (nowMs < eveningStart) {
+        const noonPoint = sr + (ss - sr) * 0.42;
+        return nowMs < noonPoint ? "morning" : "afternoon";
+    }
+    if (nowMs < ss) return "evening";
+    if (nowMs < duskEnd) return "dusk";
+    return "night";
+}
+
+function wcardPhaseLabel(phase) {
+    const map = {
+        night: "Night",
+        dawn: "Dawn",
+        morning: "Morning",
+        afternoon: "Afternoon",
+        evening: "Evening",
+        dusk: "Dusk",
+        midday: "Midday",
+    };
+    return map[phase] || "Now";
+}
+
+/** Sun position as % left / % top within the card (arc across the sky). */
+function wcardSunPosition(nowMs, srMs, ssMs) {
+    if (nowMs < srMs - 20 * 60 * 1000 || nowMs > ssMs + 15 * 60 * 1000) {
+        return { left: 14, top: 88, show: false };
+    }
+    const t = Math.max(0, Math.min(1, (nowMs - srMs) / (ssMs - srMs)));
+    const left = 6 + t * 78;
+    const top = 78 - Math.sin(t * Math.PI) * 52;
+    return { left, top: Math.max(14, top), show: true };
+}
+
+function applyWcardTimeOfDay(wCard, phase, nowMs, sunriseIso, sunsetIso, isDayApi) {
+    if (!wCard) return;
+    const phases = ["wc-td-night", "wc-td-dawn", "wc-td-morning", "wc-td-afternoon", "wc-td-evening", "wc-td-dusk", "wc-td-midday"];
+    phases.forEach((c) => wCard.classList.remove(c));
+    let p = phase;
+    if (isDayApi === 0 && ["dawn", "morning", "afternoon", "midday"].includes(p)) p = "night";
+    if (isDayApi === 1 && p === "night" && sunriseIso && sunsetIso) {
+        const sr = new Date(sunriseIso).getTime();
+        const ss = new Date(sunsetIso).getTime();
+        if (nowMs > sr && nowMs < ss) p = "afternoon";
+    }
+    wCard.classList.add(`wc-td-${p}`);
+
+    const srMs = sunriseIso ? new Date(sunriseIso).getTime() : 0;
+    const ssMs = sunsetIso ? new Date(sunsetIso).getTime() : 0;
+    const sun = srMs && ssMs ? wcardSunPosition(nowMs, srMs, ssMs) : { left: 50, top: 30, show: false };
+
+    const sunWrap = document.getElementById("wc-day-celestial");
+    const moonWrap = document.getElementById("wc-moon-celestial");
+    if (sunWrap) {
+        sunWrap.style.setProperty("--wc-sun-left", `${sun.left}%`);
+        sunWrap.style.setProperty("--wc-sun-top", `${sun.top}%`);
+        if (p === "dusk") sunWrap.style.opacity = "0.32";
+        else sunWrap.style.opacity = sun.show && p !== "night" ? "1" : "0";
+    }
+    let moonOp = 0;
+    let ml = 74;
+    let mt = 16;
+    if (p === "night") {
+        moonOp = 1;
+        ml = 76;
+        mt = 14;
+    } else if (p === "dusk") {
+        moonOp = 0.9;
+        ml = 82;
+        mt = 20;
+    } else if (p === "evening") {
+        moonOp = 0.5;
+        ml = 90;
+        mt = 22;
+    } else if (p === "dawn") {
+        moonOp = 0.28;
+        ml = 68;
+        mt = 18;
+    }
+    if (moonWrap) {
+        moonWrap.style.setProperty("--wc-moon-left", `${ml}%`);
+        moonWrap.style.setProperty("--wc-moon-top", `${mt}%`);
+        moonWrap.style.opacity = String(moonOp);
+    }
+
+    const pill = document.getElementById("wcard-phase-pill");
+    if (pill) {
+        pill.textContent = wcardPhaseLabel(p);
+        pill.hidden = false;
+    }
+
+    const nightSky = document.getElementById("wc-night-sky");
+    if (nightSky) {
+        if (p === "night") nightSky.style.opacity = "1";
+        else if (p === "dusk") nightSky.style.opacity = "0.55";
+        else if (p === "evening") nightSky.style.opacity = "0.25";
+        else if (p === "dawn") nightSky.style.opacity = "0.12";
+        else nightSky.style.opacity = "0";
+    }
+}
+
 let currentWeatherCache = null;
 
 async function updateWeatherForLocation(city, lat, lon) {
@@ -177,7 +289,7 @@ async function updateWeatherForLocation(city, lat, lon) {
     
     try {
         // Fetching real Meteorological Data (Current + Hourly + Daily) with Advanced Params
-        const weatherResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,weather_code,surface_pressure,visibility&hourly=temperature_2m,precipitation_probability,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max&timezone=auto`);
+        const weatherResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,weather_code,surface_pressure,visibility,is_day&hourly=temperature_2m,precipitation_probability,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max&timezone=auto`);
         const weatherData = await weatherResponse.json();
         
         currentWeatherCache = { city, data: weatherData };
@@ -201,20 +313,56 @@ async function updateWeatherForLocation(city, lat, lon) {
         const wIcon = document.getElementById('wcard-wi');
         const wCard = document.getElementById('wcard');
         const code = current.weather_code || 0;
-        const isDay = (weatherData.hourly?.is_day?.[0] ?? 1) === 1;
-        let emoji = "🌤️", bgClass = "wc-sunny";
-        if (!isDay) { emoji = "🌙"; bgClass = "wc-night"; }
-        else if (code === 0) { emoji = "☀️"; bgClass = "wc-sunny"; }
-        else if (code <= 3) { emoji = "🌤️"; bgClass = "wc-sunny"; }
-        else if (code <= 48) { emoji = "🌫️"; bgClass = "wc-fog"; }
-        else if (code <= 67) { emoji = "🌧️"; bgClass = "wc-rainy"; }
-        else if (code <= 77) { emoji = "❄️"; bgClass = "wc-snow"; }
-        else if (code <= 82) { emoji = "⛈️"; bgClass = "wc-rainy"; }
-        else { emoji = "⛈️"; bgClass = "wc-rainy"; }
+        const nowDate = current.time ? new Date(current.time) : new Date();
+        const nowMs = nowDate.getTime();
+        const sr0 = weatherData.daily?.sunrise?.[0];
+        const ss0 = weatherData.daily?.sunset?.[0];
+        let phase = computeWcardTimePhase(nowMs, sr0, ss0);
+        let isDayApi = 1;
+        if (current.is_day === 0 || current.is_day === 1) isDayApi = current.is_day;
+        else isDayApi = (weatherData.hourly?.is_day?.[0] ?? 1) === 1 ? 1 : 0;
+
+        let emoji = "🌤️";
+        let wxClass = "wc-sunny";
+        if (code === 0) {
+            emoji = "☀️";
+            wxClass = "wc-sunny";
+        } else if (code <= 3) {
+            emoji = "🌤️";
+            wxClass = "wc-cloudy";
+        } else if (code <= 48) {
+            emoji = "🌫️";
+            wxClass = "wc-fog";
+        } else if (code <= 67) {
+            emoji = "🌧️";
+            wxClass = "wc-rainy";
+        } else if (code <= 77) {
+            emoji = "❄️";
+            wxClass = "wc-snow";
+        } else if (code <= 82) {
+            emoji = "⛈️";
+            wxClass = "wc-rainy";
+        } else {
+            emoji = "⛈️";
+            wxClass = "wc-rainy";
+        }
+
+        const nastyWx = wxClass === "wc-rainy" || wxClass === "wc-snow" || wxClass === "wc-fog";
+        if (!nastyWx && phase === "night") wxClass = "wc-night";
+
+        if (phase === "night" || phase === "dusk") {
+            if (code <= 3) emoji = "🌙";
+        } else if (phase === "evening") {
+            if (code <= 3) emoji = "🌆";
+        } else if (phase === "dawn") {
+            if (code <= 3) emoji = "🌅";
+        }
+
         if (wIcon) wIcon.textContent = emoji;
         if (wCard) {
             wCard.classList.remove("wc-sunny", "wc-cloudy", "wc-rainy", "wc-night", "wc-fog", "wc-snow");
-            wCard.classList.add(bgClass);
+            wCard.classList.add(wxClass);
+            applyWcardTimeOfDay(wCard, phase, nowMs, sr0, ss0, isDayApi);
         }
 
         // Rain probability: closest hourly slot (icon is in parent HTML — set text only)
@@ -240,20 +388,9 @@ async function updateWeatherForLocation(city, lat, lon) {
             if (weatherData.daily?.sunrise?.[0] && wSunrise) {
                 const sr = new Date(weatherData.daily.sunrise[0]);
                 const timeStr = sr.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-                if (wSunrise.id === 'wcard-sunrise') {
-                    // Replace the text node after the icon, preserve <i>
-                    let replaced = false;
-                    for (const node of wSunrise.childNodes) {
-                        if (node.nodeType === 3) {
-                            node.textContent = ` Sunrise ${timeStr}`;
-                            replaced = true;
-                            break;
-                        }
-                    }
-                    if (!replaced) wSunrise.innerHTML = `<i class="ri-sun-fill"></i> Sunrise ${timeStr}`;
-                } else {
-                    wSunrise.innerHTML = `<i class="ri-sun-fill"></i> Sunrise ${timeStr}`;
-                }
+                const moonish = phase === "night" || phase === "dusk";
+                const riIcon = moonish ? "ri-moon-clear-line" : "ri-sun-fill";
+                wSunrise.innerHTML = `<i class="${riIcon}"></i> Sunrise ${timeStr}`;
             }
         } catch {}
 

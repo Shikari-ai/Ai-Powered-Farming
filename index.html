@@ -270,7 +270,7 @@
     }
     .wcard:active { transform: scale(0.985); }
     .wcard-bg {
-      position: absolute; inset: 0;
+      position: absolute; inset: 0; z-index: 0;
       background-size: cover; background-position: center 55%;
       background-image: url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800&q=75');
       transition: background-image 0.6s ease;
@@ -281,17 +281,161 @@
     .wcard.wc-fog .wcard-bg { background-image: url('https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800&q=75'); }
     .wcard.wc-snow .wcard-bg { background-image: url('https://images.unsplash.com/photo-1517299321609-52687d1bc55a?w=800&q=75'); }
     .wcard-overlay {
-      position: absolute; inset: 0;
+      position: absolute; inset: 0; z-index: 2;
       background: linear-gradient(110deg, rgba(7,12,9,0.82) 0%, rgba(7,12,9,0.5) 55%, rgba(7,12,9,0.2) 100%);
       transition: background 0.8s ease;
     }
     .wcard.wc-night .wcard-overlay {
       background: linear-gradient(110deg, rgba(2,6,18,0.88) 0%, rgba(5,10,25,0.6) 55%, rgba(5,10,25,0.25) 100%);
     }
+    /* Time-of-day overlay refinements */
+    .wcard.wc-td-dawn .wcard-overlay {
+      background: linear-gradient(115deg, rgba(55,35,28,0.72) 0%, rgba(40,48,72,0.48) 55%, rgba(30,40,62,0.28) 100%);
+    }
+    .wcard.wc-td-morning .wcard-overlay {
+      background: linear-gradient(110deg, rgba(25,42,38,0.62) 0%, rgba(20,50,52,0.38) 58%, rgba(18,38,48,0.18) 100%);
+    }
+    .wcard.wc-td-afternoon .wcard-overlay {
+      background: linear-gradient(110deg, rgba(18,38,48,0.68) 0%, rgba(14,40,55,0.42) 55%, rgba(10,32,44,0.16) 100%);
+    }
+    .wcard.wc-td-midday .wcard-overlay {
+      background: linear-gradient(110deg, rgba(12,35,42,0.65) 0%, rgba(10,38,52,0.4) 55%, rgba(8,30,40,0.12) 100%);
+    }
+    .wcard.wc-td-evening .wcard-overlay {
+      background: linear-gradient(115deg, rgba(48,24,22,0.82) 0%, rgba(42,28,48,0.58) 50%, rgba(28,22,44,0.32) 100%);
+    }
+    .wcard.wc-td-dusk .wcard-overlay {
+      background: linear-gradient(118deg, rgba(42,22,36,0.85) 0%, rgba(28,26,52,0.62) 50%, rgba(14,18,38,0.4) 100%);
+    }
+    .wcard.wc-td-night .wcard-overlay {
+      background: linear-gradient(110deg, rgba(2,5,16,0.9) 0%, rgba(6,10,28,0.72) 55%, rgba(4,8,22,0.38) 100%);
+    }
+
+    .wcard-atmo {
+      position: absolute; inset: 0; z-index: 0;
+      pointer-events: none;
+      transition: background 1.05s ease, opacity 1s ease, filter 1s ease;
+      mix-blend-mode: soft-light;
+      opacity: 0.9;
+    }
+    .wcard.wc-td-night .wcard-atmo {
+      mix-blend-mode: multiply;
+      opacity: 0.92;
+    }
+    .wcard.wc-td-dawn .wcard-atmo {
+      background: linear-gradient(165deg,
+        rgba(255,130,90,0.52) 0%,
+        rgba(255,190,130,0.38) 28%,
+        rgba(90,130,215,0.42) 100%);
+    }
+    .wcard.wc-td-morning .wcard-atmo {
+      background: linear-gradient(145deg,
+        rgba(255,228,170,0.38) 0%,
+        rgba(130,198,255,0.28) 48%,
+        rgba(70,160,235,0.18) 100%);
+    }
+    .wcard.wc-td-afternoon .wcard-atmo {
+      background: linear-gradient(160deg,
+        rgba(255,238,200,0.24) 0%,
+        rgba(95,175,255,0.2) 52%,
+        rgba(45,125,215,0.14) 100%);
+    }
+    .wcard.wc-td-midday .wcard-atmo {
+      background: linear-gradient(185deg,
+        rgba(160,215,255,0.22) 0%,
+        rgba(255,255,255,0.1) 55%,
+        rgba(120,185,240,0.12) 100%);
+    }
+    .wcard.wc-td-evening .wcard-atmo {
+      background: linear-gradient(200deg,
+        rgba(255,120,55,0.48) 0%,
+        rgba(210,85,95,0.38) 32%,
+        rgba(65,45,95,0.52) 100%);
+    }
+    .wcard.wc-td-dusk .wcard-atmo {
+      background: linear-gradient(198deg,
+        rgba(255,95,55,0.34) 0%,
+        rgba(130,65,115,0.48) 42%,
+        rgba(22,28,68,0.62) 100%);
+    }
+    .wcard.wc-td-night .wcard-atmo {
+      background: linear-gradient(172deg,
+        rgba(35,55,110,0.5) 0%,
+        rgba(20,28,58,0.58) 45%,
+        rgba(8,12,32,0.68) 100%);
+    }
+
+    .wc-day-celestial {
+      position: absolute; inset: 0; z-index: 3;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 1s ease;
+      --wc-sun-left: 50%; --wc-sun-top: 30%;
+    }
+    .wc-sun-glow {
+      position: absolute;
+      left: var(--wc-sun-left); top: var(--wc-sun-top);
+      transform: translate(-50%, -50%);
+      width: 128px; height: 128px; border-radius: 50%;
+      background: radial-gradient(circle,
+        rgba(255,248,220,0.78) 0%,
+        rgba(255,210,130,0.38) 38%,
+        transparent 72%);
+      filter: blur(5px);
+      animation: wcSunGlow 4.2s ease-in-out infinite alternate;
+    }
+    .wc-sun-core {
+      position: absolute;
+      left: var(--wc-sun-left); top: var(--wc-sun-top);
+      transform: translate(-50%, -50%);
+      width: 38px; height: 38px; border-radius: 50%;
+      background: radial-gradient(circle at 32% 30%, #fffef5, #ffe9a8 42%, #f59e0b 100%);
+      box-shadow:
+        0 0 20px rgba(255,210,100,0.95),
+        0 0 52px rgba(255,170,60,0.5);
+    }
+    @keyframes wcSunGlow {
+      from { transform: translate(-50%,-50%) scale(1); opacity: 0.82; }
+      to { transform: translate(-50%,-50%) scale(1.1); opacity: 1; }
+    }
+    .wc-moon-celestial {
+      position: absolute; inset: 0; z-index: 3;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 1s ease;
+      --wc-moon-left: 78%; --wc-moon-top: 18%;
+    }
+    .wc-moon-body {
+      position: absolute;
+      left: var(--wc-moon-left); top: var(--wc-moon-top);
+      transform: translate(-50%, -50%);
+      width: 36px; height: 36px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 32%, #f4f8ff, #c5d4e8 52%, #8a9bb5 100%);
+      box-shadow:
+        0 0 28px rgba(200,220,255,0.55),
+        inset -8px -5px 14px rgba(0,0,0,0.18);
+    }
+    .wc-moon-body::after {
+      content: '';
+      position: absolute; inset: 0; border-radius: 50%;
+      background: radial-gradient(circle at 68% 38%, transparent 40%, rgba(25,35,52,0.38) 100%);
+    }
+
     .wcard-body {
-      position: relative; z-index: 2;
+      position: relative; z-index: 5;
       padding: 16px 18px;
       display: flex; flex-direction: column; gap: 10px;
+    }
+    .wcard-lbl-row {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .wcard-phase-pill {
+      font-size: 9px; font-weight: 700;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 3px 8px; border-radius: 8px;
+      background: rgba(255,255,255,0.14);
+      border: 1px solid rgba(255,255,255,0.22);
+      color: rgba(255,255,255,0.95);
     }
     .wcard-lbl {
       font-size: 10px; font-weight: 600;
@@ -332,7 +476,7 @@
       font-size: 11px; color: rgba(255,255,255,0.65);
       display: flex; align-items: center; gap: 5px;
     }
-    .wcard-sunrise i { color: var(--yellow); }
+    .wcard.wc-td-night .wcard-sunrise i { color: rgba(186, 210, 255, 0.95); }
     .wcard-fcst {
       font-size: 11px; font-weight: 600; color: var(--primary);
       display: flex; align-items: center; gap: 2px;
@@ -626,11 +770,10 @@
 
     /* ── NIGHT SKY ── */
     .wc-night-sky {
-      position: absolute; inset: 0; z-index: 1;
+      position: absolute; inset: 0; z-index: 4;
       pointer-events: none; overflow: hidden;
-      opacity: 0; transition: opacity 1.4s ease;
+      opacity: 0; transition: opacity 1.2s ease;
     }
-    .wcard.wc-night .wc-night-sky { opacity: 1; }
 
     /* Star dot layers — box-shadow set by JS */
     .wc-star-layer {
@@ -958,8 +1101,16 @@
     </header>
 
     <!-- WEATHER CARD -->
-    <div class="wcard wc-sunny fade-up" id="wcard" onclick="window.location.href='weather.html'">
+    <div class="wcard wc-sunny wc-td-midday fade-up" id="wcard" onclick="window.location.href='weather.html'">
       <div class="wcard-bg" id="wcard-bg"></div>
+      <div class="wcard-atmo" id="wcard-atmo" aria-hidden="true"></div>
+      <div class="wc-day-celestial" id="wc-day-celestial" aria-hidden="true">
+        <div class="wc-sun-glow"></div>
+        <div class="wc-sun-core"></div>
+      </div>
+      <div class="wc-moon-celestial" id="wc-moon-celestial" aria-hidden="true">
+        <div class="wc-moon-body"></div>
+      </div>
       <div class="wcard-overlay"></div>
 
       <!-- Night sky — stars, moon glow, shooting stars, aurora -->
@@ -973,7 +1124,10 @@
         <div class="wc-shoot ss2"></div>
       </div>
       <div class="wcard-body">
-        <p class="wcard-lbl" data-i18n="weatherNow">Weather Now</p>
+        <div class="wcard-lbl-row">
+          <span class="wcard-phase-pill" id="wcard-phase-pill" hidden>—</span>
+          <p class="wcard-lbl" data-i18n="weatherNow">Weather Now</p>
+        </div>
         <div class="wcard-main">
           <div class="wcard-temp-block">
             <span class="wcard-wi" id="wcard-wi">🌤️</span>
