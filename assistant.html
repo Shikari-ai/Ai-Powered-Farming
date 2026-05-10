@@ -81,6 +81,59 @@
             40% { opacity: 1; transform: translateY(-3px); }
         }
 
+        .msg.streaming-reply {
+            border-color: rgba(16, 185, 129, 0.22);
+            box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.08);
+            transition: box-shadow 0.35s ease, border-color 0.35s ease;
+        }
+        .msg.streaming-reply.thinking {
+            animation: agriThinkPulse 2.4s ease-in-out infinite;
+        }
+        @keyframes agriThinkPulse {
+            0%, 100% { box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.06); }
+            50% { box-shadow: 0 0 14px rgba(16, 185, 129, 0.14), 0 0 0 1px rgba(16, 185, 129, 0.1); }
+        }
+        .stream-thinking-glow {
+            height: 3px;
+            border-radius: 2px;
+            margin: 0 0 8px;
+            background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.35), transparent);
+            background-size: 200% 100%;
+            animation: agriShimmer 1.8s ease-in-out infinite;
+        }
+        .msg.streaming-reply:not(.thinking) .stream-thinking-glow {
+            opacity: 0;
+            height: 0;
+            margin: 0;
+            animation: none;
+            transition: opacity 0.25s ease;
+        }
+        @keyframes agriShimmer {
+            0% { background-position: 100% 0; opacity: 0.35; }
+            100% { background-position: -100% 0; opacity: 0.75; }
+        }
+        .msg .text.is-rich { white-space: normal; }
+        .msg .text.is-rich .assist-pre {
+            margin: 8px 0;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 12px;
+            line-height: 1.4;
+            overflow-x: auto;
+        }
+        .msg .text.is-rich .assist-pre code {
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-family: ui-monospace, monospace;
+            color: rgba(226, 232, 240, 0.95);
+        }
+        .msg .text.is-rich strong {
+            color: rgba(248, 250, 252, 0.98);
+            font-weight: 600;
+        }
+
         .composer {
             position: fixed; left: 50%; transform: translateX(-50%);
             bottom: 74px; width: 100%; max-width: 480px;
@@ -176,7 +229,7 @@
         </a>
     </nav>
 
-    <script type="module" src="js/assistant.js?v=42"></script>
+    <script type="module" src="js/assistant.js?v=43"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>

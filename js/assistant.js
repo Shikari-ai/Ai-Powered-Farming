@@ -18,8 +18,8 @@ import {
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { runAgriOrchestrator } from "./ai/orchestrator.js?v=42";
-import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=42";
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=43";
+import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=43";
 import { getAiConfig } from "./ai/config.js?v=34";
 import {
   buildProactiveDigest,
@@ -32,8 +32,9 @@ import {
   buildCasualAssistantReply,
   buildVagueSymptomReply,
   classifyAssistantRouting,
-} from "./ai/assistant-intent-router.js?v=42";
-import { detectConversationMood, polishFarmReportProse } from "./ai/conversation-naturals.js?v=42";
+} from "./ai/assistant-intent-router.js?v=43";
+import { detectConversationMood, polishFarmReportProse } from "./ai/conversation-naturals.js?v=43";
+import { runAssistantTextStream } from "./ai/assistant-stream.js?v=43";
 
 function el(id) {
   return document.getElementById(id);
@@ -51,11 +52,27 @@ function formatTime(ms) {
   return new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
+/** Walk up to a scrollable parent (else document). */
+function getAssistantScrollRoot(fromEl) {
+  let p = fromEl;
+  while (p && p !== document.body) {
+    const st = getComputedStyle(p);
+    const oy = st.overflowY;
+    if ((oy === "auto" || oy === "scroll") && p.scrollHeight > p.clientHeight + 1) return p;
+    p = p.parentElement;
+  }
+  return document.scrollingElement || document.documentElement;
+}
+
 function renderMessages(container, msgs, opts = {}) {
   if (!container) return;
   const awaitingId = opts.awaitingUserMsgId || null;
+  const stream = opts.streamingAssistant || null;
   const showTyping =
-    !!awaitingId && msgs.some((m) => m.id === awaitingId && m.role === "user");
+    !!awaitingId &&
+    msgs.some((m) => m.id === awaitingId && m.role === "user") &&
+    !stream;
+
   const sorted = msgs.slice().sort((a, b) => tsToMs(a.createdAt) - tsToMs(b.createdAt));
   const partsHtml = sorted
     .map((m) => {
@@ -71,6 +88,16 @@ function renderMessages(container, msgs, opts = {}) {
       `;
     })
     .join("");
+
+  const streamHtml = stream
+    ? `
+    <div class="msg assistant streaming-reply thinking" data-stream-shell="1" aria-live="polite" aria-busy="true">
+      <div class="meta"><span>Assistant</span><span>…</span></div>
+      <div class="stream-thinking-glow" aria-hidden="true"></div>
+      <div class="text" data-stream-text="1"></div>
+    </div>`
+    : "";
+
   const typingHtml = showTyping
     ? `
     <div class="msg assistant typing" aria-live="polite" aria-busy="true">
@@ -78,8 +105,8 @@ function renderMessages(container, msgs, opts = {}) {
       <div class="typing-dots" aria-hidden="true"><span></span><span></span><span></span></div>
     </div>`
     : "";
-  container.innerHTML = partsHtml + typingHtml;
-  container.scrollTop = container.scrollHeight;
+
+  container.innerHTML = partsHtml + streamHtml + typingHtml;
 }
 
 function buildAssistantReply({ question, fields, scans, recs, weatherLogs }) {
@@ -201,12 +228,36 @@ onAuthStateChanged(auth, (user) => {
   let companionProfile = defaultCompanionProfile(user.uid);
   let lastMsgCount = 0;
   let chatMessages = [];
-  /** While set, UI shows a typing row after this user message (until assistant reply is saved). */
+  /** While set, UI shows a typing row after this user message (until assistant stream starts). */
   let awaitingAssistantAfterUserId = null;
+  /** When true, message list repaint during Firestore snapshot is skipped (stream owns DOM). */
+  let streamInFlight = false;
+  /** Live client-side stream shell; assistant row is persisted after stream completes. */
+  let streamingAssistant = null; // { fullText: string, userMsgId: string, profile: string }
+  /** Per-send generation; new send aborts previous stream via signal + generation check. */
+  let sendGeneration = 0;
+  let streamAbort = new AbortController();
+  /** User scrolled up → stop following; near bottom again → resume follow. */
+  let followPinnedBottom = true;
+  const SCROLL_NEAR_BOTTOM_PX = 110;
+  /** @type {HTMLElement | null} */
+  let listScrollRoot = null;
   /** Cached anonymized regional briefing; `fetchRegionalBriefing` also rate-limits reads. */
   let regionalBriefingText = null;
   /** Latest `learning_profiles/{uid}` (may be absent until first aggregation). */
   let learningProfile = null;
+
+  listScrollRoot = getAssistantScrollRoot(listEl);
+  listScrollRoot.addEventListener(
+    "scroll",
+    () => {
+      const r = listScrollRoot;
+      if (!r) return;
+      const near = r.scrollHeight - r.scrollTop - r.clientHeight < SCROLL_NEAR_BOTTOM_PX;
+      followPinnedBottom = near;
+    },
+    { passive: true },
+  );
 
   function updateCompanionEmptyHint() {
     const hintEl = el("assistant-companion-hint");
@@ -230,9 +281,23 @@ onAuthStateChanged(auth, (user) => {
   }
 
   function paintChat() {
-    if (emptyEl) emptyEl.classList.toggle("hidden", chatMessages.length > 0);
-    renderMessages(listEl, chatMessages, { awaitingUserMsgId: awaitingAssistantAfterUserId });
+    const hasStreamShell = !!streamingAssistant;
+    if (emptyEl) emptyEl.classList.toggle("hidden", chatMessages.length > 0 || hasStreamShell);
+    renderMessages(listEl, chatMessages, {
+      awaitingUserMsgId: awaitingAssistantAfterUserId,
+      streamingAssistant,
+    });
     updateCompanionEmptyHint();
+    const root = listScrollRoot || getAssistantScrollRoot(listEl);
+    if (followPinnedBottom) {
+      requestAnimationFrame(() => {
+        try {
+          root.scrollTo({ top: root.scrollHeight, behavior: "auto" });
+        } catch {
+          root.scrollTop = root.scrollHeight;
+        }
+      });
+    }
   }
 
   onSnapshot(doc(db, "companion_profiles", user.uid), (snap) => {
@@ -274,7 +339,7 @@ onAuthStateChanged(auth, (user) => {
     snap.forEach((d) => msgs.push({ id: d.id, ...d.data() }));
     lastMsgCount = msgs.length;
     chatMessages = msgs;
-    paintChat();
+    if (!streamInFlight) paintChat();
   });
 
   onSnapshot(query(collection(db, "fields"), where("userId", "==", user.uid), limit(200)), (snap) => {
@@ -356,6 +421,12 @@ onAuthStateChanged(auth, (user) => {
 
     pendingImageBlob = null;
     refreshAttachUi();
+
+    streamAbort.abort();
+    streamAbort = new AbortController();
+    sendGeneration += 1;
+    const myGen = sendGeneration;
+    followPinnedBottom = true;
 
     if (sendBtn) sendBtn.disabled = true;
     if (inputEl) inputEl.value = "";
@@ -477,6 +548,43 @@ onAuthStateChanged(auth, (user) => {
         });
       }
 
+      awaitingAssistantAfterUserId = null;
+      streamInFlight = true;
+      streamingAssistant = {
+        fullText: reply,
+        userMsgId: userMsgRef.id,
+        profile: routing.mode,
+      };
+      paintChat();
+
+      const textEl = listEl.querySelector("[data-stream-text]");
+      const streamShell = listEl.querySelector("[data-stream-shell]");
+      if (!textEl || myGen !== sendGeneration) {
+        streamInFlight = false;
+        streamingAssistant = null;
+        paintChat();
+        return;
+      }
+
+      if (sendBtn) sendBtn.disabled = false;
+
+      const streamResult = await runAssistantTextStream({
+        textEl,
+        fullText: reply,
+        streamProfile: routing.mode,
+        signal: streamAbort.signal,
+        shouldFollowScroll: () => followPinnedBottom,
+        getScrollRoot: getAssistantScrollRoot,
+        onFirstChar: () => streamShell?.classList.remove("thinking"),
+      });
+
+      if (myGen !== sendGeneration || streamResult === "aborted") {
+        streamInFlight = false;
+        streamingAssistant = null;
+        paintChat();
+        return;
+      }
+
       await addDoc(collection(db, "assistant_messages"), {
         userId: user.uid,
         role: "assistant",
@@ -489,13 +597,17 @@ onAuthStateChanged(auth, (user) => {
         routingMode: routing.mode,
         schemaVersion: 2,
       });
+      streamInFlight = false;
+      streamingAssistant = null;
     } catch (e) {
       console.error(e);
       alert(`Failed to send: ${e.message}`);
     } finally {
       awaitingAssistantAfterUserId = null;
+      streamInFlight = false;
+      streamingAssistant = null;
       paintChat();
-      if (sendBtn) sendBtn.disabled = false;
+      if (sendBtn && myGen === sendGeneration) sendBtn.disabled = false;
       inputEl?.focus();
     }
   }
@@ -508,6 +620,11 @@ onAuthStateChanged(auth, (user) => {
   clearBtn?.addEventListener("click", async () => {
     const ok = confirm("Clear assistant chat and engine run history for this account?");
     if (!ok) return;
+    streamAbort.abort();
+    sendGeneration += 1;
+    streamAbort = new AbortController();
+    streamInFlight = false;
+    streamingAssistant = null;
     try {
       const runsQ = query(collection(db, "ai_engine_runs"), where("userId", "==", user.uid), limit(500));
       const [msgSnap, runSnap] = await Promise.all([getDocs(msgsQ), getDocs(runsQ)]);
