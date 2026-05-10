@@ -11,7 +11,6 @@ import {
   getDocs,
   limit,
   onSnapshot,
-  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -286,38 +285,34 @@ onAuthStateChanged(auth, (user) => {
   });
 
   onSnapshot(
-    query(
-      collection(db, "farm_interventions"),
-      where("userId", "==", user.uid),
-      orderBy("performedAt", "desc"),
-      limit(48),
-    ),
+    query(collection(db, "farm_interventions"), where("userId", "==", user.uid), limit(120)),
     (snap) => {
-      farmInterventions = [];
-      snap.forEach((d) => farmInterventions.push({ id: d.id, ...d.data() }));
+      const rows = [];
+      snap.forEach((d) => rows.push({ id: d.id, ...d.data() }));
+      rows.sort((a, b) => tsToMs(b.performedAt) - tsToMs(a.performedAt));
+      farmInterventions = rows.slice(0, 48);
       updateCompanionEmptyHint();
     },
   );
 
   onSnapshot(
-    query(
-      collection(db, "farm_operational_tasks"),
-      where("userId", "==", user.uid),
-      orderBy("createdAt", "desc"),
-      limit(48),
-    ),
+    query(collection(db, "farm_operational_tasks"), where("userId", "==", user.uid), limit(120)),
     (snap) => {
-      farmOperationalTasks = [];
-      snap.forEach((d) => farmOperationalTasks.push({ id: d.id, ...d.data() }));
+      const rows = [];
+      snap.forEach((d) => rows.push({ id: d.id, ...d.data() }));
+      rows.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
+      farmOperationalTasks = rows.slice(0, 48);
       updateCompanionEmptyHint();
     },
   );
 
   onSnapshot(
-    query(collection(db, "alerts"), where("userId", "==", user.uid), orderBy("createdAt", "desc"), limit(40)),
+    query(collection(db, "alerts"), where("userId", "==", user.uid), limit(80)),
     (snap) => {
-      assistantAlerts = [];
-      snap.forEach((d) => assistantAlerts.push({ id: d.id, ...d.data() }));
+      const rows = [];
+      snap.forEach((d) => rows.push({ id: d.id, ...d.data() }));
+      rows.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
+      assistantAlerts = rows.slice(0, 40);
       updateCompanionEmptyHint();
     },
   );
