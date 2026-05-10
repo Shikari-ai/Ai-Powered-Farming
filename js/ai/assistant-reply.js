@@ -109,12 +109,16 @@ function composeMinimalAgriReply(question, orch, profile, extra = {}) {
     const lines = [];
     const r = orch.results || {};
 
+    let llmText = r.llm && !r.llm.error && r.llm.text ? String(r.llm.text).trim() : "";
+    llmText = softenOverclaimProse(softenAlarmistProse(llmText, profile));
+    if (llmText && isLlmProxyConfigured()) {
+        return llmText;
+    }
+
     if (Array.isArray(orch.degradedHints) && orch.degradedHints.length) {
         lines.push(softenAlarmistProse("Note: " + orch.degradedHints.slice(0, 2).join(" "), profile));
     }
 
-    let llmText = r.llm && !r.llm.error && r.llm.text ? String(r.llm.text).trim() : "";
-    llmText = softenOverclaimProse(softenAlarmistProse(llmText, profile));
     if (llmText) {
         const prefix = lines.length ? `${lines.join("\n\n")}\n\n` : "";
         return softenOverclaimProse(prefix + llmText);
@@ -175,6 +179,12 @@ export function composeAssistantReply(
     const { intents } = orch;
     const r = orch.results || {};
 
+    let llmTextEarly = r.llm && !r.llm.error && r.llm.text ? String(r.llm.text).trim() : "";
+    llmTextEarly = softenOverclaimProse(softenAlarmistProse(llmTextEarly, profile));
+    if (llmTextEarly && isLlmProxyConfigured()) {
+        return llmTextEarly;
+    }
+
     if (profile?.expertiseLevel === "beginner" && !compact) {
         lines.push("I’ll stay practical—tell me if you want the deeper technical version.\n");
     }
@@ -194,13 +204,6 @@ export function composeAssistantReply(
     let llmText = r.llm && !r.llm.error && r.llm.text ? String(r.llm.text).trim() : "";
     llmText = softenOverclaimProse(softenAlarmistProse(llmText, profile));
     if (llmText) {
-        if (isLlmProxyConfigured()) {
-            let head = "";
-            if (Array.isArray(orch.degradedHints) && orch.degradedHints.length) {
-                head = "Status: " + orch.degradedHints.join(" ") + "\n\n";
-            }
-            return softenOverclaimProse(head + llmText);
-        }
         const head = lines.length ? lines.join("\n") + "\n\n" : "";
         return softenOverclaimProse(head + llmText);
     }

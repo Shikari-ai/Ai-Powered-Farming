@@ -19,7 +19,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import { runAgriOrchestrator } from "./ai/orchestrator.js?v=60";
-import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=59";
+import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=61";
 import { getAiConfig, isLlmProxyConfigured } from "./ai/config.js?v=59";
 import {
   buildProactiveDigest,
@@ -570,8 +570,10 @@ onAuthStateChanged(auth, (user) => {
           "Could not build a Gemini reply. Check agri-llm-proxy / agri-ai-base and that the API server exposes POST /v1/chat/grounded with GEMINI_API_KEY set.";
       }
 
-      const mood = detectConversationMood(text);
-      reply = polishFarmReportProse(reply, { mood, routingMode: routing.mode });
+      if (!useGemini) {
+        const mood = detectConversationMood(text);
+        reply = polishFarmReportProse(reply, { mood, routingMode: routing.mode });
+      }
 
       const memNudge = maybePresenceMemoryNudge(companionProfile, {
         routingMode: routing.mode,
