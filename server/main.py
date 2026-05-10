@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from inference.yolo_engine import YOLOVisionEngine
+from ml_metadata import load_vision_metadata
 
 APP_NAME = "smart-agri-ai"
 MAX_IMAGE_BYTES = int(os.environ.get("AGRI_MAX_IMAGE_MB", "12")) * 1024 * 1024
@@ -55,10 +56,20 @@ def health() -> dict[str, Any]:
     }
 
 
+@app.get("/v1/vision/metadata")
+def vision_metadata() -> dict[str, Any]:
+    """Central class/crop/config for clients — avoids hardcoding labels in frontend builds."""
+    return load_vision_metadata()
+
+
 @app.post("/v1/vision/disease")
 async def vision_disease(
     file: UploadFile = File(...),
     context_json: str | None = Form(None),
+    tracking_id: str | None = Form(
+        None,
+        description="Optional id for server-side temporal smoothing of top hypothesis across frames.",
+    ),
     conf_threshold: float | None = Form(None),
     iou_threshold: float | None = Form(None),
 ) -> dict[str, Any]:
@@ -90,6 +101,9 @@ async def vision_disease(
                 raise ValueError("context must be a JSON object")
         except (json.JSONDecodeError, ValueError) as e:
             raise HTTPException(status_code=400, detail=f"Invalid context_json: {e}") from e
+    if tracking_id and str(tracking_id).strip():
+        ctx = ctx or {}
+        ctx["smooth_tracking_id"] = str(tracking_id).strip()[:128]
 
     conf_threshold = float(os.environ.get("AGRI_CONF_DEFAULT", "0.65")) if conf_threshold is None else conf_threshold
     iou_threshold = float(os.environ.get("AGRI_IOU_DEFAULT", "0.45")) if iou_threshold is None else iou_threshold
@@ -112,13 +126,17 @@ async def vision_disease(
 
 
 class GroundedChatBody(BaseModel):
+    """Grounded chat request. evidenceBundle may include a \"companion\" object
+    with personalized farmer memory/directives when the client runs adaptive UI."""
+
     question: str
     locale: str = "en"
     evidenceBundle: dict[str, Any] = Field(default_factory=dict)
 
-
 @app.post("/v1/chat/grounded")
 async def chat_grounded(body: GroundedChatBody) -> dict[str, Any]:
+    # When implementing an LLM provider, inject body.evidenceBundle.get("companion")
+    # (especially \"directives\") into system instructions alongside the bundle.
     raise HTTPException(
         status_code=501,
         detail="LLM not configured. Implement provider call with server-side API keys.",

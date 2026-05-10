@@ -3,7 +3,8 @@
  * Parses real model payloads only; never invents detections client-side.
  */
 
-import { buildVisionContextBundle } from "./vision-context.js?v=33";
+import { buildVisionContextBundle } from "./vision-context.js?v=34";
+import { recordInferenceOutcome } from "./system-health.js";
 
 function baseUrlClean(baseUrl) {
     return String(baseUrl || "").replace(/\/$/, "");
@@ -31,13 +32,19 @@ export async function postDiseaseVision(blob, options = {}) {
     if (options.iouThreshold != null) fd.append("iou_threshold", String(options.iouThreshold));
 
     let ctx = options.context || null;
-    if (options.includeContext !== false && !ctx) {
+    if (options.contextOverride != null) {
+        ctx = options.contextOverride;
+    } else if (options.includeContext !== false && !ctx) {
         ctx = await buildVisionContextBundle();
     }
     if (ctx) fd.append("context_json", JSON.stringify(ctx));
+    if (options.trackingId != null && String(options.trackingId).trim()) {
+        fd.append("tracking_id", String(options.trackingId).trim());
+    }
 
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), options.timeoutMs || 55000);
+    const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
 
     try {
         const res = await fetch(`${url}/v1/vision/disease`, {
@@ -49,6 +56,7 @@ export async function postDiseaseVision(blob, options = {}) {
 
         if (res.status === 503 || res.status === 501) {
             const msg = await res.text();
+            recordInferenceOutcome({ ok: false, error: "model_unavailable" });
             return {
                 ok: false,
                 status: "model_unavailable",
@@ -59,11 +67,16 @@ export async function postDiseaseVision(blob, options = {}) {
 
         if (!res.ok) {
             const msg = await res.text();
+            recordInferenceOutcome({ ok: false, error: `http_${res.status}` });
             throw new Error(msg.slice(0, 400) || `HTTP ${res.status}`);
         }
 
         const data = await res.json();
         const dets = Array.isArray(data.detections) ? data.detections : [];
+        recordInferenceOutcome({
+            ok: true,
+            ms: (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0,
+        });
 
         return {
             ok: true,
@@ -79,7 +92,12 @@ export async function postDiseaseVision(blob, options = {}) {
             severity: data.severity || null,
             imageQuality: data.image_quality || null,
             inferenceMs: data.inference_ms ?? null,
+            contextualIntel: data.contextual_intel || data.contextualIntel || null,
+            predictionReliability: data.prediction_reliability || data.predictionReliability || null,
         };
+    } catch (e) {
+        recordInferenceOutcome({ ok: false, error: e?.message || "fetch_failed" });
+        throw e;
     } finally {
         clearTimeout(t);
     }
@@ -109,6 +127,8 @@ export async function analyzeCropImage(blob, opts = {}) {
         severity: r.severity,
         imageQuality: r.imageQuality,
         environmentalReasoning: r.environmentalReasoning,
+        contextualIntel: r.contextualIntel,
+        predictionReliability: r.predictionReliability,
         raw: r.raw,
     };
 }

@@ -1,0 +1,27 @@
+# Supported crops (extensible). Use stable `slug` values in dataset manifests and Firestore.
+schema_version: 1
+crops:
+  - slug: wheat
+    label_en: Wheat
+    label_hi: गेहूं
+  - slug: rice
+    label_en: Rice
+    label_hi: चावल
+  - slug: tomato
+    label_en: Tomato
+    label_hi: टमाटर
+  - slug: potato
+    label_en: Potato
+    label_hi: आलू
+  - slug: maize
+    label_en: Maize
+    label_hi: मक्का
+  - slug: cotton
+    label_en: Cotton
+    label_hi: कपास
+  - slug: soybean
+    label_en: Soybean
+    label_hi: सोयाबीन
+  - slug: sugarcane
+    label_en: Sugarcane
+    label_hi: गन्ना

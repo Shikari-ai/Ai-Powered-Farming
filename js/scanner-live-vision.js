@@ -3,8 +3,8 @@
  * Preview stays native <video>; overlay is a <canvas>. Never awaits inference on rVFC path.
  */
 
-import { getAiConfig } from "./ai/config.js?v=33";
-import { postDiseaseVision } from "./ai/vision-client.js?v=33";
+import { getAiConfig } from "./ai/config.js?v=34";
+import { postDiseaseVision } from "./ai/vision-client.js?v=34";
 
 export class DetectionStabilizer {
     /**
@@ -67,8 +67,13 @@ export class DetectionStabilizer {
  * @param {object} opts
  * @param {HTMLVideoElement} opts.videoEl
  * @param {HTMLCanvasElement} opts.canvasEl
- * @param {{ minIntervalMs?: number; confThreshold?: number; lowPerfSkip?: number }} opts.tuning
+ * @param {{ minIntervalMs?: number; confThreshold?: number; lowPerfSkip?: number }} [opts.tuning]
+ * @param {string} [opts.trackingId] Optional; default session id used for server-side temporal smoothing.
  * @param {(dets: any[]) => void} [opts.onDetections]
+ * @param {(result: any) => void} [opts.onVisionResult] Called with vision `postDiseaseVision` result when `ok`.
+ * @param {() => Promise<object|null|undefined>} [opts.getContextOverride] Merged as `context_json` (refreshed every `contextTtlMs`).
+ * @param {number} [opts.contextTtlMs]
+ * @param {"default"|"copilot"} [opts.uiTheme] Bounding-box / label styling.
  */
 export function startLiveDiseaseScan(opts) {
     const cfg = getAiConfig();
@@ -94,6 +99,12 @@ export function startLiveDiseaseScan(opts) {
     const wctx = wcap.getContext("2d", { alpha: false });
 
     let lastDetections = [];
+    let ctxCache = null;
+    let ctxCacheAt = 0;
+    let lastRiskTier = null;
+    const sessionTrackingId =
+        opts.trackingId ||
+        `live_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 
     const layoutCanvas = () => {
         const r = videoEl.getBoundingClientRect();
@@ -128,6 +139,10 @@ export function startLiveDiseaseScan(opts) {
             ox = (r.width - dw) / 2;
         }
 
+        const theme = opts.uiTheme || "default";
+        const tier = (lastRiskTier || "").toLowerCase();
+        const riskWarm = tier === "high" || tier === "critical" || tier === "elevated";
+
         for (const d of lastDetections) {
             const b = d.box;
             if (!b) continue;
@@ -135,8 +150,16 @@ export function startLiveDiseaseScan(opts) {
             const y1 = oy + b.y1 * dh;
             const x2 = ox + b.x2 * dw;
             const y2 = oy + b.y2 * dh;
-            ctx.strokeStyle = "rgba(16, 185, 129, 0.95)";
-            ctx.lineWidth = 2;
+            if (theme === "copilot") {
+                ctx.strokeStyle = riskWarm ? "rgba(251, 113, 133, 0.95)" : "rgba(34, 211, 238, 0.92)";
+                ctx.shadowColor = riskWarm ? "rgba(251, 113, 133, 0.35)" : "rgba(34, 211, 238, 0.3)";
+                ctx.shadowBlur = 10;
+                ctx.lineWidth = 1.5;
+            } else {
+                ctx.strokeStyle = "rgba(16, 185, 129, 0.95)";
+                ctx.shadowBlur = 0;
+                ctx.lineWidth = 2;
+            }
             ctx.beginPath();
             if (typeof ctx.roundRect === "function") {
                 ctx.roundRect(x1, y1, x2 - x1, y2 - y1, 6);
@@ -144,11 +167,14 @@ export function startLiveDiseaseScan(opts) {
                 ctx.rect(x1, y1, x2 - x1, y2 - y1);
             }
             ctx.stroke();
+            ctx.shadowBlur = 0;
+
             const confPct = `${Math.round((d.confidence || 0) * 100)}%`;
             const label = `${d.label || "det"} · ${confPct}`;
-            ctx.font = "12px Inter, system-ui, sans-serif";
+            ctx.font = theme === "copilot" ? "11px Outfit, Inter, system-ui, sans-serif" : "12px Inter, system-ui, sans-serif";
             const tw = Math.min(ctx.measureText(label).width + 12, r.width - x1);
-            ctx.fillStyle = "rgba(7, 12, 9, 0.72)";
+            ctx.fillStyle =
+                theme === "copilot" ? "rgba(6, 10, 14, 0.78)" : "rgba(7, 12, 9, 0.72)";
             ctx.fillRect(x1, y1 - 22, tw, 22);
             ctx.fillStyle = "rgba(255,255,255,0.95)";
             ctx.fillText(label, x1 + 6, y1 - 7);
@@ -187,13 +213,36 @@ export function startLiveDiseaseScan(opts) {
             return;
         }
 
+        let ctxOv = null;
+        if (typeof opts.getContextOverride === "function") {
+            const ttl = typeof opts.contextTtlMs === "number" ? opts.contextTtlMs : 45000;
+            const nowMs = Date.now();
+            if (!ctxCache || nowMs - ctxCacheAt > ttl) {
+                try {
+                    ctxCache = await opts.getContextOverride();
+                    ctxCacheAt = nowMs;
+                } catch {
+                    ctxCache = null;
+                }
+            }
+            ctxOv = ctxCache;
+        }
+
         try {
             const result = await postDiseaseVision(blob, {
                 baseUrl,
                 confThreshold,
-                includeContext: true,
+                includeContext: !ctxOv,
+                contextOverride: ctxOv || undefined,
+                trackingId: sessionTrackingId,
                 timeoutMs: 35000,
             });
+            if (result.ok) {
+                lastRiskTier = result.contextualIntel?.risk_tier || null;
+                if (opts.onVisionResult) opts.onVisionResult(result);
+            } else {
+                lastRiskTier = null;
+            }
             if (result.ok && Array.isArray(result.detections)) {
                 lastDetections = stabilizer.push(result.detections);
                 if (opts.onDetections) opts.onDetections(lastDetections);
@@ -231,6 +280,9 @@ export function startLiveDiseaseScan(opts) {
             stopped = true;
             stabilizer.reset();
             lastDetections = [];
+            lastRiskTier = null;
+            ctxCache = null;
+            ctxCacheAt = 0;
             ro.disconnect();
             if (typeof videoEl.cancelVideoFrameCallback === "function") {
                 try {

@@ -15,3 +15,8 @@ gha-creds-*.json
 .claude/worktrees/
 # JS dependencies (optional local tools)
 node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo

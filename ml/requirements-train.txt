@@ -1,0 +1,11 @@
+# ML / training extras (install beside server/requirements.txt in a venv used for dataset + train).
+# Core inference server deps: ../server/requirements.txt
+
+ultralytics>=8.1.0,<9
+opencv-python-headless>=4.8.0
+numpy>=1.24.0
+PyYAML>=6.0.1
+Pillow>=10.0.0
+albumentations>=1.4.0,<2
+imagehash>=4.3.0
+scikit-learn>=1.3.0

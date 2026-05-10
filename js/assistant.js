@@ -11,15 +11,24 @@ import {
   getDocs,
   limit,
   onSnapshot,
+  orderBy,
   query,
   serverTimestamp,
+  setDoc,
   where,
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { runAgriOrchestrator } from "./ai/orchestrator.js?v=32";
-import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=32";
-import { getAiConfig } from "./ai/config.js?v=32";
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=38";
+import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=38";
+import { getAiConfig } from "./ai/config.js?v=34";
+import {
+  buildProactiveDigest,
+  defaultCompanionProfile,
+  mergeCompanionAfterTurn,
+  normalizeCompanionProfile,
+} from "./ai/companion-memory.js?v=35";
+import { fetchRegionalBriefing } from "./network/regional-briefing.js";
 
 function el(id) {
   return document.getElementById(id);
@@ -170,7 +179,48 @@ onAuthStateChanged(auth, (user) => {
   let recs = [];
   let weatherLogs = [];
   let environmental = [];
+  let fieldContextStates = [];
+  let farmInterventions = [];
+  let farmOperationalTasks = [];
+  let assistantAlerts = [];
   let pendingImageBlob = null;
+  let companionProfile = defaultCompanionProfile(user.uid);
+  let lastMsgCount = 0;
+  /** Cached anonymized regional briefing; `fetchRegionalBriefing` also rate-limits reads. */
+  let regionalBriefingText = null;
+  /** Latest `learning_profiles/{uid}` (may be absent until first aggregation). */
+  let learningProfile = null;
+
+  function updateCompanionEmptyHint() {
+    const hintEl = el("assistant-companion-hint");
+    if (!hintEl) return;
+    if (lastMsgCount !== 0) {
+      hintEl.textContent = "";
+      hintEl.classList.add("hidden");
+      return;
+    }
+    const live = buildProactiveDigest({ fields, scans, fieldContextStates, weatherLogs, recs });
+    const text = (companionProfile.proactiveDigest || "").trim() || live;
+    const regHint =
+      regionalBriefingText && regionalBriefingText.length > 30
+        ? `\n\nRegional network (coarse, anonymized): ${regionalBriefingText.slice(0, 240).trim()}${
+            regionalBriefingText.length > 240 ? "…" : ""
+          }`
+        : "";
+    const full = text + regHint;
+    hintEl.textContent = full;
+    hintEl.classList.toggle("hidden", !full.trim());
+  }
+
+  onSnapshot(doc(db, "companion_profiles", user.uid), (snap) => {
+    companionProfile = normalizeCompanionProfile(snap.data(), user.uid);
+    updateCompanionEmptyHint();
+  });
+
+  onSnapshot(doc(db, "learning_profiles", user.uid), (snap) => {
+    learningProfile = snap.exists() ? { id: snap.id, ...snap.data() } : null;
+    updateCompanionEmptyHint();
+  });
 
   const attachInput = el("assistant-attach-input");
   const attachBtn = el("assistant-attach");
@@ -182,6 +232,13 @@ onAuthStateChanged(auth, (user) => {
       : `Agricultural intelligence • ${cfg.enginePackVersion} • live weather + your Firestore data`;
   }
 
+  fetchRegionalBriefing(db)
+    .then((t) => {
+      regionalBriefingText = t;
+      updateCompanionEmptyHint();
+    })
+    .catch(() => {});
+
   const refreshAttachUi = () => {
     if (!attachBtn) return;
     attachBtn.classList.toggle("has-file", !!pendingImageBlob);
@@ -192,30 +249,78 @@ onAuthStateChanged(auth, (user) => {
   onSnapshot(msgsQ, (snap) => {
     const msgs = [];
     snap.forEach((d) => msgs.push({ id: d.id, ...d.data() }));
+    lastMsgCount = msgs.length;
     if (emptyEl) emptyEl.classList.toggle("hidden", msgs.length > 0);
     renderMessages(listEl, msgs);
+    updateCompanionEmptyHint();
   });
 
   onSnapshot(query(collection(db, "fields"), where("userId", "==", user.uid), limit(200)), (snap) => {
     fields = [];
     snap.forEach((d) => fields.push({ id: d.id, ...d.data() }));
+    updateCompanionEmptyHint();
   });
   onSnapshot(query(collection(db, "crop_scans"), where("userId", "==", user.uid), limit(500)), (snap) => {
     scans = [];
     snap.forEach((d) => scans.push({ id: d.id, ...d.data() }));
+    updateCompanionEmptyHint();
   });
   onSnapshot(query(collection(db, "ai_recommendations"), where("userId", "==", user.uid), limit(200)), (snap) => {
     recs = [];
     snap.forEach((d) => recs.push({ id: d.id, ...d.data() }));
+    updateCompanionEmptyHint();
   });
   onSnapshot(query(collection(db, "weather_logs"), where("userId", "==", user.uid), limit(50)), (snap) => {
     weatherLogs = [];
     snap.forEach((d) => weatherLogs.push({ id: d.id, ...d.data() }));
+    updateCompanionEmptyHint();
   });
   onSnapshot(query(collection(db, "environmental_data"), where("userId", "==", user.uid), limit(40)), (snap) => {
     environmental = [];
     snap.forEach((d) => environmental.push({ id: d.id, ...d.data() }));
   });
+  onSnapshot(query(collection(db, "field_context_state"), where("userId", "==", user.uid), limit(40)), (snap) => {
+    fieldContextStates = [];
+    snap.forEach((d) => fieldContextStates.push({ id: d.id, fieldId: d.id, ...d.data() }));
+    updateCompanionEmptyHint();
+  });
+
+  onSnapshot(
+    query(
+      collection(db, "farm_interventions"),
+      where("userId", "==", user.uid),
+      orderBy("performedAt", "desc"),
+      limit(48),
+    ),
+    (snap) => {
+      farmInterventions = [];
+      snap.forEach((d) => farmInterventions.push({ id: d.id, ...d.data() }));
+      updateCompanionEmptyHint();
+    },
+  );
+
+  onSnapshot(
+    query(
+      collection(db, "farm_operational_tasks"),
+      where("userId", "==", user.uid),
+      orderBy("createdAt", "desc"),
+      limit(48),
+    ),
+    (snap) => {
+      farmOperationalTasks = [];
+      snap.forEach((d) => farmOperationalTasks.push({ id: d.id, ...d.data() }));
+      updateCompanionEmptyHint();
+    },
+  );
+
+  onSnapshot(
+    query(collection(db, "alerts"), where("userId", "==", user.uid), orderBy("createdAt", "desc"), limit(40)),
+    (snap) => {
+      assistantAlerts = [];
+      snap.forEach((d) => assistantAlerts.push({ id: d.id, ...d.data() }));
+      updateCompanionEmptyHint();
+    },
+  );
 
   attachBtn?.addEventListener("click", () => attachInput?.click());
   attachInput?.addEventListener("change", () => {
@@ -247,6 +352,14 @@ onAuthStateChanged(auth, (user) => {
         schemaVersion: 2,
       });
 
+      if (!regionalBriefingText) {
+        try {
+          regionalBriefingText = await fetchRegionalBriefing(db);
+        } catch {
+          regionalBriefingText = "";
+        }
+      }
+
       const snapshot = {
         userId: user.uid,
         fields,
@@ -254,15 +367,43 @@ onAuthStateChanged(auth, (user) => {
         recs,
         weatherLogs,
         environmental,
+        fieldContextStates,
+        interventions: farmInterventions,
+        operationalTasks: farmOperationalTasks,
+        alerts: assistantAlerts,
         locale: getLang() || "en",
+        companion: companionProfile,
+        regionalBriefing: regionalBriefingText || "",
+        learningProfile: learningProfile || null,
       };
 
       const orch = await runAgriOrchestrator(text || "Analyze the attached crop image.", snapshot, { imageBlob });
       attachSnapshotForReply(orch, snapshot);
-      let reply = composeAssistantReply(text || "[image]", orch, { locale: snapshot.locale });
+      let reply = composeAssistantReply(text || "[image]", orch, {
+        locale: snapshot.locale,
+        companionProfile,
+      });
 
       if (!reply) {
         reply = buildAssistantReply({ question: text, fields, scans, recs, weatherLogs });
+      }
+
+      try {
+        const nextProfile = mergeCompanionAfterTurn(companionProfile, {
+          userText: text,
+          assistantReply: reply,
+          orch,
+          locale: snapshot.locale,
+          fields,
+          scans,
+          fieldContextStates,
+          weatherLogs,
+          recs,
+          userId: user.uid,
+        });
+        await setDoc(doc(db, "companion_profiles", user.uid), nextProfile, { merge: true });
+      } catch (memErr) {
+        console.warn("[assistant] companion memory:", memErr?.message || memErr);
       }
 
       await addDoc(collection(db, "ai_engine_runs"), {

@@ -411,6 +411,11 @@ async function syncWeatherLog(user, loc, forecast, air, imd, soilMoistureEstimat
   );
 
   try {
+    const { notifyWeatherSynced } = await import("./ai/system-health.js");
+    notifyWeatherSynced();
+  } catch (_) { /* optional module */ }
+
+  try {
     const { syncWeatherDerivedAlerts } = await import("./services/entity-sync.js");
     await syncWeatherDerivedAlerts(db, user.uid, {
       current,
