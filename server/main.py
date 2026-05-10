@@ -20,10 +20,10 @@ from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from inference.yolo_engine import YOLOVisionEngine
-from llm_router import grounded_farm_reply_auto, llm_provider_effective
+from llm_github_models import grounded_farm_reply
 from ml_metadata import load_vision_metadata
 
-# Load server/.env (gitignored) for GEMINI_API_KEY, GITHUB_TOKEN, etc.
+# Load server/.env (gitignored) — GITHUB_TOKEN, GITHUB_MODEL, etc.
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
 APP_NAME = "smart-agri-ai"
@@ -52,9 +52,6 @@ app.add_middleware(
 def health() -> dict[str, Any]:
     eng: YOLOVisionEngine = app.state.vision_engine
     w = os.environ.get("AGRI_YOLO_WEIGHTS", "")
-    prov = llm_provider_effective()
-    _gk = (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or "").strip()
-    _gm = (os.environ.get("GEMINI_MODEL", "gemini-2.5-flash") or "gemini-2.5-flash").strip()
     _ght = bool(
         (
             os.environ.get("GITHUB_TOKEN")
@@ -72,15 +69,10 @@ def health() -> dict[str, Any]:
         "load_error": eng.load_error,
         "imgsz": eng.imgsz if eng.ok else int(os.environ.get("AGRI_YOLO_IMGSZ", "640")),
         "llm": {
-            "provider_effective": prov,
-            "gemini_configured": bool(_gk),
-            "gemini_model": _gm,
-            "github_token_configured": _ght,
-            "github_model": _ghmodel if prov == "github" else None,
-            "configured": (
-                (prov == "github" and _ght)
-                or (prov == "gemini" and bool(_gk))
-            ),
+            "provider": "llm",
+            "token_configured": _ght,
+            "model": _ghmodel,
+            "configured": _ght,
         },
     }
 
@@ -167,12 +159,11 @@ class GroundedChatBody(BaseModel):
 async def chat_grounded(body: GroundedChatBody) -> dict[str, Any]:
     """
     Grounded agricultural Q&A (evidenceBundle JSON in system context).
-
-    Provider: LLM_PROVIDER=github|gemini, or auto: GitHub when GITHUB_TOKEN is set, else Gemini.
+    Requires GITHUB_TOKEN (or GITHUB_MODELS_TOKEN / GH_TOKEN) with GitHub Models access.
     """
 
     def _run() -> dict[str, Any]:
-        return grounded_farm_reply_auto(
+        return grounded_farm_reply(
             question=body.question,
             locale=body.locale,
             evidence_bundle=dict(body.evidenceBundle or {}),

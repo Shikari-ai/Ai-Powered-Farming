@@ -1,4 +1,4 @@
-# Run the FastAPI backend (Gemini + vision). Key lives in server/.env only (never commit).
+# Run the FastAPI backend (LLM chat + vision). Secrets live in server/.env only (never commit).
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $server = Join-Path $root "server"
@@ -8,7 +8,7 @@ if (-not (Test-Path ".env")) {
     if (Test-Path ".env.example") {
         Copy-Item ".env.example" ".env"
     }
-    Write-Host "Created server/.env — add GEMINI_API_KEY for Gemini chat."
+    Write-Host "Created server/.env — add GITHUB_TOKEN for chat (GitHub Models)."
 }
 
 $pythonExe = $null

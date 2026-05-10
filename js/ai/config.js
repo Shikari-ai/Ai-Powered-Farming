@@ -1,17 +1,18 @@
 /**
  * Central config for the agricultural AI ecosystem.
- * LLM: always via HTTPS backend — Firebase Cloud Function `agriGeminiChat` (default), FastAPI
- * `/v1/chat/grounded`, or override with meta / window (see getAiConfig).
+ * LLM: always via HTTPS — Firebase `agriLlmChat` (default), FastAPI `/v1/chat/grounded`, or override
+ * with meta / window (see getAiConfig).
  */
 
-/** Default backend when running `uvicorn` locally (see server/.env for GEMINI_API_KEY). */
+/** Default backend when running `uvicorn` locally (see server/.env for GITHUB_TOKEN). */
 const DEFAULT_LOCAL_AI_BASE = "http://127.0.0.1:8000";
 
 /**
- * Default production Gemini endpoint. Key lives in Secret Manager (`firebase functions:secrets:set GEMINI_API_KEY`).
- * Override per page: <meta name="agri-llm-proxy" content="https://..."> or window.__AGRI_LLM_PROXY__.
+ * Default production LLM endpoint (`GITHUB_TOKEN` in Secret Manager).
+ * Override: <meta name="agri-llm-proxy" content="https://..."> or window.__AGRI_LLM_PROXY__.
  */
-const DEFAULT_FIREBASE_LLM_PROXY = "https://us-central1-agritech-4d1ba.cloudfunctions.net/agriGeminiChat";
+const DEFAULT_FIREBASE_LLM_PROXY =
+    "https://us-central1-agritech-4d1ba.cloudfunctions.net/agriLlmChat";
 
 function readMeta(name) {
     const el = typeof document !== "undefined" ? document.querySelector(`meta[name="${name}"]`) : null;

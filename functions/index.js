@@ -1,18 +1,19 @@
 /**
- * HTTPS Gemini endpoint compatible with js/ai/llm-proxy.js (POST JSON body).
+ * HTTPS LLM endpoint for js/ai/llm-proxy.js (POST JSON body).
+ * Uses GitHub Models (see https://docs.github.com/github-models/quickstart).
  *
- * Deploy from repo root (PowerShell, key NOT stored in git):
- *   $env:GEMINI_API_KEY = "<Google AI Studio key>"
- *   .\\scripts\\deploy-gemini.ps1
+ * Deploy (PowerShell; token NOT stored in git):
+ *   $env:GITHUB_TOKEN = "<fine-grained PAT with models:read>"
+ *   .\scripts\deploy-llm.ps1
  */
 
 const { onRequest } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-const geminiApiKey = defineSecret("GEMINI_API_KEY");
+const githubToken = defineSecret("GITHUB_TOKEN");
 
 const MAX_BUNDLE_CHARS = 120_000;
+const GITHUB_CHAT_URL = "https://models.github.ai/inference/chat/completions";
 
 function truncateJson(obj) {
     let s;
@@ -80,10 +81,10 @@ function buildSystemInstruction(locale, evidenceBundle) {
     return parts.filter(Boolean).join("\n");
 }
 
-exports.agriGeminiChat = onRequest(
+exports.agriLlmChat = onRequest(
     {
         region: "us-central1",
-        secrets: [geminiApiKey],
+        secrets: [githubToken],
         cors: true,
         invoker: "public",
         timeoutSeconds: 120,
@@ -99,10 +100,11 @@ exports.agriGeminiChat = onRequest(
             return;
         }
 
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey || !String(apiKey).trim()) {
+        const token = process.env.GITHUB_TOKEN;
+        if (!token || !String(token).trim()) {
             res.status(503).json({
-                detail: "GEMINI_API_KEY secret is not configured. Run: firebase functions:secrets:set GEMINI_API_KEY",
+                detail:
+                    "GITHUB_TOKEN secret is not configured. Run: firebase functions:secrets:set GITHUB_TOKEN",
             });
             return;
         }
@@ -127,39 +129,60 @@ exports.agriGeminiChat = onRequest(
             body.evidenceBundle && typeof body.evidenceBundle === "object" ? body.evidenceBundle : {};
 
         const modelId =
-            (process.env.GEMINI_MODEL && String(process.env.GEMINI_MODEL).trim()) || "gemini-2.5-flash";
+            (process.env.GITHUB_MODEL && String(process.env.GITHUB_MODEL).trim()) || "openai/gpt-4o";
+        const apiVersion =
+            (process.env.GITHUB_API_VERSION && String(process.env.GITHUB_API_VERSION).trim()) ||
+            "2026-03-10";
+
+        const systemInstruction = buildSystemInstruction(locale, evidenceBundle);
 
         try {
-            const genAI = new GoogleGenerativeAI(apiKey);
-            const systemInstruction = buildSystemInstruction(locale, evidenceBundle);
-            const model = genAI.getGenerativeModel({
-                model: modelId,
-                systemInstruction,
+            const ghRes = await fetch(GITHUB_CHAT_URL, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token.trim()}`,
+                    Accept: "application/vnd.github+json",
+                    "Content-Type": "application/json",
+                    "X-GitHub-Api-Version": apiVersion,
+                },
+                body: JSON.stringify({
+                    model: modelId,
+                    messages: [
+                        { role: "system", content: systemInstruction },
+                        { role: "user", content: question },
+                    ],
+                    temperature: parseFloat(process.env.GITHUB_TEMPERATURE || "0.35") || 0.35,
+                    max_tokens: parseInt(process.env.GITHUB_MAX_TOKENS || "2048", 10) || 2048,
+                    stream: false,
+                }),
             });
 
-            const result = await model.generateContent({
-                contents: [{ role: "user", parts: [{ text: question }] }],
-                generationConfig: {
-                    temperature: parseFloat(process.env.GEMINI_TEMPERATURE || "0.35") || 0.35,
-                    maxOutputTokens: parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS || "2048", 10) || 2048,
-                },
-            });
+            const rawText = await ghRes.text();
+            if (!ghRes.ok) {
+                res.status(502).json({
+                    detail: `GitHub Models HTTP ${ghRes.status}: ${rawText.slice(0, 500)}`,
+                });
+                return;
+            }
+
+            let data;
+            try {
+                data = JSON.parse(rawText);
+            } catch {
+                res.status(502).json({ detail: "Invalid JSON from GitHub Models" });
+                return;
+            }
 
             let text = "";
-            try {
-                text = (result.response.text() || "").trim();
-            } catch {
-                const c = result.response?.candidates?.[0];
-                const partsOut = c?.content?.parts || [];
-                text = partsOut
-                    .map((p) => (typeof p.text === "string" ? p.text : ""))
-                    .join("\n")
-                    .trim();
+            const choices = data && data.choices;
+            if (Array.isArray(choices) && choices[0] && choices[0].message) {
+                const c = choices[0].message.content;
+                if (typeof c === "string") text = c.trim();
             }
 
             if (!text) {
                 text =
-                    "I could not produce a reply from Gemini. Check GEMINI_MODEL, API quota, and request size.";
+                    "I could not parse a model reply. Check GITHUB_MODEL id, quota, and response shape.";
             }
 
             res.status(200).json({
@@ -170,7 +193,7 @@ exports.agriGeminiChat = onRequest(
             });
         } catch (e) {
             const msg = e && e.message ? String(e.message) : String(e);
-            res.status(502).json({ detail: `Gemini request failed: ${msg.slice(0, 500)}` });
+            res.status(502).json({ detail: `LLM request failed: ${msg.slice(0, 500)}` });
         }
     },
 );

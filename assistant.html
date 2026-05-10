@@ -21,8 +21,8 @@
     })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- LLM: Gemini via HTTPS backend (default: Firebase agriGeminiChat). Override: -->
-    <!-- <meta name="agri-llm-proxy" content="https://us-central1-PROJECT.cloudfunctions.net/agriGeminiChat"> -->
+    <!-- LLM: HTTPS backend (default Firebase agriLlmChat, or FastAPI). Override: -->
+    <!-- <meta name="agri-llm-proxy" content="https://us-central1-PROJECT.cloudfunctions.net/agriLlmChat"> -->
     <!-- Local FastAPI: <meta name="agri-ai-base" content="http://127.0.0.1:8000"> (uses /v1/chat/grounded) -->
     <title>AI Assistant - AgriTech AI</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -245,7 +245,7 @@
                 <i class="ri-sparkling-line"></i>
                 <p>
                     Chat uses a <strong>backend LLM</strong> (configure <code>agri-llm-proxy</code> or default Cloud Function).
-                    For <strong>GitHub Models</strong> (GPT‑4, Llama, Phi, etc.), run the Python API with <code>GITHUB_TOKEN</code> and point this app at that host.
+                    For model access, configure the backend with <code>GITHUB_TOKEN</code> (see GitHub Models).
                     Vision still uses <code>agri-ai-base</code> when set.
                 </p>
                 <div class="cta-row">
@@ -290,7 +290,7 @@
         </a>
     </nav>
 
-    <script type="module" src="js/assistant.js?v=64"></script>
+    <script type="module" src="js/assistant.js?v=66"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>

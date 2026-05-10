@@ -2,7 +2,7 @@
  * Lightweight client-side AI / data health — no PII, in-memory + sessionStorage.
  * Used for degraded-mode UX and diagnostics copy.
  */
-import { getAiConfig, isInferenceConfigured, isLlmProxyConfigured } from "./config.js?v=63";
+import { getAiConfig, isInferenceConfigured, isLlmProxyConfigured } from "./config.js?v=65";
 
 const STORAGE_KEY = "agri_ai_health_v1";
 const MAX_LAT_SAMPLES = 12;

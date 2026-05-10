@@ -1,13 +1,12 @@
 {
   "name": "agritech-functions",
-  "description": "Gemini grounded chat for AgriTech assistant (Smart Agri)",
+  "description": "HTTPS LLM chat (GitHub Models) for AgriTech assistant",
   "engines": {
     "node": "20"
   },
   "main": "index.js",
   "private": true,
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
     "firebase-admin": "^12.6.0",
     "firebase-functions": "^5.1.1"
   }

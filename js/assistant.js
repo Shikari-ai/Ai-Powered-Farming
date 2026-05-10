@@ -18,9 +18,9 @@ import {
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { runAgriOrchestrator } from "./ai/orchestrator.js?v=60";
-import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=61";
-import { getAiConfig, isLlmProxyConfigured } from "./ai/config.js?v=63";
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=65";
+import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=65";
+import { getAiConfig, isLlmProxyConfigured } from "./ai/config.js?v=65";
 import {
   buildProactiveDigest,
   compactMemoryForBundle,
@@ -481,11 +481,11 @@ onAuthStateChanged(auth, (user) => {
       let orch = null;
       let reply = "";
 
-      const useGemini = isLlmProxyConfigured();
+      const useLlm = isLlmProxyConfigured();
 
-      if (useGemini && (routing.mode === "casual" || routing.mode === "clarify")) {
+      if (useLlm && (routing.mode === "casual" || routing.mode === "clarify")) {
         const locale = getLang() || "en";
-        const { callLlmProxy } = await import("./ai/llm-proxy.js?v=63");
+        const { callLlmProxy } = await import("./ai/llm-proxy.js?v=65");
         const companionBlock = companionProfile
           ? {
               memory: compactMemoryForBundle(companionProfile),
@@ -512,13 +512,13 @@ onAuthStateChanged(auth, (user) => {
           const res = await callLlmProxy({ question: text, locale, bundle });
           reply = String(res.text || "").trim();
         } catch (e) {
-          reply = `Gemini request failed: ${String(e?.message || e).slice(0, 280)}`;
+          reply = `AI request failed: ${String(e?.message || e).slice(0, 280)}`;
         }
-        if (!reply) reply = "Gemini returned an empty reply. Try again shortly.";
+        if (!reply) reply = "The model returned an empty reply. Try again shortly.";
         orch = null;
-      } else if (!useGemini && routing.mode === "casual") {
+      } else if (!useLlm && routing.mode === "casual") {
         reply = buildCasualAssistantReply(text, { fieldCount: fields.length, scanCount: scans.length });
-      } else if (!useGemini && routing.mode === "clarify") {
+      } else if (!useLlm && routing.mode === "clarify") {
         reply = buildVagueSymptomReply(text, { fieldCount: fields.length, scanCount: scans.length });
       } else {
         if (routing.mode !== "weather_quick" && !regionalBriefingText) {
@@ -560,18 +560,18 @@ onAuthStateChanged(auth, (user) => {
           routingReason: routing.reason,
         });
 
-        if (!reply && !useGemini) {
+        if (!reply && !useLlm) {
           reply = buildAssistantReply({ question: text, fields, scans, recs, weatherLogs });
         }
       }
 
-      if (!reply && useGemini && routing.mode !== "casual" && routing.mode !== "clarify") {
+      if (!reply && useLlm && routing.mode !== "casual" && routing.mode !== "clarify") {
         reply =
-          "Could not build a Gemini reply. Deploy agriGeminiChat with GEMINI_API_KEY secret, or set agri-llm-proxy / run FastAPI with POST /v1/chat/grounded.";
+          "Could not build an AI reply. Deploy agriLlmChat with GITHUB_TOKEN, or point agri-llm-proxy at FastAPI POST /v1/chat/grounded.";
       }
 
       const mood = detectConversationMood(text);
-      if (!useGemini) {
+      if (!useLlm) {
         reply = polishFarmReportProse(reply, { mood, routingMode: routing.mode });
       }
 
@@ -589,11 +589,11 @@ onAuthStateChanged(auth, (user) => {
       try {
         const orchForMemory =
           orch ||
-          (useGemini && (routing.mode === "casual" || routing.mode === "clarify")
+          (useLlm && (routing.mode === "casual" || routing.mode === "clarify")
             ? {
                 intents: {},
-                results: { llm: { engine: "gemini", text: reply } },
-                enginePackVersion: "gemini-chat",
+                results: { llm: { engine: "llm", text: reply } },
+                enginePackVersion: "llm-chat",
               }
             : {
                 intents: {},

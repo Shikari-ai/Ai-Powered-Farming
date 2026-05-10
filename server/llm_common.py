@@ -1,4 +1,4 @@
-"""Shared grounded-system prompt for farm assistant (Gemini + GitHub Models)."""
+"""Shared grounded-system prompt for the farm assistant LLM backend."""
 
 from __future__ import annotations
 

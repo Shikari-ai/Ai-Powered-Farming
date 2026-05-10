@@ -23,7 +23,7 @@ GITHUB_CHAT_URL = "https://models.github.ai/inference/chat/completions"
 GITHUB_API_VERSION = os.environ.get("GITHUB_API_VERSION", "2026-03-10").strip() or "2026-03-10"
 
 
-def grounded_farm_reply_github(
+def grounded_farm_reply(
     *,
     question: str,
     locale: str,
@@ -88,6 +88,6 @@ def grounded_farm_reply_github(
         "reply": text,
         "text": text,
         "model": model,
-        "provider": "github-models",
+        "provider": "llm",
         "citations": [],
     }

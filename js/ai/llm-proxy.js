@@ -1,9 +1,9 @@
 /**
- * Grounded Gemini chat via HTTPS backend only (Cloud Function or FastAPI POST).
+ * Grounded chat via HTTPS backend (Cloud Function or FastAPI POST).
  * Body: { question, locale, evidenceBundle }
  */
 
-import { getAiConfig, resolveLlmProxyHttpUrl } from "./config.js?v=63";
+import { getAiConfig, resolveLlmProxyHttpUrl } from "./config.js?v=65";
 
 export function resolveLlmChatUrl() {
     return resolveLlmProxyHttpUrl(getAiConfig().llmProxyUrl);
