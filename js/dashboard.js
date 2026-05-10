@@ -3,15 +3,14 @@
  * Fully connected to Firebase Auth, Firestore realtime listeners,
  * Weather API, i18n, and all backend subsystems.
  */
-import { registerAuthCleanup } from "./auth-session.js?v=31";
-import { auth, db } from "./auth.js?v=31";
+import { registerAuthCleanup } from "./auth-session.js?v=32";
+import { auth, db } from "./auth.js?v=32";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
     collection,
     doc,
     limit,
     onSnapshot,
-    orderBy,
     query,
     serverTimestamp,
     setDoc,
@@ -959,46 +958,38 @@ document.addEventListener("DOMContentLoaded", () => {
                     "field_context_state"
                 );
 
+                /* Equality + limit only (no orderBy) — avoids composite-index failures when indexes
+                   are not yet deployed; sort client-side. */
                 sub(
-                    query(
-                        collection(db, "alerts"),
-                        where("userId", "==", user.uid),
-                        orderBy("createdAt", "desc"),
-                        limit(12)
-                    ),
+                    query(collection(db, "alerts"), where("userId", "==", user.uid), limit(40)),
                     (snap) => {
                         const items = [];
                         snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
-                        renderRecentAlertsList(items);
+                        items.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
+                        renderRecentAlertsList(items.slice(0, 12));
                     },
                     "alerts"
                 );
 
                 sub(
-                    query(
-                        collection(db, "crop_health"),
-                        where("userId", "==", user.uid),
-                        orderBy("updatedAt", "desc"),
-                        limit(16)
-                    ),
+                    query(collection(db, "crop_health"), where("userId", "==", user.uid), limit(48)),
                     (snap) => {
                         const rows = [];
                         snap.forEach((d) => rows.push({ id: d.id, ...d.data() }));
-                        renderCropHealthStrip(rows);
+                        rows.sort((a, b) => tsToMs(b.updatedAt) - tsToMs(a.updatedAt));
+                        renderCropHealthStrip(rows.slice(0, 16));
                     },
                     "crop_health"
                 );
 
                 sub(
-                    query(
-                        collection(db, "pest_predictions"),
-                        where("userId", "==", user.uid),
-                        orderBy("createdAt", "desc"),
-                        limit(1)
-                    ),
+                    query(collection(db, "pest_predictions"), where("userId", "==", user.uid), limit(24)),
                     (snap) => {
-                        if (snap.empty) return;
-                        const p = snap.docs[0].data() || {};
+                        const rows = [];
+                        snap.forEach((d) => rows.push({ id: d.id, ...d.data() }));
+                        rows.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
+                        if (!rows.length) return;
+                        const p = rows[0] || {};
                         const level = String(p.riskLevel || "").toLowerCase();
                         if (!level) return;
                         const rk = level === "high" ? "high" : level === "medium" ? "medium" : "low";

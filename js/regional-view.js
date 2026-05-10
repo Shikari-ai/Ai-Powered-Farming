@@ -1,8 +1,8 @@
 /**
  * Full-screen regional intelligence map + briefing + optional calibration.
  */
-import "./auth-session.js?v=31";
-import { auth, db } from "./auth.js?v=31";
+import "./auth-session.js?v=32";
+import { auth, db } from "./auth.js?v=32";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { fetchRegionalBriefing, fetchRegionalCellsForMap } from "./network/regional-briefing.js";
 import {

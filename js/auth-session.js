@@ -7,7 +7,7 @@
  * Import this module FIRST on every HTML entry (before fields.js, scanner-db.js, etc.).
  */
 import "./runtime-profile.js?v=31";
-import { auth, clearSensitiveLocalStorage } from "./auth.js?v=31";
+import { auth, clearSensitiveLocalStorage } from "./auth.js?v=32";
 import {
   onAuthStateChanged,
   onIdTokenChanged,

@@ -51,7 +51,16 @@ appleProvider.addScope("name");
 
 // Offline persistence (production-grade caching). Safe to ignore if unavailable (e.g. private mode / multiple tabs).
 enableIndexedDbPersistence(db).catch((err) => {
-    console.warn("Firestore persistence unavailable:", err?.code || err);
+    const code = err?.code || "";
+    const msg = String(err?.message || "");
+    if (
+        code === "failed-precondition" &&
+        /already been started|persistence can no longer be enabled/i.test(msg)
+    ) {
+        return;
+    }
+    if (code === "unimplemented") return;
+    console.warn("Firestore persistence unavailable:", code || err);
 });
 
 /** Keys kept when clearing storage (non-secret UX preferences). */
