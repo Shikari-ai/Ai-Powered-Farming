@@ -1135,7 +1135,9 @@
       if (typeof window._profileLogout === 'function') {
         window._profileLogout();
       } else {
-        localStorage.removeItem('agri_user');
+        try { localStorage.removeItem('agri_user'); } catch (_) {}
+        try { sessionStorage.removeItem('agri_user'); } catch (_) {}
+        try { delete window.__agriUserProfile; } catch (_) {}
         window.location.href = 'login.html';
       }
     }, 320);

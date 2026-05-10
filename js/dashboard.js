@@ -3,7 +3,7 @@
  * Fully connected to Firebase Auth, Firestore realtime listeners,
  * Weather API, i18n, and all backend subsystems.
  */
-import { auth, db } from "./auth.js";
+import { auth, db, authPersistenceReady, cacheAgriUserProfile, getCachedAgriUserProfile } from "./auth.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
     collection,
@@ -266,13 +266,19 @@ function updateFarmStatus(fieldsCount, scansCount) {
 // ─── DOMContentLoaded bootstrap ──────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", async () => {
-    // Apply i18n immediately
-    await initI18n();
+    // Apply i18n immediately. In some browsers (Brave / Opera with strict
+    // shields) the i18n JSON fetch can stall — never let that hide the UI.
+    try {
+        await Promise.race([
+            initI18n(),
+            new Promise((resolve) => setTimeout(resolve, 2500)),
+        ]);
+    } catch (_) { /* tolerated — fallback strings will show */ }
     startI18nObserver();
 
     // Flash greeting from cache (no name flash)
     try {
-        const cached = JSON.parse(localStorage.getItem("agri_user") || "null");
+        const cached = getCachedAgriUserProfile();
         const greetEl = el("hdr-greet");
         const nameSpan = el("hdr-name");
         if (greetEl) greetEl.textContent = getGreeting() + ",";
@@ -317,7 +323,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const firstName = String(fullName).split(" ")[0] || "Farmer";
 
             // Cache for instant load next visit
-            try { localStorage.setItem("agri_user", JSON.stringify({ name: fullName })); } catch (_) {}
+            try { cacheAgriUserProfile({ name: fullName }); } catch (_) {}
 
             const greetEl = el("hdr-greet");
             const nameSpan = el("hdr-name"); // <span id="hdr-name"> inside <h2 class="hdr-name">
@@ -552,11 +558,36 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     (async () => {
-        await initI18n();
-        startI18nObserver();
-        await auth.authStateReady();
+        // If we have a cached profile we already know the user — reveal the
+        // dashboard immediately. The auth check below is a confirmation that
+        // refines data; it must NOT block the UI from rendering.
+        if (getCachedAgriUserProfile()) {
+            revealDashboard();
+        }
+
+        // Hard safety: never leave the dashboard hidden behind `dashboard-wait`
+        // for more than 2.5s, regardless of auth/Firestore stalls.
+        const safetyReveal = setTimeout(() => {
+            revealDashboard();
+        }, 2500);
+
+        try {
+            await Promise.race([
+                authPersistenceReady,
+                new Promise((resolve) => setTimeout(resolve, 1500)),
+            ]);
+        } catch (_) { /* tolerated */ }
+
+        try {
+            await Promise.race([
+                auth.authStateReady(),
+                new Promise((resolve) => setTimeout(resolve, 2500)),
+            ]);
+        } catch (_) { /* tolerated */ }
 
         onAuthStateChanged(auth, (user) => {
+            clearTimeout(safetyReveal);
+
             homeUnsubs.forEach((u) => {
                 try { u(); } catch (_) {}
             });
@@ -564,7 +595,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (!user) {
                 revealDashboard();
-                window.location.replace("login.html");
+                // Only bounce to login if we don't even have a cached profile.
+                // This prevents redirect loops on browsers where auth state
+                // can't be persisted reliably (Brave private windows).
+                if (!getCachedAgriUserProfile()) {
+                    window.location.replace("login.html");
+                }
                 return;
             }
 
