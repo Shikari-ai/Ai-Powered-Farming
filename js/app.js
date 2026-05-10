@@ -71,7 +71,7 @@ async function refreshLocationAndWeather() {
                 locElement.innerHTML = `<i class="ri-map-pin-line" style="color:var(--accent-orange)"></i> Need HTTPS for GPS`;
                 const aiAlert = document.querySelector('.ai-alert');
                 if (aiAlert) {
-                    aiAlert.innerHTML = `<i class="ri-error-warning-line"></i> AI: This page is not served over HTTPS. Browsers block location on plain http:// (except localhost). Deploy with HTTPS or test with <strong>http://127.0.0.1</strong> / <strong>http://localhost</strong>.`;
+                    aiAlert.innerHTML = `<i class="ri-error-warning-line"></i> AI: This page must be served over <strong>HTTPS</strong> for location (e.g. Firebase Hosting at <code>*.web.app</code>). Plain <code>http://</code> blocks GPS in the browser.`;
                     aiAlert.style.display = 'block';
                     aiAlert.style.color = "var(--accent-orange)";
                 }

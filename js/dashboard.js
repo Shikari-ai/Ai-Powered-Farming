@@ -318,7 +318,7 @@ function updateFarmStatus(fieldsCount, scansCount) {
 // ─── DOMContentLoaded bootstrap ──────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", () => {
-    const DASH_FAILSAFE_MS = 8000;
+    const DASH_FAILSAFE_MS = 4500;
     let dashFailsafeTimer = null;
     const armDashFailsafe = () => {
         dashFailsafeTimer = window.setTimeout(() => {
@@ -400,32 +400,13 @@ document.addEventListener("DOMContentLoaded", () => {
         homeUnsubs.push(u);
     };
 
-    const schedule = (delayMs, fn) => {
-        window.setTimeout(() => {
-            try {
-                fn();
-            } catch (e) {
-                console.warn("[dashboard] scheduled task:", e);
-            }
-        }, delayMs);
-    };
-
     const mountHome = (user) => {
         try {
-            let sched = 0;
-            const STEP = 48;
-            const nextT = () => {
-                const t = sched;
-                sched += STEP;
-                return t;
-            };
-
             let totalFields = 0;
             let totalScans = 0;
 
             const userRef = doc(db, "users", user.uid);
-            schedule(nextT(), () => {
-                sub(userRef, (snap) => {
+            sub(userRef, (snap) => {
                     const data = snap.exists() ? snap.data() : {};
                     const fullName = data?.name || user.displayName
                         || (user.email ? user.email.split("@")[0] : "Farmer");
@@ -451,9 +432,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         window.i18n.setLanguage(data.langPreference);
                     }
                 }, "users profile");
-            });
 
-            schedule(nextT(), () => {
                 sub(
                     query(collection(db, "fields"), where("userId", "==", user.uid), limit(100)),
                     (snap) => {
@@ -474,9 +453,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     },
                     "fields"
                 );
-            });
 
-            schedule(nextT(), () => {
                 sub(
                     query(collection(db, "notifications"), where("userId", "==", user.uid), limit(35)),
                     (snap) => {
@@ -493,9 +470,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     },
                     "notifications"
                 );
-            });
 
-            schedule(nextT(), () => {
                 sub(
                     query(collection(db, "crop_scans"), where("userId", "==", user.uid), limit(100)),
                     (snap) => {
@@ -616,9 +591,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     },
                     "crop_scans"
                 );
-            });
 
-            schedule(nextT(), () => {
                 sub(
                     query(collection(db, "weather_logs"), where("userId", "==", user.uid), limit(40)),
                     (snap) => {
@@ -648,9 +621,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     },
                     "weather_logs"
                 );
-            });
 
-            schedule(nextT(), () => {
                 sub(
                     query(
                         collection(db, "alerts"),
@@ -665,9 +636,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     },
                     "alerts"
                 );
-            });
 
-            schedule(nextT(), () => {
                 sub(
                     query(
                         collection(db, "crop_health"),
@@ -682,9 +651,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     },
                     "crop_health"
                 );
-            });
 
-            schedule(nextT(), () => {
                 sub(
                     query(
                         collection(db, "pest_predictions"),
@@ -716,9 +683,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     },
                     "pest_predictions"
                 );
-            });
 
-            schedule(nextT(), () => {
                 sub(
                     query(
                         collection(db, "ai_recommendations"),
@@ -728,7 +693,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     () => {},
                     "ai_recommendations"
                 );
-            });
         } catch (err) {
             console.warn("[dashboard] mountHome:", err);
         }
@@ -739,26 +703,44 @@ document.addEventListener("DOMContentLoaded", () => {
         document.body.classList.remove("dashboard-wait");
     };
 
+    let homeMountedUid = null;
+
+    const bindHomeForUser = (user) => {
+        if (!user) return;
+        if (homeMountedUid === user.uid) return;
+        homeUnsubs.forEach((u) => {
+            try { u(); } catch (_) {}
+        });
+        homeUnsubs = [];
+        homeMountedUid = user.uid;
+        revealDashboard();
+        try {
+            mountHome(user);
+        } catch (err) {
+            console.warn("[dashboard] mountHome failed:", err);
+        }
+    };
+
     (async () => {
         await auth.authStateReady();
+        const initial = auth.currentUser;
+        if (!initial) {
+            window.location.replace("login.html");
+            return;
+        }
+        bindHomeForUser(initial);
 
         onAuthStateChanged(auth, (user) => {
-            homeUnsubs.forEach((u) => {
-                try { u(); } catch (_) {}
-            });
-            homeUnsubs = [];
-
             if (!user) {
+                homeMountedUid = null;
+                homeUnsubs.forEach((u) => {
+                    try { u(); } catch (_) {}
+                });
+                homeUnsubs = [];
                 window.location.replace("login.html");
                 return;
             }
-
-            revealDashboard();
-            try {
-                mountHome(user);
-            } catch (err) {
-                console.warn("[dashboard] mountHome failed:", err);
-            }
+            bindHomeForUser(user);
         });
     })();
 });

@@ -432,7 +432,7 @@ function setLocationLines(loc) {
   const coordEl = qs("loc-coords");
   if (locLine) {
     if (loc.source === "insecure-context") {
-      locLine.textContent = "Serve this app over HTTPS (or use localhost) for GPS";
+      locLine.textContent = "Serve this app over HTTPS for GPS";
     } else if (loc.source === "fallback") {
       locLine.textContent = "Allow location for this site, then tap refresh";
     } else {

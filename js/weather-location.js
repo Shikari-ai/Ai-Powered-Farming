@@ -26,7 +26,7 @@ export function persistLocationDetails(loc) {
 }
 
 /**
- * Browsers only allow geolocation in a “secure context”: HTTPS, or http://localhost / 127.0.0.1.
+ * Browsers only allow geolocation in a “secure context” (HTTPS or other browser-defined secure origins).
  * Plain http:// on a LAN IP or hostname usually blocks GPS — not a user “denial”.
  */
 export function isGeolocationSecureContext() {
