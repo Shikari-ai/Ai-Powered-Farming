@@ -79,7 +79,7 @@ function buildSystemInstruction(locale, evidenceBundle) {
 export async function callGeminiDirect({ question, locale, bundle, apiKey, modelId }) {
     const q = String(question || "").trim() || "Summarize the farm evidence briefly.";
     const loc = String(locale || "en").trim() || "en";
-    const model = String(modelId || "gemini-1.5-flash").trim() || "gemini-1.5-flash";
+    const model = String(modelId || "gemini-2.5-flash").trim() || "gemini-2.5-flash";
     const key = String(apiKey || "").trim();
     if (!key) throw new Error("Gemini API key missing (browser direct mode)");
 

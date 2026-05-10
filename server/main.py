@@ -53,7 +53,7 @@ def health() -> dict[str, Any]:
     eng: YOLOVisionEngine = app.state.vision_engine
     w = os.environ.get("AGRI_YOLO_WEIGHTS", "")
     _gk = (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or "").strip()
-    _gm = (os.environ.get("GEMINI_MODEL", "gemini-1.5-flash") or "gemini-1.5-flash").strip()
+    _gm = (os.environ.get("GEMINI_MODEL", "gemini-2.5-flash") or "gemini-2.5-flash").strip()
     return {
         "ok": True,
         "service": APP_NAME,

@@ -63,7 +63,7 @@ export function getAiConfig() {
     const llmExplicit = String(g.__AGRI_LLM_PROXY__ || readMeta("agri-llm-proxy") || "").replace(/\/$/, "");
     const llmFallback = String(g.__AGRI_LLM_CLOUD_FN__ || readMeta("agri-llm-cloud-fn") || "").replace(/\/$/, "");
     const local = DEFAULT_LOCAL_AI_BASE.replace(/\/$/, "");
-    const geminiDirectModel = String(readMeta("agri-gemini-model") || "gemini-1.5-flash").trim() || "gemini-1.5-flash";
+    const geminiDirectModel = String(readMeta("agri-gemini-model") || "gemini-2.5-flash").trim() || "gemini-2.5-flash";
 
     const hasSharedGemini = !!getSharedGeminiKey();
     let llmProxyUrl;

@@ -127,7 +127,7 @@ exports.agriGeminiChat = onRequest(
             body.evidenceBundle && typeof body.evidenceBundle === "object" ? body.evidenceBundle : {};
 
         const modelId =
-            (process.env.GEMINI_MODEL && String(process.env.GEMINI_MODEL).trim()) || "gemini-1.5-flash";
+            (process.env.GEMINI_MODEL && String(process.env.GEMINI_MODEL).trim()) || "gemini-2.5-flash";
 
         try {
             const genAI = new GoogleGenerativeAI(apiKey);

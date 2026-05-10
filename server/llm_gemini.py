@@ -1,7 +1,7 @@
 """
-Grounded farm assistant via Google Gemini (default: gemini-1.5-flash).
+Grounded farm assistant via Google Gemini (default: gemini-2.5-flash).
 
-Requires GEMINI_API_KEY. Optional GEMINI_MODEL (e.g. gemini-1.5-flash, gemini-2.0-flash).
+Requires GEMINI_API_KEY. Optional GEMINI_MODEL (e.g. gemini-2.5-flash).
 Never log the API key.
 """
 
@@ -50,7 +50,7 @@ def grounded_farm_reply(
         raise ValueError("Set GEMINI_API_KEY (or GOOGLE_API_KEY) on the server for grounded chat.")
 
     model_id = (
-        os.environ.get("GEMINI_MODEL", "gemini-1.5-flash").strip() or "gemini-1.5-flash"
+        os.environ.get("GEMINI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash"
     )
     genai = _ensure_genai()
     genai.configure(api_key=api_key)

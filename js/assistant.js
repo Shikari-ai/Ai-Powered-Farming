@@ -18,9 +18,9 @@ import {
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { runAgriOrchestrator } from "./ai/orchestrator.js?v=58";
-import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=58";
-import { getAiConfig, isLlmProxyConfigured } from "./ai/config.js?v=58";
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=59";
+import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=59";
+import { getAiConfig, isLlmProxyConfigured } from "./ai/config.js?v=59";
 import {
   buildProactiveDigest,
   compactMemoryForBundle,
@@ -485,7 +485,7 @@ onAuthStateChanged(auth, (user) => {
 
       if (useGemini && (routing.mode === "casual" || routing.mode === "clarify")) {
         const locale = getLang() || "en";
-        const { callLlmProxy } = await import("./ai/llm-proxy.js");
+        const { callLlmProxy } = await import("./ai/llm-proxy.js?v=59");
         const companionBlock = companionProfile
           ? {
               memory: compactMemoryForBundle(companionProfile),
