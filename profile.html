@@ -41,8 +41,8 @@
     }
     .screen::-webkit-scrollbar,.panel::-webkit-scrollbar{display:none;}
     .screen.active,.panel.active{transform:translateX(0);}
-    /* Stack language picker above later .panel siblings when multiple have .active */
-    #panel-choose-language.active{z-index:32;}
+    /* Language panel is last in DOM; extra z-index keeps it above any stray stacking edge cases */
+    #panel-choose-language.active{z-index:40;}
     #screen-main{transform:translateX(0);}
 
     /* ── HEADER ── */
@@ -791,49 +791,6 @@
 
 
   <!-- ════════════════════════════════════════
-       PANEL: CHOOSE LANGUAGE (from Account Settings)
-  ════════════════════════════════════════ -->
-  <div id="panel-choose-language" class="panel panel-choose-lang">
-    <div class="lang-page-top">
-      <button type="button" class="lang-page-back hdr-back" onclick="closeLangSheet()" aria-label="Back">
-        <i class="ri-arrow-left-line"></i>
-      </button>
-      <button type="button" class="lang-page-x" onclick="closeLangSheet()" aria-label="Close">
-        <i class="ri-close-line"></i>
-      </button>
-    </div>
-    <div class="lang-page-hero">
-      <div class="lang-globe-wrap lang-globe-hero" aria-hidden="true">
-        <span class="lang-orbit-dot" style="--d:0deg;"></span>
-        <span class="lang-orbit-dot" style="--d:120deg;"></span>
-        <span class="lang-orbit-dot" style="--d:240deg;"></span>
-        <div class="lang-bubble lang-bubble-a">A</div>
-        <div class="lang-bubble lang-bubble-wen">文</div>
-        <div class="lang-globe"><i class="ri-earth-line"></i></div>
-      </div>
-      <h2 class="lang-page-title" id="lang-page-title">Choose Language</h2>
-      <p class="lang-page-sub">Customize your farming experience in your preferred language.</p>
-    </div>
-    <div class="lang-search-shell lang-page-search">
-      <i class="ri-search-line"></i>
-      <input type="search" id="as-lang-search" placeholder="Search language..." autocomplete="off" enterkeyhint="search" aria-label="Search languages" spellcheck="false">
-      <button type="button" class="lang-filter-btn" onclick="showSnack('Language filters — coming soon.')" aria-label="Filter or sort">
-        <i class="ri-filter-3-line"></i>
-      </button>
-    </div>
-    <div class="lang-list lang-page-list" id="as-lang-list" role="listbox" aria-labelledby="lang-page-title"></div>
-    <div class="lang-trust lang-trust-premium">
-      <div class="lang-trust-left">
-        <i class="ri-shield-check-line" aria-hidden="true"></i>
-        <span class="lang-trust-txt">Language will be applied instantly across the app.</span>
-      </div>
-      <div class="lang-trust-glow-a" aria-hidden="true"><span>A</span><i class="ri-sparkling-fill lang-sparkle"></i></div>
-    </div>
-    <div style="height:12px;"></div>
-  </div><!-- /panel-choose-language -->
-
-
-  <!-- ════════════════════════════════════════
        PANEL: EDIT PROFILE
   ════════════════════════════════════════ -->
   <div id="panel-edit-profile" class="panel">
@@ -1276,6 +1233,49 @@
 
 
   <!-- ════════════════════════════════════════
+       PANEL: CHOOSE LANGUAGE (last among panels = always topmost stack)
+  ════════════════════════════════════════ -->
+  <div id="panel-choose-language" class="panel panel-choose-lang">
+    <div class="lang-page-top">
+      <button type="button" class="lang-page-back hdr-back" onclick="closeLangSheet()" aria-label="Back">
+        <i class="ri-arrow-left-line"></i>
+      </button>
+      <button type="button" class="lang-page-x" onclick="closeLangSheet()" aria-label="Close">
+        <i class="ri-close-line"></i>
+      </button>
+    </div>
+    <div class="lang-page-hero">
+      <div class="lang-globe-wrap lang-globe-hero" aria-hidden="true">
+        <span class="lang-orbit-dot" style="--d:0deg;"></span>
+        <span class="lang-orbit-dot" style="--d:120deg;"></span>
+        <span class="lang-orbit-dot" style="--d:240deg;"></span>
+        <div class="lang-bubble lang-bubble-a">A</div>
+        <div class="lang-bubble lang-bubble-wen">文</div>
+        <div class="lang-globe"><i class="ri-earth-line"></i></div>
+      </div>
+      <h2 class="lang-page-title" id="lang-page-title">Choose Language</h2>
+      <p class="lang-page-sub">Customize your farming experience in your preferred language.</p>
+    </div>
+    <div class="lang-search-shell lang-page-search">
+      <i class="ri-search-line"></i>
+      <input type="search" id="as-lang-search" placeholder="Search language..." autocomplete="off" enterkeyhint="search" aria-label="Search languages" spellcheck="false">
+      <button type="button" class="lang-filter-btn" onclick="showSnack('Language filters — coming soon.')" aria-label="Filter or sort">
+        <i class="ri-filter-3-line"></i>
+      </button>
+    </div>
+    <div class="lang-list lang-page-list" id="as-lang-list" role="listbox" aria-labelledby="lang-page-title"></div>
+    <div class="lang-trust lang-trust-premium">
+      <div class="lang-trust-left">
+        <i class="ri-shield-check-line" aria-hidden="true"></i>
+        <span class="lang-trust-txt">Language will be applied instantly across the app.</span>
+      </div>
+      <div class="lang-trust-glow-a" aria-hidden="true"><span>A</span><i class="ri-sparkling-fill lang-sparkle"></i></div>
+    </div>
+    <div style="height:12px;"></div>
+  </div><!-- /panel-choose-language -->
+
+
+  <!-- ════════════════════════════════════════
        LOGOUT CONFIRM SHEET
   ════════════════════════════════════════ -->
   <div id="logout-sheet-backdrop" style="
@@ -1346,6 +1346,24 @@
     var el = document.getElementById(id);
     if (el) el.classList.remove('active');
   }
+  /** Remove .active without transform transition (avoids Licenses/legal panels sliding out when opening language). */
+  function deactivatePanelInstant(id) {
+    var el = document.getElementById(id);
+    if (!el || !el.classList.contains('active')) return;
+    var prev = el.style.transition;
+    el.style.transition = 'none';
+    el.classList.remove('active');
+    void el.offsetHeight;
+    el.style.transition = prev || '';
+  }
+  function closeAllPanelsExcept(keepIds) {
+    var keep = {};
+    (keepIds || []).forEach(function (id) { keep[id] = true; });
+    Array.prototype.forEach.call(document.querySelectorAll('.panel'), function (p) {
+      if (!p.id || keep[p.id]) return;
+      deactivatePanelInstant(p.id);
+    });
+  }
   /* ── snackbar ── */
   var _snackTimer;
   function showSnack(msg, isError) {
@@ -1367,10 +1385,8 @@
 
   /* ── Choose Language panel (Account Settings) ── */
   function openLangSheet() {
-    /* Avoid licenses / legal panels (later in DOM) staying visible on top of this sheet */
-    closePanel('panel-licenses');
-    closePanel('panel-tos');
-    closePanel('panel-privacy');
+    /* Close every other slide panel instantly so stale Licenses/About/etc. do not animate over the picker */
+    closeAllPanelsExcept(['panel-account-settings']);
     openPanel('panel-choose-language');
     document.body.style.overflow = 'hidden';
     requestAnimationFrame(function () {
@@ -1457,6 +1473,6 @@
     }, {passive:true});
   })();
 </script>
-<script type="module" src="js/profile.js?v=35"></script>
+<script type="module" src="js/profile.js?v=36"></script>
 </body>
 </html>
