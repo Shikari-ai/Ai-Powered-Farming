@@ -648,7 +648,7 @@
       </div>
       <div class="menu-item" onclick="openPanel('panel-ai-prefs')">
         <div class="mi-ic" style="color:var(--purple);"><i class="ri-brain-line"></i></div>
-        <div class="mi-body"><h4>AI Preferences</h4><p>Customize AI recommendations</p></div>
+        <div class="mi-body"><h4>AI Settings</h4><p>Customize AI recommendations</p></div>
         <span class="mi-arr"></span>
       </div>
       <div class="menu-item" onclick="openPanel('panel-notifications')">
@@ -761,7 +761,7 @@
         <div class="ir-btn" onclick="openPanel('panel-edit-profile')">Edit</div>
       </div>
     </div>
-    <div class="sec-h">App Preferences</div>
+    <div class="sec-h">Language</div>
     <div class="info-card" style="padding:0;overflow:hidden;">
       <div class="info-row as-lang-touch" onclick="openLangSheet()" role="button" tabindex="0">
         <div class="ir-ic premium-globe-ic"><i class="ri-global-line"></i></div>
@@ -933,13 +933,13 @@
 
 
   <!-- ════════════════════════════════════════
-       PANEL: AI PREFERENCES
+       PANEL: AI SETTINGS
   ════════════════════════════════════════ -->
   <div id="panel-ai-prefs" class="panel">
     <div class="hdr">
       <div style="display:flex;align-items:center;gap:12px;">
         <div class="hdr-back" onclick="closePanel('panel-ai-prefs')"><i class="ri-arrow-left-line"></i></div>
-        <span class="hdr-title">AI Preferences</span>
+        <span class="hdr-title">AI Settings</span>
       </div>
       <div class="hdr-action" id="ai-prefs-save-btn"><i class="ri-check-line"></i></div>
     </div>
@@ -994,7 +994,7 @@
       </div>
     </div>
     <div style="margin:4px 16px 0;">
-      <button class="btn-primary" id="ai-prefs-save-main">Save Preferences</button>
+      <button class="btn-primary" id="ai-prefs-save-main">Save changes</button>
     </div>
     <div style="height:8px;"></div>
   </div><!-- /panel-ai-prefs -->
@@ -1059,7 +1059,7 @@
       </div>
     </div>
     <div style="margin:4px 16px 0;">
-      <button class="btn-primary" id="notif-save-main">Save Preferences</button>
+      <button class="btn-primary" id="notif-save-main">Save changes</button>
     </div>
     <div style="height:8px;"></div>
   </div><!-- /panel-notifications -->
@@ -1457,6 +1457,6 @@
     }, {passive:true});
   })();
 </script>
-<script type="module" src="js/profile.js?v=34"></script>
+<script type="module" src="js/profile.js?v=35"></script>
 </body>
 </html>

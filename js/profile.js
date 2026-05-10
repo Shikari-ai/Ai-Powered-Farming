@@ -169,7 +169,7 @@ function wireStatic() {
       learn: el("ai-learn")?.checked,
     };
     localStorage.setItem("ai_prefs", JSON.stringify(prefs));
-    snack("AI preferences saved!");
+    snack("AI settings saved!");
   };
   el("ai-prefs-save-btn")?.addEventListener("click", saveAiPrefs);
   el("ai-prefs-save-main")?.addEventListener("click", saveAiPrefs);
@@ -199,7 +199,7 @@ function wireStatic() {
       quietEnd: el("n-quiet-end")?.value,
     };
     localStorage.setItem("notif_prefs", JSON.stringify(prefs));
-    snack("Notification preferences saved!");
+    snack("Notification settings saved!");
   };
   el("notif-save-btn")?.addEventListener("click", saveNotifPrefs);
   el("notif-save-main")?.addEventListener("click", saveNotifPrefs);
