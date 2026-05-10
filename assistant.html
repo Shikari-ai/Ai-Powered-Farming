@@ -244,9 +244,9 @@
             <div class="empty" id="assistant-empty">
                 <i class="ri-sparkling-line"></i>
                 <p>
-                    Chat uses <strong>Gemini</strong> on our <strong>backend</strong> (API key stays on the server).
-                    Vision and other tools still use <code>agri-ai-base</code> / your Python API when configured.
-                    Open‑Meteo and Firestore ground answers when you’re signed in.
+                    Chat uses a <strong>backend LLM</strong> (configure <code>agri-llm-proxy</code> or default Cloud Function).
+                    For <strong>GitHub Models</strong> (GPT‑4, Llama, Phi, etc.), run the Python API with <code>GITHUB_TOKEN</code> and point this app at that host.
+                    Vision still uses <code>agri-ai-base</code> when set.
                 </p>
                 <div class="cta-row">
                     <button class="cta" onclick="window.location.href='scanner.html'">Start a scan</button>
@@ -290,7 +290,7 @@
         </a>
     </nav>
 
-    <script type="module" src="js/assistant.js?v=63"></script>
+    <script type="module" src="js/assistant.js?v=64"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>

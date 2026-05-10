@@ -7,9 +7,10 @@ Never log the API key.
 
 from __future__ import annotations
 
-import json
 import os
 from typing import Any
+
+from llm_common import build_grounded_system_prompt
 
 # Lazy import so `import main` still works in environments without google-generativeai
 _genai = None
@@ -27,16 +28,6 @@ def _ensure_genai():
                 "google-generativeai is not installed. pip install google-generativeai"
             ) from e
     return _genai
-
-
-def _truncate_json(obj: Any, max_chars: int = 120_000) -> str:
-    try:
-        s = json.dumps(obj, ensure_ascii=False, default=str)
-    except (TypeError, ValueError):
-        s = str(obj)
-    if len(s) <= max_chars:
-        return s
-    return s[: max_chars - 80] + "\n…[truncated for model context]…"
 
 
 def grounded_farm_reply(
@@ -57,46 +48,10 @@ def grounded_farm_reply(
 
     q = (question or "").strip() or "Summarize the farm evidence briefly."
     loc = (locale or "en").strip() or "en"
-
-    bundle_json = _truncate_json(evidence_bundle or {})
-    cognitive_depth = evidence_bundle.get("reasoningDepth") if isinstance(evidence_bundle, dict) else None
-    depth_hint = ""
-    if isinstance(cognitive_depth, (int, float)):
-        if cognitive_depth >= 3:
-            depth_hint = "The client requested deep reasoning: connect signals, state uncertainties, separate observed vs predicted."
-        elif cognitive_depth >= 2:
-            depth_hint = "Use clear, structured reasoning; moderate length."
-
-    turn_kind = evidence_bundle.get("turnKind") if isinstance(evidence_bundle, dict) else None
-    turn_hint = ""
-    if turn_kind == "casual":
-        turn_hint = "Turn type: CASUAL or greeting — keep it short, warm, human; no farm brief unless the user asked."
-    elif turn_kind == "clarify":
-        turn_hint = "Turn type: CLARIFY — user was vague about symptoms; prefer 1–2 sharp questions over conclusions."
-
-    directives = ""
-    companion = evidence_bundle.get("companion") if isinstance(evidence_bundle, dict) else None
-    if isinstance(companion, dict):
-        d = companion.get("directives")
-        if isinstance(d, str) and d.strip():
-            directives = f"\n\nPERSONALIZATION (from stored profile; do not contradict evidence):\n{d.strip()[:8000]}\n"
-
-    system_parts = [
-        "You are the agricultural copilot for Smart Agri. You must ground every claim in EVIDENCE_JSON below.",
-        "Rules:",
-        "- Only cite or imply facts that appear in EVIDENCE_JSON. If something is absent, say data is not available.",
-        "- Prefer short paragraphs; no markdown tables unless the user explicitly asks.",
-        "- State uncertainty when confidence is low or data is stale (see degradedMode / verification flags).",
-        "- Never guarantee yields, disease outcomes, or autonomous field actions. Humans execute all field work.",
-        "- Avoid alarmist language; prefer 'elevated risk' and early verification.",
-        f"- Preferred locale for this turn: {loc}. Use it when natural.",
-        depth_hint,
-        turn_hint,
-        directives,
-        "\nEVIDENCE_JSON:\n",
-        bundle_json,
-    ]
-    system_instruction = "\n".join(p for p in system_parts if p)
+    system_instruction = build_grounded_system_prompt(
+        locale=loc,
+        evidence_bundle=evidence_bundle or {},
+    )
 
     model = genai.GenerativeModel(model_name=model_id, system_instruction=system_instruction)
     generation_config = genai.types.GenerationConfig(
@@ -128,5 +83,6 @@ def grounded_farm_reply(
         "reply": text,
         "text": text,
         "model": model_id,
+        "provider": "gemini",
         "citations": [],
     }

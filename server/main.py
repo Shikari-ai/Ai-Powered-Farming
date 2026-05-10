@@ -20,10 +20,10 @@ from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from inference.yolo_engine import YOLOVisionEngine
-from llm_gemini import grounded_farm_reply
+from llm_router import grounded_farm_reply_auto, llm_provider_effective
 from ml_metadata import load_vision_metadata
 
-# Load server/.env (gitignored) so GEMINI_API_KEY never needs hardcoding in code.
+# Load server/.env (gitignored) for GEMINI_API_KEY, GITHUB_TOKEN, etc.
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
 APP_NAME = "smart-agri-ai"
@@ -52,8 +52,18 @@ app.add_middleware(
 def health() -> dict[str, Any]:
     eng: YOLOVisionEngine = app.state.vision_engine
     w = os.environ.get("AGRI_YOLO_WEIGHTS", "")
+    prov = llm_provider_effective()
     _gk = (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or "").strip()
     _gm = (os.environ.get("GEMINI_MODEL", "gemini-2.5-flash") or "gemini-2.5-flash").strip()
+    _ght = bool(
+        (
+            os.environ.get("GITHUB_TOKEN")
+            or os.environ.get("GITHUB_MODELS_TOKEN")
+            or os.environ.get("GH_TOKEN")
+            or ""
+        ).strip()
+    )
+    _ghmodel = (os.environ.get("GITHUB_MODEL") or "openai/gpt-4o").strip()
     return {
         "ok": True,
         "service": APP_NAME,
@@ -62,9 +72,15 @@ def health() -> dict[str, Any]:
         "load_error": eng.load_error,
         "imgsz": eng.imgsz if eng.ok else int(os.environ.get("AGRI_YOLO_IMGSZ", "640")),
         "llm": {
-            "provider": "gemini",
-            "configured": bool(_gk),
-            "model": _gm,
+            "provider_effective": prov,
+            "gemini_configured": bool(_gk),
+            "gemini_model": _gm,
+            "github_token_configured": _ght,
+            "github_model": _ghmodel if prov == "github" else None,
+            "configured": (
+                (prov == "github" and _ght)
+                or (prov == "gemini" and bool(_gk))
+            ),
         },
     }
 
@@ -150,12 +166,13 @@ class GroundedChatBody(BaseModel):
 @app.post("/v1/chat/grounded")
 async def chat_grounded(body: GroundedChatBody) -> dict[str, Any]:
     """
-    Grounded agricultural Q&A via Gemini (system prompt + evidenceBundle JSON).
-    Set GEMINI_API_KEY on the server. Companion directives are read in llm_gemini.
+    Grounded agricultural Q&A (evidenceBundle JSON in system context).
+
+    Provider: LLM_PROVIDER=github|gemini, or auto: GitHub when GITHUB_TOKEN is set, else Gemini.
     """
 
     def _run() -> dict[str, Any]:
-        return grounded_farm_reply(
+        return grounded_farm_reply_auto(
             question=body.question,
             locale=body.locale,
             evidence_bundle=dict(body.evidenceBundle or {}),
