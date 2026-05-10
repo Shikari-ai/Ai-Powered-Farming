@@ -86,6 +86,40 @@ service cloud.firestore {
       allow delete: if isOwnerByField("userId");
     }
 
+    match /alerts/{docId} {
+      allow create: if isOwnerNewByField("userId");
+      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow delete: if isOwnerByField("userId");
+    }
+
+    match /crop_health/{docId} {
+      allow create: if isOwnerNewByField("userId");
+      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow delete: if isOwnerByField("userId");
+    }
+
+    match /irrigation_data/{docId} {
+      allow create: if isOwnerNewByField("userId");
+      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow delete: if isOwnerByField("userId");
+    }
+
+    match /ai_insights/{docId} {
+      allow create: if isOwnerNewByField("userId");
+      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow delete: if isOwnerByField("userId");
+    }
+
+    match /profile_data/{uid} {
+      allow read, create, update: if isUid(uid);
+      allow delete: if false;
+    }
+
+    match /app_settings/{uid} {
+      allow read, create, update: if isUid(uid);
+      allow delete: if false;
+    }
+
     match /assistant_messages/{docId} {
       allow create: if isOwnerNewByField("userId");
       allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");

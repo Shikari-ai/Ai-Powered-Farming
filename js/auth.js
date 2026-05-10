@@ -10,7 +10,8 @@ import {
     signInWithPhoneNumber,
     onAuthStateChanged,
     signOut,
-    updateProfile
+    updateProfile,
+    OAuthProvider,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
     getFirestore,
@@ -44,6 +45,9 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 const googleProvider = new GoogleAuthProvider();
+const appleProvider = new OAuthProvider("apple.com");
+appleProvider.addScope("email");
+appleProvider.addScope("name");
 
 // Offline persistence (production-grade caching). Safe to ignore if unavailable (e.g. private mode / multiple tabs).
 enableIndexedDbPersistence(db).catch((err) => {
@@ -83,9 +87,31 @@ export const loginWithGoogle = async () => {
 
         // Sync with local app logic
         localStorage.setItem('agri_user', JSON.stringify({name: user.displayName || "Farmer", email: user.email}));
-        window.location.replace("fields.html");
+        window.location.replace("index.html");
     } catch (error) {
         alert("Google Login Error: " + error.message);
+        throw error;
+    }
+};
+
+export const loginWithApple = async () => {
+    try {
+        const result = await signInWithPopup(auth, appleProvider);
+        const user = result.user;
+        await setDoc(doc(db, "users", user.uid), {
+            name: user.displayName || (user.email ? user.email.split("@")[0] : "Farmer"),
+            email: user.email || null,
+            photoURL: user.photoURL || null,
+            lastLogin: serverTimestamp(),
+            authProvider: "apple",
+        }, { merge: true });
+        localStorage.setItem("agri_user", JSON.stringify({
+            name: user.displayName || "Farmer",
+            email: user.email || "",
+        }));
+        window.location.replace("index.html");
+    } catch (error) {
+        alert("Apple Sign-In Error: " + error.message);
         throw error;
     }
 };
@@ -111,7 +137,7 @@ export const signUpWithEmail = async (email, password, name) => {
 
         // Sync with local app logic
         localStorage.setItem('agri_user', JSON.stringify({name: name, email: email}));
-        window.location.replace("fields.html");
+        window.location.replace("index.html");
     } catch (error) {
         alert("Sign Up Error: " + error.message);
         throw error;
@@ -123,7 +149,7 @@ export const loginWithEmailPwd = async (email, password) => {
     try {
         const user = (await signInWithEmailAndPassword(auth, email, password)).user;
         localStorage.setItem('agri_user', JSON.stringify({name: user.displayName || email.split('@')[0], email: user.email}));
-        window.location.replace("fields.html");
+        window.location.replace("index.html");
     } catch (error) {
         alert("Login Error: " + error.message);
         throw error;
@@ -164,7 +190,7 @@ export const verifyOTP = async (code) => {
         }, { merge: true });
 
         localStorage.setItem('agri_user', JSON.stringify({name: "Farmer", phone: user.phoneNumber}));
-        window.location.replace("fields.html");
+        window.location.replace("index.html");
     } catch (error) {
         alert("Invalid OTP code");
     }

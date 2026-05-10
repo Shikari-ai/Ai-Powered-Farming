@@ -409,6 +409,22 @@ async function syncWeatherLog(user, loc, forecast, air, imd, soilMoistureEstimat
     },
     { merge: true },
   );
+
+  try {
+    const { syncWeatherDerivedAlerts } = await import("./services/entity-sync.js");
+    await syncWeatherDerivedAlerts(db, user.uid, {
+      current,
+      today: {
+        tMax: daily.temperature_2m_max?.[0] ?? null,
+        imdForecast: imd?.ok ? imd.row?.Todays_Forecast || null : null,
+      },
+      nextHours: (hourly.time || []).slice(0, 8).map((_, i) => ({
+        precipProb: hourly.precipitation_probability?.[i] ?? null,
+      })),
+    });
+  } catch (e) {
+    console.warn("[weather] derived alerts:", e?.message || e);
+  }
 }
 
 function setLocationLines(loc) {

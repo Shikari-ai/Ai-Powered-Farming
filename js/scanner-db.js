@@ -1,6 +1,7 @@
 import "./auth-session.js?v=28";
 import './i18n.js';
 import { auth, db, storage } from './auth.js?v=28';
+import { cropHealthDocId } from "./services/entity-sync.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
     collection,
@@ -439,6 +440,68 @@ document.addEventListener("DOMContentLoaded", () => {
                     });
                 }
 
+                const chId = cropHealthDocId(currentUserId, computed.fieldId, computed.cropType);
+                batch.set(doc(db, "crop_health", chId), {
+                    userId: currentUserId,
+                    fieldId: computed.fieldId || null,
+                    cropType: computed.cropType,
+                    healthScore: computed.healthScore,
+                    diagnosis: computed.diagnosis,
+                    severity: computed.severity,
+                    latestScanId: scanRef.id,
+                    updatedAt: serverTimestamp(),
+                    analysisVersion: "rules-v1",
+                    schemaVersion: 1,
+                }, { merge: true });
+
+                const pestRef = doc(collection(db, "pest_predictions"));
+                const prLevel =
+                    computed.severity?.level === "critical" ? "high"
+                    : computed.diagnosis?.category === "risk" && computed.healthScore < 55 ? "medium"
+                    : "low";
+                batch.set(pestRef, {
+                    userId: currentUserId,
+                    fieldId: computed.fieldId || null,
+                    scanId: scanRef.id,
+                    riskLevel: prLevel,
+                    threats: computed.diagnosis?.code === "pest_damage"
+                        ? [{ name: "Pest pressure (symptom-based)", risk: prLevel }]
+                        : [],
+                    basis: {
+                        diagnosisCode: computed.diagnosis?.code || null,
+                        healthScore: computed.healthScore,
+                        symptomCount: computed.selectedSymptoms?.length ?? 0,
+                    },
+                    createdAt: serverTimestamp(),
+                    schemaVersion: 1,
+                });
+
+                if (computed.severity?.level === "critical" || computed.healthScore < 45) {
+                    const alertRef = doc(collection(db, "alerts"));
+                    batch.set(alertRef, {
+                        userId: currentUserId,
+                        severity: computed.severity?.level === "critical" ? "high" : "warn",
+                        title: computed.diagnosis?.label || "Crop health alert",
+                        body: `Scan recorded ${computed.healthScore}% health for ${computed.cropType}. Open recommendations and schedule a field check.`,
+                        type: "crop_scan",
+                        readAt: null,
+                        entity: { kind: "crop_scan", id: scanRef.id },
+                        createdAt: serverTimestamp(),
+                        schemaVersion: 1,
+                    });
+                }
+
+                const insightRef = doc(collection(db, "ai_insights"));
+                batch.set(insightRef, {
+                    userId: currentUserId,
+                    scanId: scanRef.id,
+                    headline: `${computed.cropType} — ${computed.diagnosis?.label || "Scan complete"}`,
+                    summary: (computed.recommendations && computed.recommendations[0]?.text) || "",
+                    priority: computed.severity?.level === "critical" ? "high" : "normal",
+                    createdAt: serverTimestamp(),
+                    schemaVersion: 1,
+                });
+
                 // Notify
                 const notifRef = doc(collection(db, "notifications"));
                 batch.set(notifRef, {
@@ -453,7 +516,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
 
                 await batch.commit();
-                window.location.href = "fields.html";
+                window.location.href = "index.html";
             } catch (e) {
                 console.error(e);
                 alert(`Failed to save scan: ${e.message}`);

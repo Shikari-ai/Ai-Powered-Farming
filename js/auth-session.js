@@ -303,9 +303,9 @@ async function runPublicGate() {
   setShellStatus("Opening Fields…");
   await new Promise((r) => setTimeout(r, 160));
   try {
-    location.replace(new URL("fields.html", location.href).href);
+    location.replace(new URL("index.html", location.href).href);
   } catch (_) {
-    location.replace("fields.html");
+    location.replace("index.html");
   }
 }
 

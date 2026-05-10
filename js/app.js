@@ -299,6 +299,31 @@ async function updateWeatherForLocation(city, lat, lon) {
                     })(),
                     schemaVersion: 1,
                 }, { merge: true });
+
+                try {
+                    const { syncWeatherDerivedAlerts } = await import("./services/entity-sync.js");
+                    const nh = (() => {
+                        if (!hourly.time || !hourly.precipitation_probability) return [];
+                        const nowIso = (weatherData.current && weatherData.current.time)
+                            ? weatherData.current.time
+                            : getLocalISOString(new Date());
+                        let start = hourly.time.findIndex((t) => t >= nowIso);
+                        if (start < 0) start = 0;
+                        return hourly.time.slice(start, start + 8).map((_, i) => ({
+                            precipProb: hourly.precipitation_probability[start + i],
+                        }));
+                    })();
+                    await syncWeatherDerivedAlerts(db, u.uid, {
+                        current: weatherData.current || {},
+                        today: {
+                            tMax: daily.temperature_2m_max ? daily.temperature_2m_max[0] : null,
+                            imdForecast: null,
+                        },
+                        nextHours: nh,
+                    });
+                } catch (wxA) {
+                    console.warn("Weather-derived alerts skipped:", wxA?.code || wxA);
+                }
             }
         } catch (e) {
             // Non-fatal: UI still uses live API response
