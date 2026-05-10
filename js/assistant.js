@@ -18,9 +18,9 @@ import {
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { runAgriOrchestrator } from "./ai/orchestrator.js?v=52";
-import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=52";
-import { getAiConfig, isLlmProxyConfigured } from "./ai/config.js?v=52";
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=53";
+import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=53";
+import { getAiConfig, isLlmProxyConfigured } from "./ai/config.js?v=53";
 import {
   buildProactiveDigest,
   compactMemoryForBundle,

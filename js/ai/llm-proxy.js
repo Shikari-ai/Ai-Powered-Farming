@@ -16,8 +16,22 @@ export async function callLlmProxy({ question, locale, bundle }) {
         }),
     });
     if (!res.ok) {
-        const t = await res.text();
-        throw new Error(`LLM proxy ${res.status}: ${t.slice(0, 200)}`);
+        let t = "";
+        try {
+            t = await res.text();
+        } catch {
+            t = "";
+        }
+        let detail = t.slice(0, 240);
+        try {
+            const j = JSON.parse(t);
+            if (j.detail != null) {
+                detail = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+            }
+        } catch {
+            /* plain text body */
+        }
+        throw new Error(`LLM proxy ${res.status}: ${detail}`);
     }
     const data = await res.json();
     return {
