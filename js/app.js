@@ -62,7 +62,7 @@ async function refreshLocationAndWeather() {
     }
 
     try {
-        const mod = await import('./weather-location.js');
+        const mod = await import('./weather-location.js?v=20260510b');
         const loc = await mod.resolveWeatherLocation();
         mod.persistLocationDetails(loc);
 
@@ -91,7 +91,7 @@ async function refreshLocationAndWeather() {
         }
 
         try {
-            const { auth, db } = await import('./auth.js');
+            const { auth, db } = await import('./auth.js?v=20260510b');
             const { doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
             if (auth.currentUser) {
                 await setDoc(doc(db, "users", auth.currentUser.uid), {
@@ -259,7 +259,7 @@ async function updateWeatherForLocation(city, lat, lon) {
 
         // Persist a lightweight weather log for realtime analytics (rate-limited to hourly doc id).
         try {
-            const { auth, db } = await import('./auth.js');
+            const { auth, db } = await import('./auth.js?v=20260510b');
             const { doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
             const u = auth.currentUser;
             if (u) {
@@ -664,7 +664,7 @@ function closeWeatherDetails() {
 // users only see the OS location prompt on a blank screen.
 async function loadHomeWeather() {
     try {
-        const mod = await import('./weather-location.js');
+        const mod = await import('./weather-location.js?v=20260510b');
         let gpsWon = false;
 
         // Phase 1 — IP-based region, instant, no permission prompt
@@ -680,7 +680,7 @@ async function loadHomeWeather() {
                 mod.persistLocationDetails(gpsLoc);
                 await updateWeatherForLocation(gpsLoc.city, gpsLoc.lat, gpsLoc.lon);
                 // Sync exact location to Firestore (fire-and-forget)
-                import('./auth.js').then(({ auth, db }) => {
+                import('./auth.js?v=20260510b').then(({ auth, db }) => {
                     if (!auth.currentUser) return;
                     import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js').then(({ doc, setDoc, serverTimestamp }) => {
                         setDoc(doc(db, "users", auth.currentUser.uid), {
