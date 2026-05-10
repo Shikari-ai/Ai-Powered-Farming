@@ -30,21 +30,18 @@ function getCurrentPageName() {
   return name.toLowerCase();
 }
 
-/** After one successful gate this browser tab session, skip full-screen shell on subsequent navigations. */
-const SESSION_GATE_KEY = "agri_session_gate_v1";
-
-function hasSessionGateOk() {
+/**
+ * One-shot flag set by auth.js right after successful sign-in (same tab, before redirect).
+ * Routine navigations (profile ↔ fields ↔ home) do not set this — no full-screen gate.
+ */
+function consumePostLoginGate() {
   try {
-    return sessionStorage.getItem(SESSION_GATE_KEY) === "1";
-  } catch (_) {
-    return false;
-  }
-}
-
-function setSessionGateOk() {
-  try {
-    sessionStorage.setItem(SESSION_GATE_KEY, "1");
+    if (sessionStorage.getItem("agri_post_login_gate_v1") === "1") {
+      sessionStorage.removeItem("agri_post_login_gate_v1");
+      return true;
+    }
   } catch (_) {}
+  return false;
 }
 
 export function isPublicRoute() {
@@ -279,9 +276,9 @@ async function runProtectedGate() {
     return;
   }
 
-  const skipFullScreenGate = hasSessionGateOk();
+  const showFullScreenGate = consumePostLoginGate();
 
-  if (!skipFullScreenGate) {
+  if (showFullScreenGate) {
     lockChrome();
     ensureAuthShell("Verifying your secure session…");
   }
@@ -291,28 +288,27 @@ async function runProtectedGate() {
   } catch (e) {
     const off = typeof navigator !== "undefined" && navigator.onLine === false;
     if (off) {
-      if (!skipFullScreenGate) {
+      if (showFullScreenGate) {
         setShellStatus("No network. Connect, then we’ll verify your session.");
       }
       window.addEventListener("online", () => location.reload(), { once: true });
       return;
     }
-    if (!skipFullScreenGate) {
+    if (showFullScreenGate) {
       setShellStatus("Your session could not be verified. Signing you out…");
     }
     await forceSessionEnd("invalid-token");
     return;
   }
 
-  if (!skipFullScreenGate) {
+  if (showFullScreenGate) {
     setShellStatus("Welcome back — loading your farm…");
   }
   attachRealtimeGuards();
-  setSessionGateOk();
 
-  await new Promise((r) =>
-    skipFullScreenGate ? requestAnimationFrame(r) : requestAnimationFrame(() => setTimeout(r, 80)),
-  );
+  if (showFullScreenGate) {
+    await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 80)));
+  }
   removeAuthShell();
 }
 
@@ -339,7 +335,6 @@ async function runPublicGate() {
 
   setShellStatus("Opening Fields…");
   await new Promise((r) => setTimeout(r, 160));
-  setSessionGateOk();
   try {
     location.replace(new URL("index.html", location.href).href);
   } catch (_) {
