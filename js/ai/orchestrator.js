@@ -1,4 +1,5 @@
 import { getAiConfig, isLlmProxyConfigured } from "./config.js";
+import { detectIntents } from "./detect-intents.js";
 import { buildFarmerContext, tsToMs } from "./farmer-context.js";
 import { runWeatherIntelligence } from "./engines/weather-intelligence.js";
 import { runPestPrediction } from "./engines/pest-prediction.js";
@@ -25,21 +26,7 @@ async function resolveGeoForAI(ctx) {
     }
 }
 
-/**
- * Detect which engines to emphasize (keyword routing — LLM can refine later on proxy).
- */
-export function detectIntents(question) {
-    const q = String(question || "").toLowerCase();
-    return {
-        weather: /\b(weather|rain|humidity|wind|irrigation|spray|frost|uv|sun)\b/.test(q),
-        pest: /\b(pest|insect|larva|worm|aphid|whitefly|jassid|thrips)\b/.test(q),
-        disease: /\b(disease|blight|rust|mildew|spot|fungal|rot|infection|pathogen)\b/.test(q),
-        yellow: /\b(yellow|chloros|nitrogen|nutrient|deficien)\b/.test(q),
-        yield: /\b(yield|harvest|ton|quintal|bushel|production)\b/.test(q),
-        field: /\b(field|plot|acre|hectare)\b/.test(q),
-        scan: /\b(scan|photo|image|picture|camera|leaf)\b/.test(q),
-    };
-}
+export { detectIntents } from "./detect-intents.js";
 
 function shallowForFirestore(obj, maxDepth, d = 0) {
     if (d > maxDepth) return "[truncated]";
@@ -58,12 +45,13 @@ function shallowForFirestore(obj, maxDepth, d = 0) {
  * @param {{ userId: string, fields: any[], scans: any[], recs: any[], weatherLogs: any[], environmental?: any[] }} snapshot
  * @param {{ imageBlob?: Blob|null }} media
  */
-export async function runAgriOrchestrator(question, snapshot, media = {}) {
+export async function runAgriOrchestrator(question, snapshot, media = {}, opts = {}) {
+    const routingMode = opts.routingMode === "weather_quick" ? "weather_quick" : "full";
     const cfg = getAiConfig();
     const ctx = buildFarmerContext(snapshot);
     const intents = detectIntents(question);
     const degraded = getDegradedState();
-    const twinBrief = shallowTwinForBundle(snapshot);
+    const twinBrief = routingMode === "weather_quick" ? null : shallowTwinForBundle(snapshot);
 
     const geo = await resolveGeoForAI(ctx);
 
@@ -97,45 +85,58 @@ export async function runAgriOrchestrator(question, snapshot, media = {}) {
         rainTomorrowMm: wxReadings.rainTomorrowMm,
     });
 
-    const envIntel = runEnvironmentalIntelligence(ctx, wxReadings);
+    const envIntel =
+        routingMode === "weather_quick"
+            ? { engine: "environmental", version: 1, summary: "", sensorDocCount: 0, _skippedForQuick: true }
+            : runEnvironmentalIntelligence(ctx, wxReadings);
 
     const lp = snapshot.learningProfile || null;
-    const reflectionLines = (() => {
-        const r = lp?.reflections;
-        if (!Array.isArray(r)) return [];
-        return r
-            .map((x) => (typeof x === "string" ? x : x && typeof x.text === "string" ? x.text : ""))
-            .map((s) => String(s).trim())
-            .filter(Boolean)
-            .slice(0, 3);
-    })();
+    const reflectionLines =
+        routingMode === "weather_quick"
+            ? []
+            : (() => {
+                  const r = lp?.reflections;
+                  if (!Array.isArray(r)) return [];
+                  return r
+                      .map((x) => (typeof x === "string" ? x : x && typeof x.text === "string" ? x.text : ""))
+                      .map((s) => String(s).trim())
+                      .filter(Boolean)
+                      .slice(0, 3);
+              })();
     const learningNarrative = reflectionLines.join("\n").trim();
-    const knowledgeLearning = (() => {
-        if (!lp || typeof lp !== "object") return null;
-        const g = lp.global || {};
-        const keys = [];
-        for (const k of [
-            "recommendationComfortScale",
-            "fungalTriggerLearned",
-            "pestTriggerLearned",
-            "simErrorEma",
-            "regionalStressLearnedMul",
-        ]) {
-            if (typeof g[k] === "number") keys.push(k);
-        }
-        const edges = lp.knowledgeEdges;
-        const edgeCount = Array.isArray(edges) ? edges.length : 0;
-        return {
-            globalCalKeys: keys,
-            edgeCount,
-            lastAggregatedAtMs: lp.lastAggregatedAt ? tsToMs(lp.lastAggregatedAt) : null,
-            lastReason: typeof lp.lastReason === "string" ? lp.lastReason : null,
-        };
-    })();
+    const knowledgeLearning =
+        routingMode === "weather_quick"
+            ? null
+            : (() => {
+                  if (!lp || typeof lp !== "object") return null;
+                  const g = lp.global || {};
+                  const keys = [];
+                  for (const k of [
+                      "recommendationComfortScale",
+                      "fungalTriggerLearned",
+                      "pestTriggerLearned",
+                      "simErrorEma",
+                      "regionalStressLearnedMul",
+                  ]) {
+                      if (typeof g[k] === "number") keys.push(k);
+                  }
+                  const edges = lp.knowledgeEdges;
+                  const edgeCount = Array.isArray(edges) ? edges.length : 0;
+                  return {
+                      globalCalKeys: keys,
+                      edgeCount,
+                      lastAggregatedAtMs: lp.lastAggregatedAt ? tsToMs(lp.lastAggregatedAt) : null,
+                      lastReason: typeof lp.lastReason === "string" ? lp.lastReason : null,
+                  };
+              })();
 
-    const recIntel = runRecommendationEngine(ctx, { weatherIntel, pestIntel, degraded }, lp);
+    const recIntel =
+        routingMode === "weather_quick"
+            ? { actions: [], quickWeatherMode: true }
+            : runRecommendationEngine(ctx, { weatherIntel, pestIntel, degraded }, lp);
 
-    const yieldIntel = runYieldOutlook(ctx);
+    const yieldIntel =
+        routingMode === "weather_quick" ? { status: "skipped", message: null, outlook: null } : runYieldOutlook(ctx);
 
     if (media.imageBlob && cfg.inferenceBaseUrl) {
         try {
@@ -176,7 +177,7 @@ export async function runAgriOrchestrator(question, snapshot, media = {}) {
     }
 
     let llmIntel = null;
-    if (isLlmProxyConfigured()) {
+    if (routingMode !== "weather_quick" && isLlmProxyConfigured()) {
         try {
             const { callLlmProxy } = await import("./llm-proxy.js");
             const companionBlock = snapshot.companion
@@ -258,6 +259,7 @@ export async function runAgriOrchestrator(question, snapshot, media = {}) {
         twinBrief,
         learningNarrative,
         knowledgeLearning,
+        routingMode,
         persistedPreview: shallowForFirestore(
             {
                 intents,

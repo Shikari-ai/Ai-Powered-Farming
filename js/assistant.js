@@ -18,8 +18,8 @@ import {
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { runAgriOrchestrator } from "./ai/orchestrator.js?v=39";
-import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=39";
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=41";
+import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=41";
 import { getAiConfig } from "./ai/config.js?v=34";
 import {
   buildProactiveDigest,
@@ -28,6 +28,10 @@ import {
   normalizeCompanionProfile,
 } from "./ai/companion-memory.js?v=35";
 import { fetchRegionalBriefing } from "./network/regional-briefing.js";
+import {
+  buildCasualAssistantReply,
+  classifyAssistantRouting,
+} from "./ai/assistant-intent-router.js?v=41";
 
 function el(id) {
   return document.getElementById(id);
@@ -347,48 +351,67 @@ onAuthStateChanged(auth, (user) => {
         schemaVersion: 2,
       });
 
-      if (!regionalBriefingText) {
-        try {
-          regionalBriefingText = await fetchRegionalBriefing(db);
-        } catch {
-          regionalBriefingText = "";
+      const routing = classifyAssistantRouting(text, { hasImage: !!imageBlob });
+
+      let snapshot = null;
+      let orch = null;
+      let reply = "";
+
+      if (routing.mode === "casual") {
+        reply = buildCasualAssistantReply(text, { fieldCount: fields.length, scanCount: scans.length });
+      } else {
+        if (routing.mode !== "weather_quick" && !regionalBriefingText) {
+          try {
+            regionalBriefingText = await fetchRegionalBriefing(db);
+          } catch {
+            regionalBriefingText = "";
+          }
+        }
+
+        snapshot = {
+          userId: user.uid,
+          fields,
+          scans,
+          recs,
+          weatherLogs,
+          environmental,
+          fieldContextStates,
+          interventions: farmInterventions,
+          operationalTasks: farmOperationalTasks,
+          alerts: assistantAlerts,
+          locale: getLang() || "en",
+          companion: companionProfile,
+          regionalBriefing: routing.mode === "weather_quick" ? "" : regionalBriefingText || "",
+          learningProfile: routing.mode === "weather_quick" ? null : learningProfile || null,
+        };
+
+        const orchOpts = routing.mode === "weather_quick" ? { routingMode: "weather_quick" } : {};
+        orch = await runAgriOrchestrator(text || "Analyze the attached crop image.", snapshot, { imageBlob }, orchOpts);
+        attachSnapshotForReply(orch, snapshot);
+        reply = composeAssistantReply(text || "[image]", orch, {
+          locale: snapshot.locale,
+          companionProfile,
+          replyVerbosity: routing.mode === "weather_quick" ? "minimal" : "full",
+        });
+
+        if (!reply) {
+          reply = buildAssistantReply({ question: text, fields, scans, recs, weatherLogs });
         }
       }
 
-      const snapshot = {
-        userId: user.uid,
-        fields,
-        scans,
-        recs,
-        weatherLogs,
-        environmental,
-        fieldContextStates,
-        interventions: farmInterventions,
-        operationalTasks: farmOperationalTasks,
-        alerts: assistantAlerts,
-        locale: getLang() || "en",
-        companion: companionProfile,
-        regionalBriefing: regionalBriefingText || "",
-        learningProfile: learningProfile || null,
-      };
-
-      const orch = await runAgriOrchestrator(text || "Analyze the attached crop image.", snapshot, { imageBlob });
-      attachSnapshotForReply(orch, snapshot);
-      let reply = composeAssistantReply(text || "[image]", orch, {
-        locale: snapshot.locale,
-        companionProfile,
-      });
-
-      if (!reply) {
-        reply = buildAssistantReply({ question: text, fields, scans, recs, weatherLogs });
-      }
-
       try {
+        const orchForMemory =
+          orch ||
+          ({
+            intents: {},
+            results: {},
+            enginePackVersion: "casual-turn",
+          });
         const nextProfile = mergeCompanionAfterTurn(companionProfile, {
           userText: text,
           assistantReply: reply,
-          orch,
-          locale: snapshot.locale,
+          orch: orchForMemory,
+          locale: (snapshot && snapshot.locale) || getLang() || "en",
           fields,
           scans,
           fieldContextStates,
@@ -401,16 +424,19 @@ onAuthStateChanged(auth, (user) => {
         console.warn("[assistant] companion memory:", memErr?.message || memErr);
       }
 
-      await addDoc(collection(db, "ai_engine_runs"), {
-        userId: user.uid,
-        createdAt: serverTimestamp(),
-        replyTo: userMsgRef.id,
-        enginePackVersion: orch.enginePackVersion,
-        intents: orch.intents,
-        preview: orch.persistedPreview || null,
-        geo: orch.geo || null,
-        schemaVersion: 1,
-      });
+      if (routing.mode !== "casual") {
+        await addDoc(collection(db, "ai_engine_runs"), {
+          userId: user.uid,
+          createdAt: serverTimestamp(),
+          replyTo: userMsgRef.id,
+          enginePackVersion: orch?.enginePackVersion,
+          intents: orch?.intents,
+          preview: orch?.persistedPreview || null,
+          geo: orch?.geo || null,
+          routingMode: orch?.routingMode || "full",
+          schemaVersion: 1,
+        });
+      }
 
       await addDoc(collection(db, "assistant_messages"), {
         userId: user.uid,
@@ -418,8 +444,9 @@ onAuthStateChanged(auth, (user) => {
         text: reply,
         createdAt: serverTimestamp(),
         replyTo: userMsgRef.id,
-        enginePackVersion: orch.enginePackVersion,
-        enginePreview: orch.persistedPreview || null,
+        enginePackVersion: orch?.enginePackVersion || (routing.mode === "casual" ? "casual-turn" : ""),
+        enginePreview: orch?.persistedPreview || null,
+        routingMode: routing.mode,
         schemaVersion: 2,
       });
     } catch (e) {

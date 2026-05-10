@@ -92,10 +92,56 @@ function modalityPreamble(profile) {
     return "";
 }
 
+function composeMinimalAgriReply(question, orch, profile) {
+    const q = String(question || "").trim();
+    const lines = [];
+    const r = orch.results || {};
+
+    if (Array.isArray(orch.degradedHints) && orch.degradedHints.length) {
+        lines.push(softenAlarmistProse("Note: " + orch.degradedHints.slice(0, 2).join(" "), profile));
+    }
+
+    let llmText = r.llm && !r.llm.error && r.llm.text ? String(r.llm.text).trim() : "";
+    llmText = softenOverclaimProse(softenAlarmistProse(llmText, profile));
+    if (llmText) {
+        lines.push(llmText);
+    }
+
+    if (r.weatherIntelligence && !r.weatherIntelligence.error) {
+        const w = r.weatherIntelligence;
+        const rd = w.readings || {};
+        const city = orch.geo?.city || "your area";
+        const t = rd.temperatureC != null ? `${Math.round(rd.temperatureC)}°C` : "—";
+        const h = rd.humidityPct != null ? `${Math.round(rd.humidityPct)}% RH` : "—";
+        let one = `Quick weather (${city}): ~${t}, ${h}.`;
+        if (w.fungalDiseasePressure?.label) {
+            one += ` Fungal pressure: ${w.fungalDiseasePressure.label}.`;
+        }
+        lines.push(one);
+    } else if (r.weatherIntelligence?.error) {
+        lines.push("Weather didn’t refresh — try the Weather page when you’re online.");
+    }
+
+    if (r.pestPrediction?.riskLabel) {
+        lines.push(`Pest outlook: ${r.pestPrediction.riskLabel}.`);
+    }
+
+    const fc = orch.snapshot?.fields?.length ?? 0;
+    const sc = orch.snapshot?.scans?.length ?? 0;
+    lines.push(`— ${fc} field(s), ${sc} scan(s) on file. Say “full breakdown” if you want the detailed engines.`);
+
+    const out = lines.filter(Boolean).join("\n\n").trim();
+    return softenOverclaimProse(out || "Ask a longer question when you want the full farm breakdown.");
+}
+
 /**
  * Grounded narrative from orchestrator results (deterministic prose + optional LLM preface).
  */
-export function composeAssistantReply(question, orch, { locale: _locale = "en", companionProfile = null } = {}) {
+export function composeAssistantReply(question, orch, { locale: _locale = "en", companionProfile = null, replyVerbosity = "full" } = {}) {
+    if (!orch) return "";
+    if (replyVerbosity === "minimal") {
+        return composeMinimalAgriReply(question, orch, companionProfile);
+    }
     const profile = companionProfile;
     const q = String(question || "").trim();
     const lines = [];
