@@ -1,12 +1,16 @@
 import { isProfilePanelE2ELocal } from "./auth-session.js?v=34";
 import { auth, db, storage, logoutUser } from "./auth.js?v=31";
 import { LANGUAGES, setLanguage, getLang } from "./i18n.js";
+import { getDiagnosticsLines } from "./ai/system-health.js";
 import { onAuthStateChanged, updateProfile, sendPasswordResetEmail }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
   collection, doc, limit, onSnapshot, query,
   serverTimestamp, setDoc, where, getDocs,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { queueLearningFlush } from "./learning/scheduler.js";
+import { isLearningSandboxPreview } from "./learning/calibration-apply.js";
+import { getAmbientAttentionPrefs, mergeAmbientAttentionPrefs } from "./ambient/attention-memory.js";
 import { ref, uploadBytesResumable, getDownloadURL }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
@@ -22,6 +26,9 @@ const tsMs = (ts) => {
   return 0;
 };
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+function escHtml(s) {
+  return String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+}
 function setAv(id, url) {
   const e = el(id);
   if (e) e.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
@@ -199,6 +206,12 @@ function wireStatic() {
       quietEnd: el("n-quiet-end")?.value,
     };
     localStorage.setItem("notif_prefs", JSON.stringify(prefs));
+    mergeAmbientAttentionPrefs({
+      focusMode: el("amb-focus")?.value,
+      interruptionSensitivity: el("amb-intr")?.value,
+      badgeCountsPassive: !!el("amb-badge-passive")?.checked,
+      morningBriefOnHome: el("amb-morning-brief")?.checked !== false,
+    });
     snack("Notification settings saved!");
   };
   el("notif-save-btn")?.addEventListener("click", saveNotifPrefs);
@@ -214,6 +227,18 @@ function wireStatic() {
     });
     if (el("n-quiet-start") && p.quietStart) el("n-quiet-start").value = p.quietStart;
     if (el("n-quiet-end")   && p.quietEnd)   el("n-quiet-end").value   = p.quietEnd;
+  } catch (_) {}
+
+  try {
+    const ap = getAmbientAttentionPrefs();
+    if (el("amb-focus") && ap.focusMode) el("amb-focus").value = ap.focusMode;
+    if (el("amb-intr") && ap.interruptionSensitivity) el("amb-intr").value = ap.interruptionSensitivity;
+    if (el("amb-badge-passive") && ap.badgeCountsPassive !== undefined) {
+      el("amb-badge-passive").checked = !!ap.badgeCountsPassive;
+    }
+    if (el("amb-morning-brief") && ap.morningBriefOnHome !== undefined) {
+      el("amb-morning-brief").checked = !!ap.morningBriefOnHome;
+    }
   } catch (_) {}
 
   /* help cards */
@@ -340,6 +365,109 @@ function wireStatic() {
 /* ─── auth-dependent wiring ───────────── */
 function attachUser(user) {
   const unsubs = [];
+  /** @type {Record<string, unknown> | null} */
+  let learningProfileLive = null;
+
+  function renderLearningEvolutionPanel() {
+    const lp = learningProfileLive;
+    const lastHost = el("learn-ev-last-agg");
+    const edgeHost = el("learn-ev-edge-teaser");
+    const reflHost = el("learn-ev-reflections");
+    const tlHost = el("learn-ev-timeline");
+    const auditHost = el("learn-ev-audit");
+
+    if (lastHost) {
+      if (lp?.lastAggregatedAt) {
+        const ms = tsMs(lp.lastAggregatedAt);
+        const rs = typeof lp.lastReason === "string" ? lp.lastReason : "";
+        lastHost.textContent =
+          ms ? `${timeAgo(ms)} · ${rs || "scheduled merge"}` : "—";
+      } else lastHost.textContent = "Not merged yet — save a scan or tap refresh.";
+    }
+
+    if (edgeHost) {
+      const edges = Array.isArray(lp?.knowledgeEdges) ? lp.knowledgeEdges : [];
+      if (!edges.length) edgeHost.textContent = "No distilled links yet.";
+      else {
+        const bits = edges.slice(0, 5).map((e) => {
+          const c = typeof e.count === "number" ? `${e.count}×` : "";
+          return `${escHtml(e.from)}→${escHtml(e.to)} ${c}`.trim();
+        });
+        edgeHost.innerHTML = `${bits.join("<br>")}<br><span style="opacity:.82;">${escHtml(String(edges.length))} total · co-occurrence heuristic</span>`;
+      }
+    }
+
+    if (reflHost) {
+      const raw = Array.isArray(lp?.reflections) ? lp.reflections : [];
+      const lines = raw
+        .map((x) => (typeof x === "string" ? x : x && typeof x.text === "string" ? x.text : ""))
+        .map((t) => String(t).trim())
+        .filter(Boolean)
+        .slice(0, 8);
+      reflHost.innerHTML = lines.length
+        ? lines.map((t) => `<li>${escHtml(t)}</li>`).join("")
+        : `<li style="color:var(--dim);list-style:none;margin-left:-10px;">No reflections yet — save scans or tap refresh.</li>`;
+    }
+
+    if (tlHost) {
+      const tl = Array.isArray(lp?.timeline) ? lp.timeline : [];
+      const slice = tl.slice(0, 6);
+      tlHost.innerHTML = slice.length
+        ? slice
+            .map((row) => {
+              const at = typeof row.at === "number" ? row.at : tsMs(row.at);
+              const ago = at ? timeAgo(at) : "";
+              const lab = row.label ? escHtml(row.label) : "";
+              const val = row.value ? escHtml(row.value) : "";
+              const det = row.detail ? ` — ${escHtml(row.detail)}` : "";
+              return `<li>${ago ? `${ago}: ` : ""}<strong>${lab}</strong> ${val}${det}</li>`;
+            })
+            .join("")
+        : `<li style="list-style:none;color:var(--dim);margin-left:-10px;">Empty — merges append short timeline notes.</li>`;
+    }
+
+    if (auditHost) {
+      const al = Array.isArray(lp?.auditLog) ? lp.auditLog : [];
+      const slice = al.slice(0, 6);
+      auditHost.innerHTML = slice.length
+        ? slice
+            .map((a) => {
+              const at = typeof a.at === "number" ? a.at : tsMs(a.at);
+              const ago = at ? timeAgo(at) : "";
+              const fld = a.field ? escHtml(a.field) : "";
+              const rs = a.reason ? escHtml(a.reason) : "";
+              const ch =
+                a.oldVal != null || a.newVal != null
+                  ? ` (${escHtml(String(a.oldVal))} → ${escHtml(String(a.newVal))})`
+                  : "";
+              return `<li>${ago ? `${ago} · ` : ""}${fld}: ${rs}${ch}</li>`;
+            })
+            .join("")
+        : `<li style="list-style:none;color:var(--dim);margin-left:-10px;">No audit rows yet.</li>`;
+    }
+  }
+
+  const refreshLearnBtn = el("learn-ev-refresh");
+  if (refreshLearnBtn && !refreshLearnBtn.dataset.wired) {
+    refreshLearnBtn.dataset.wired = "1";
+    refreshLearnBtn.addEventListener("click", () => {
+      queueLearningFlush(db, user.uid, "manual");
+      snack("Learning refresh queued (background).");
+    });
+  }
+  const sandTog = el("learn-ev-sandbox");
+  if (sandTog && !sandTog.dataset.wired) {
+    sandTog.dataset.wired = "1";
+    sandTog.checked = isLearningSandboxPreview();
+    sandTog.addEventListener("change", () => {
+      try {
+        if (sandTog.checked) localStorage.setItem("agri_learning_preview", "1");
+        else localStorage.removeItem("agri_learning_preview");
+      } catch (_) {}
+      snack(sandTog.checked ? "Sandbox preview on (this device only)." : "Sandbox preview off.");
+    });
+  }
+
   const fallbackName = user.displayName || user.email?.split("@")[0] || "Farmer";
   const fallbackAv   = `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=10B981&color=fff`;
 
@@ -513,6 +641,15 @@ function attachUser(user) {
     }
   ));
 
+  unsubs.push(
+    onSnapshot(doc(db, "learning_profiles", user.uid), (snap) => {
+      learningProfileLive = snap.exists() ? snap.data() : null;
+      renderLearningEvolutionPanel();
+    }),
+  );
+
+  renderLearningEvolutionPanel();
+
   return () => unsubs.forEach(u => { try { u(); } catch(_){} });
 }
 
@@ -534,3 +671,8 @@ onAuthStateChanged(auth, user => {
   }
   teardown = attachUser(user);
 });
+
+window.refreshAiDiag = function refreshAiDiag() {
+  const p = document.getElementById("ai-diag-body");
+  if (p) p.textContent = getDiagnosticsLines().join("\n");
+};

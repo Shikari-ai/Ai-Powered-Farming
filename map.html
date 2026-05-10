@@ -15,7 +15,10 @@
   <style>
     *{margin:0;padding:0;box-sizing:border-box;font-family:'Outfit',sans-serif;-webkit-tap-highlight-color:transparent;}
     html,body{height:100%;overflow:hidden;background:#060d14;}
-    .hidden{display:none!important;}
+    :root{
+      --agri-map-mood-hue:152;
+      --agri-ambient-pulse:0.32;
+    }
 
     /* ── Map container ── */
     #map-canvas{position:fixed;inset:0;}
@@ -188,6 +191,15 @@
       white-space:nowrap;text-align:center;min-width:80px;
     }
     .field-health-badge:active{transform:scale(.93);}
+    html:not([data-agri-perf="low"]) .field-health-badge.field-health-badge--pulse{
+      animation:agriAmbientPulse 5.5s ease-in-out infinite;
+      box-shadow:0 0 0 1px hsla(var(--agri-map-mood-hue),62%,52%,0.28),
+        0 4px 18px hsla(var(--agri-map-mood-hue),70%,42%,calc(0.12 + var(--agri-ambient-pulse) * 0.2));
+    }
+    @keyframes agriAmbientPulse{
+      0%,100%{filter:brightness(1);}
+      50%{filter:brightness(1.06);}
+    }
     .fhb-name{font-size:10px;color:rgba(255,255,255,.55);font-weight:500;margin-bottom:2px;}
     .fhb-score{font-size:17px;font-weight:700;line-height:1;}
     .fhb-area{font-size:9px;color:rgba(255,255,255,.35);margin-top:2px;}
@@ -310,6 +322,17 @@
       background-size:200% 100%;animation:shimmer 1.6s infinite;}
     @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
 
+    /* ── Geo intelligence panel ── */
+    .mp-geo-narr{
+      font-size:12px;line-height:1.55;color:rgba(255,255,255,.72);
+      padding:12px 14px;border-radius:14px;margin-bottom:12px;
+      background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.18);
+    }
+    .mp-geo-meta{font-size:10px;color:rgba(255,255,255,.38);margin-top:10px;line-height:1.45;}
+    .mp-geo-range{width:100%;margin:10px 0 6px;accent-color:#22d3ee;}
+    .mp-geo-legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;font-size:9px;color:rgba(255,255,255,.4);}
+    .mp-geo-pill{padding:3px 8px;border-radius:8px;background:rgba(255,255,255,.06);}
+
     /* ── Bottom Nav ── */
     /* nav styles → css/nav.css */
   </style>
@@ -342,6 +365,7 @@
 
   <!-- Right FABs -->
   <div class="mp-fabs">
+    <button class="mp-fab" id="fab-geo" title="Satellite intelligence"><i class="ri-globe-line"></i></button>
     <button class="mp-fab" id="fab-search" title="Search"><i class="ri-search-line"></i></button>
     <button class="mp-fab" id="fab-layers" title="Layers"><i class="ri-stack-line"></i></button>
     <button class="mp-fab" id="fab-nearby" title="Nearby places"><i class="ri-map-pin-line"></i></button>
@@ -401,7 +425,46 @@
         <div class="mp-layer-info"><div class="mp-layer-name">Irrigation Zones</div><div class="mp-layer-desc">Water Coverage</div></div>
         <label class="mp-toggle"><input type="checkbox" id="lyr-irrigation"><div class="mp-toggle-track"></div></label>
       </div>
+      <div class="mp-layer-row">
+        <div class="mp-layer-icon" style="color:#22d3ee;"><i class="ri-radar-line"></i></div>
+        <div class="mp-layer-info"><div class="mp-layer-name">Regional network layer</div><div class="mp-layer-desc">Anonymized coarse-grid stress (community opt-in)</div></div>
+        <label class="mp-toggle"><input type="checkbox" id="lyr-regional-network"><div class="mp-toggle-track"></div></label>
+      </div>
+      <div class="mp-layer-row">
+        <div class="mp-layer-icon" style="color:#22d3ee;"><i class="ri-landscape-line"></i></div>
+        <div class="mp-layer-info"><div class="mp-layer-name">Sentinel / NDVI tile proxy</div><div class="mp-layer-desc">Needs meta agri-geo-tiles-proxy</div></div>
+        <label class="mp-toggle"><input type="checkbox" id="lyr-geo-ndvi"><div class="mp-toggle-track"></div></label>
+      </div>
       <button class="mp-reset-btn" id="btn-reset-layers"><i class="ri-refresh-line"></i> Reset to Default</button>
+    </div>
+  </div>
+
+  <!-- ── GEO INTELLIGENCE (satellite-scale fusion) ── -->
+  <div class="mp-panel" id="panel-geo">
+    <div class="mp-panel-hdr">
+      <span class="mp-panel-title">Geo Intelligence</span>
+      <button class="mp-panel-close" id="close-geo"><i class="ri-close-line"></i></button>
+    </div>
+    <div class="mp-panel-body">
+      <div class="mp-geo-narr" id="geo-narration">Open after fields load. Basemap is observed imagery; stress mesh is inferred from your polygons + scans + weather.</div>
+      <label style="font-size:11px;color:rgba(255,255,255,.45);">Timeline replay (synthetic drift)</label>
+      <input type="range" class="mp-geo-range" id="geo-timeline" min="0" max="6" value="0" aria-label="Months back" />
+      <div class="mp-geo-legend">
+        <span class="mp-geo-pill">Observed: Esri mosaic</span>
+        <span class="mp-geo-pill">Inferred: stress cells</span>
+        <span class="mp-geo-pill">Inferred: spread cone</span>
+      </div>
+      <div class="mp-layer-row">
+        <div class="mp-layer-icon" style="color:#34d399;"><i class="ri-grid-line"></i></div>
+        <div class="mp-layer-info"><div class="mp-layer-name">Vegetation stress mesh</div><div class="mp-layer-desc">Fused screening grid</div></div>
+        <label class="mp-toggle"><input type="checkbox" id="lyr-geo-stress"><div class="mp-toggle-track"></div></label>
+      </div>
+      <div class="mp-layer-row">
+        <div class="mp-layer-icon" style="color:#c4b5fd;"><i class="ri-share-forward-line"></i></div>
+        <div class="mp-layer-info"><div class="mp-layer-name">Spread corridor</div><div class="mp-layer-desc">Wind-aligned hint</div></div>
+        <label class="mp-toggle"><input type="checkbox" id="lyr-geo-spread"><div class="mp-toggle-track"></div></label>
+      </div>
+      <p class="mp-geo-meta" id="geo-attribution">Providers: abstracted in satellite-providers.js — plug Sentinel-2 / GEE tiles via proxy when ready.</p>
     </div>
   </div>
 
@@ -464,6 +527,6 @@
     <a href="profile.html"   class="b-nav-item"><i class="ri-user-smile-line"></i><span data-i18n="navProfile">Profile</span></a>
   </nav>
 
-  <script type="module" src="js/map-page.js?v=31"></script>
+  <script type="module" src="js/map-page.js?v=34"></script>
 </body>
 </html>

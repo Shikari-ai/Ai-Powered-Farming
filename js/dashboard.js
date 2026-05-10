@@ -13,9 +13,18 @@ import {
     onSnapshot,
     orderBy,
     query,
+    serverTimestamp,
+    setDoc,
     where,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getGreeting, t, applyTranslations } from "./i18n.js";
+import { buildRegionalPulse, contributeRegionalPulse } from "./network/regional-pulse.js";
+import { fetchRegionalBriefing, getRegionalOptIn } from "./network/regional-briefing.js";
+import { buildTwinBriefForAssistant } from "./twin/assistant-twin-brief.js";
+import { buildAmbientInsightLines } from "./ambient/ambient-insights.js";
+import { buildMorningBriefingText } from "./ambient/briefings.js";
+import { getAmbientAttentionPrefs } from "./ambient/attention-memory.js";
+import { publishAmbientChannelEvent } from "./ambient/sensory-hooks.js";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -42,7 +51,23 @@ function formatTimeAgo(ms) {
 
 function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
 
+function escAttr(s) {
+    return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+}
+
 // ─── Notif badge ─────────────────────────────────────────────────────────────
+
+function countUnreadForBadge(items) {
+    const prefs = getAmbientAttentionPrefs();
+    let n = 0;
+    for (const x of items) {
+        if (x.readAt) continue;
+        const passive = x.ambientTier === "passive" || x.suppressInterruption === true;
+        if (passive && !prefs.badgeCountsPassive) continue;
+        n++;
+    }
+    return n;
+}
 
 function setNotifBadge(count) {
     const badge = el("notif-badge");
@@ -141,13 +166,17 @@ function renderNotifPanel(items) {
             pest: { icon: "ri-bug-line", color: "#F59E0B", bg: "rgba(245,158,11,0.12)" },
             alert: { icon: "ri-error-warning-line", color: "#EF4444", bg: "rgba(239,68,68,0.12)" },
         };
+        const passive = n.ambientTier === "passive" || n.suppressInterruption === true;
         const type = (n.type && String(n.type)) || "info";
         const typeKey = Object.keys(icoMap).find((k) => type.includes(k));
-        const style = typeKey
-            ? icoMap[typeKey]
-            : { icon: "ri-notification-3-line", color: "#A78BFA", bg: "rgba(167,139,250,0.12)" };
+        const style = passive
+            ? { icon: "ri-mist-line", color: "#94A3B8", bg: "rgba(148,163,184,0.12)" }
+            : typeKey
+              ? icoMap[typeKey]
+              : { icon: "ri-notification-3-line", color: "#A78BFA", bg: "rgba(167,139,250,0.12)" };
         const row = document.createElement("div");
-        row.className = `np-item${!n.readAt ? " unread" : ""}`;
+        row.className = `np-item${!n.readAt ? " unread" : ""}${passive ? " np-passive" : ""}`;
+        const ambLabel = n.ambientTier ? escAttr(String(n.ambientTier)) : "";
         row.innerHTML = `
           <div class="np-ico" style="background:${style.bg};color:${style.color}">
             <i class="${style.icon}"></i>
@@ -156,6 +185,7 @@ function renderNotifPanel(items) {
             <h4>${n.title || "Notification"}</h4>
             <p>${n.body || ""}</p>
             <span class="np-time">${formatTimeAgo(tsToMs(n.createdAt))}</span>
+            ${ambLabel ? `<div class="np-amb-tag">${ambLabel} · ${passive ? "ambient" : "active"}</div>` : ""}
           </div>`;
         body.appendChild(row);
     });
@@ -405,6 +435,269 @@ document.addEventListener("DOMContentLoaded", () => {
             let totalFields = 0;
             let totalScans = 0;
 
+            const dashRegional = {
+                fieldsList: [],
+                scansByField: {},
+                allScans: [],
+                contextByField: {},
+                wxLog: null,
+                pulseTimer: null,
+                regionalBriefText: "",
+                learningProfile: null,
+            };
+            let ambientDebounce = 0;
+
+            let dashOpenTasks = [];
+
+            function scheduleAmbientRefresh() {
+                clearTimeout(ambientDebounce);
+                ambientDebounce = setTimeout(() => {
+                    try {
+                        renderAmbientHome(dashRegional, dashOpenTasks.length);
+                    } catch (e) {
+                        console.warn("[ambient] refresh:", e?.message || e);
+                    }
+                }, 360);
+            }
+
+            function renderAmbientHome(dr, openTaskCount) {
+                const root = el("dash-ambient-root");
+                const ul = el("dash-ambient-insights");
+                if (!root || !ul) return;
+
+                const scans = dr.allScans || [];
+                const recent10 = scans.slice(0, 10);
+                const scoreVals = recent10
+                    .map((s) => (typeof s.healthScore === "number" ? s.healthScore : null))
+                    .filter((v) => v !== null);
+                const avgHealth = scoreVals.length
+                    ? Math.round(scoreVals.reduce((a, b) => a + b, 0) / scoreVals.length)
+                    : null;
+
+                const lines = buildAmbientInsightLines({
+                    fieldsList: dr.fieldsList,
+                    scansByField: dr.scansByField,
+                    wxLog: dr.wxLog,
+                    learningProfile: dr.learningProfile,
+                    regionalBriefText: dr.regionalBriefText || "",
+                    openTaskCount,
+                });
+
+                if (!lines.length) {
+                    ul.innerHTML =
+                        `<li style="border:none;color:rgba(236,253,245,0.5);">` +
+                        `No ambient lines yet — add a field and sync weather for gentle context.</li>`;
+                } else {
+                    ul.innerHTML = lines.map((L) => `<li>${escAttr(L)}</li>`).join("");
+                }
+
+                const briefEl = el("dash-ambient-brief");
+                if (briefEl) {
+                    const brief = buildMorningBriefingText({
+                        fieldsCount: dr.fieldsList?.length || 0,
+                        latestAvgHealth: avgHealth,
+                        wxLog: dr.wxLog,
+                        openTaskCount,
+                        regionalBriefText: dr.regionalBriefText || "",
+                    });
+                    briefEl.textContent = brief || "";
+                    briefEl.style.display = brief ? "block" : "none";
+                }
+
+                root.style.opacity = "1";
+                publishAmbientChannelEvent("ambient_refreshed", { lineCount: lines.length });
+            }
+
+            function renderDashOpsCard() {
+                const host = el("dash-ops-list");
+                const summary = el("dash-ops-summary");
+                if (!host) return;
+                const fields = dashRegional.fieldsList || [];
+                const fieldLabel = (fid) => {
+                    if (!fid) return "All fields";
+                    const f = fields.find((x) => x.id === fid);
+                    return f?.name || "Field";
+                };
+                if (!dashOpenTasks.length) {
+                    host.innerHTML =
+                        '<div class="dash-ops-empty">No open operational tasks. Complete follow-ups from the scanner, or open a field’s <strong>Ops</strong> tab to log work and tasks.</div>';
+                } else {
+                    host.innerHTML = dashOpenTasks
+                        .slice(0, 8)
+                        .map((t) => {
+                            const pri = String(t.priority || "normal");
+                            const due = t.dueAt ? formatTimeAgo(tsToMs(t.dueAt)) : "";
+                            const link = t.fieldId
+                                ? `field-detail.html?f=${encodeURIComponent(t.fieldId)}`
+                                : "fields.html";
+                            return `<div class="dash-ops-row">
+              <span class="dash-ops-pri">${escAttr(pri)}</span>
+              <div style="flex:1;min-width:0;">
+                <strong style="font-weight:600;color:rgba(236,253,245,0.92);">${escAttr(t.title || "Task")}</strong>
+                <div class="dash-ops-sub">${escAttr(fieldLabel(t.fieldId))}${due ? ` · due ${escAttr(due)}` : ""}</div>
+              </div>
+              <a href="${link}" class="dcard-lnk">Open</a>
+            </div>`;
+                        })
+                        .join("");
+                }
+                if (summary) {
+                    summary.textContent = dashOpenTasks.length
+                        ? `${dashOpenTasks.length} open task(s) — suggestions are advisory; you decide what to run in the field.`
+                        : "Operational task queue is clear. New follow-ups may appear after stressed scans or when you add tasks in Ops.";
+                }
+            }
+
+            function renderDashTwinCard() {
+                const sum = el("dash-twin-summary");
+                const link = el("dash-twin-field-link");
+                if (!sum) return;
+                const fields = dashRegional.fieldsList || [];
+                if (!fields.length) {
+                    sum.textContent = "Add a field to see a calm, simulated contrast between baseline and a wetter week.";
+                    if (link) {
+                        link.setAttribute("href", "fields.html");
+                        link.textContent = "Add fields";
+                    }
+                    return;
+                }
+                const wxArr = dashRegional.wxLog ? [{ ...dashRegional.wxLog, id: "wx" }] : [];
+                if (!wxArr.length || !wxArr[0]?.daily?.precipitation_sum) {
+                    sum.textContent = "Sync weather from the home glance (location once), then a coarse twin line appears here.";
+                    if (link) {
+                        link.setAttribute("href", "index.html");
+                        link.textContent = "Home";
+                    }
+                    return;
+                }
+                const snap = {
+                    fields,
+                    scans: dashRegional.allScans || [],
+                    weatherLogs: wxArr,
+                    fieldContextStates: Object.values(dashRegional.contextByField || {}),
+                    regionalBriefing: "",
+                    interventions: [],
+                };
+                const brief = buildTwinBriefForAssistant(snap);
+                if (!brief) {
+                    sum.textContent = "Twin teaser needs scan-linked fields — save a scan to a field for sharper sketches.";
+                    if (link) {
+                        link.setAttribute("href", "scanner.html");
+                        link.textContent = "Scanner";
+                    }
+                    return;
+                }
+                sum.textContent = `${brief.focusFieldName}: simulated baseline ~${brief.baseline.endHealth}% vs wet-week sketch ~${brief.wetWeek.endHealth}% (Δ ${brief.wetWeek.deltaVsBaseline} pts, ${brief.dataConfidence} confidence). Hypothetical — open Twin tab on the field for curves.`;
+                if (link) {
+                    link.setAttribute("href", `field-detail.html?f=${encodeURIComponent(brief.focusFieldId)}`);
+                    link.textContent = "Open twin";
+                }
+            }
+
+            function scheduleDashRegionalPulse(uid) {
+                clearTimeout(dashRegional.pulseTimer);
+                dashRegional.pulseTimer = setTimeout(async () => {
+                    const optEl = el("dash-regional-optin");
+                    if (!optEl?.checked) return;
+                    const pulse = buildRegionalPulse({
+                        fields: dashRegional.fieldsList,
+                        scansByField: dashRegional.scansByField,
+                        contextByField: dashRegional.contextByField,
+                        weatherLog: dashRegional.wxLog,
+                    });
+                    if (!pulse) return;
+                    try {
+                        await contributeRegionalPulse(db, uid, pulse);
+                        const b = el("dash-regional-brief");
+                        const text = await fetchRegionalBriefing(db);
+                        dashRegional.regionalBriefText = text;
+                        if (b) b.textContent = text;
+                        scheduleAmbientRefresh();
+                    } catch (e) {
+                        console.warn("[dashboard] regional pulse:", e?.message || e);
+                    }
+                }, 15000);
+            }
+
+            async function refreshDashRegionalBrief() {
+                const b = el("dash-regional-brief");
+                try {
+                    const text = await fetchRegionalBriefing(db);
+                    dashRegional.regionalBriefText = text;
+                    if (b) b.textContent = text;
+                } catch {
+                    dashRegional.regionalBriefText = "";
+                    if (b) b.textContent = "Regional briefing unavailable.";
+                }
+                scheduleAmbientRefresh();
+            }
+
+            const optElInit = el("dash-regional-optin");
+            if (optElInit && !optElInit.dataset.regionalBound) {
+                optElInit.dataset.regionalBound = "1";
+                optElInit.addEventListener("change", async (e) => {
+                    try {
+                        await setDoc(
+                            doc(db, "regional_intel_settings", user.uid),
+                            {
+                                optIn: !!e.target.checked,
+                                updatedAt: serverTimestamp(),
+                                schemaVersion: 1,
+                            },
+                            { merge: true },
+                        );
+                        if (e.target.checked) scheduleDashRegionalPulse(user.uid);
+                        refreshDashRegionalBrief();
+                    } catch (err) {
+                        console.warn("[dashboard] regional opt-in:", err?.message || err);
+                    }
+                });
+            }
+
+            getRegionalOptIn(db, user.uid).then((on) => {
+                const opt = el("dash-regional-optin");
+                if (opt) opt.checked = !!on;
+            });
+            sub(
+                doc(db, "regional_intel_settings", user.uid),
+                (snap) => {
+                    const opt = el("dash-regional-optin");
+                    if (!opt) return;
+                    opt.checked = snap.exists() && snap.data()?.optIn === true;
+                },
+                "regional_intel_settings",
+            );
+            sub(
+                doc(db, "learning_profiles", user.uid),
+                (snap) => {
+                    dashRegional.learningProfile = snap.exists() ? snap.data() : null;
+                    scheduleAmbientRefresh();
+                },
+                "learning_profiles",
+            );
+            refreshDashRegionalBrief();
+
+            sub(
+                query(
+                    collection(db, "farm_operational_tasks"),
+                    where("userId", "==", user.uid),
+                    where("status", "==", "open"),
+                    limit(24),
+                ),
+                (snap) => {
+                    dashOpenTasks = [];
+                    snap.forEach((d) => dashOpenTasks.push({ id: d.id, ...d.data() }));
+                    dashOpenTasks.sort(
+                        (a, b) =>
+                            (tsToMs(a.dueAt) || 9e15) - (tsToMs(b.dueAt) || 9e15) ||
+                            tsToMs(b.createdAt) - tsToMs(a.createdAt),
+                    );
+                    renderDashOpsCard();
+                    scheduleAmbientRefresh();
+                },
+                "farm_operational_tasks",
+            );
+
             const userRef = doc(db, "users", user.uid);
             sub(userRef, (snap) => {
                     const data = snap.exists() ? snap.data() : {};
@@ -437,6 +730,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     query(collection(db, "fields"), where("userId", "==", user.uid), limit(100)),
                     (snap) => {
                         totalFields = snap.size;
+                        dashRegional.fieldsList = [];
+                        snap.forEach((d) => dashRegional.fieldsList.push({ id: d.id, ...d.data() }));
                         updateGlanceFields(totalFields);
 
                         const cropSet = new Set();
@@ -450,6 +745,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
                         renderHomeFields(snap);
                         updateFarmStatus(totalFields, totalScans);
+                        if (el("dash-regional-optin")?.checked) scheduleDashRegionalPulse(user.uid);
+                        renderDashOpsCard();
+                        renderDashTwinCard();
+                        scheduleAmbientRefresh();
                     },
                     "fields"
                 );
@@ -458,14 +757,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     query(collection(db, "notifications"), where("userId", "==", user.uid), limit(35)),
                     (snap) => {
                         const items = [];
-                        let unread = 0;
                         snap.forEach((d) => {
                             const v = d.data() || {};
                             items.push({ id: d.id, ...v });
-                            if (!v.readAt) unread++;
                         });
                         items.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
-                        setNotifBadge(unread);
+                        setNotifBadge(countUnreadForBadge(items));
                         renderNotifPanel(items);
                     },
                     "notifications"
@@ -496,8 +793,14 @@ document.addEventListener("DOMContentLoaded", () => {
                             }
                             if (hiDescEl) hiDescEl.textContent = t("noScansYet");
                             resetPestCard();
+                            dashRegional.allScans = [];
+                            dashRegional.scansByField = {};
+                            renderDashTwinCard();
+                            scheduleAmbientRefresh();
                             return;
                         }
+
+                        dashRegional.allScans = scans;
 
                         const recent10 = scans.slice(0, 10);
                         const scores = recent10
@@ -535,6 +838,17 @@ document.addEventListener("DOMContentLoaded", () => {
                         const recent14d = scans.filter(
                             (s) => Date.now() - tsToMs(s.createdAt) <= 14 * 86400000
                         );
+                        dashRegional.scansByField = {};
+                        for (const s of scans) {
+                            const fid = s.fieldId;
+                            if (!fid) continue;
+                            const prev = dashRegional.scansByField[fid];
+                            if (!prev || tsToMs(s.createdAt) > tsToMs(prev.createdAt)) {
+                                dashRegional.scansByField[fid] = s;
+                            }
+                        }
+                        renderDashTwinCard();
+                        if (el("dash-regional-optin")?.checked) scheduleDashRegionalPulse(user.uid);
                         const pestSig = recent14d.filter(
                             (s) => s?.diagnosis?.code === "pest_damage"
                         ).length;
@@ -552,6 +866,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                         if (total < 3) {
                             resetPestCard();
+                            scheduleAmbientRefresh();
                             return;
                         }
 
@@ -588,6 +903,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             blip.style.background = pestRiskColor(riskLevel);
                             blip.style.boxShadow = `0 0 8px ${pestRiskColor(riskLevel)}`;
                         }
+                        scheduleAmbientRefresh();
                     },
                     "crop_scans"
                 );
@@ -607,9 +923,13 @@ document.addEventListener("DOMContentLoaded", () => {
                         if (!bestDoc) {
                             updateGlanceSoil(null);
                             updateGlanceIrrig(null);
+                            dashRegional.wxLog = null;
+                            renderDashTwinCard();
+                            scheduleAmbientRefresh();
                             return;
                         }
                         const wdata = bestDoc.data();
+                        dashRegional.wxLog = wdata;
                         const soilEst = wdata?.derived?.soilMoistureEstimate ?? null;
                         updateGlanceSoil(soilEst);
                         if (soilEst !== null) {
@@ -618,8 +938,25 @@ document.addEventListener("DOMContentLoaded", () => {
                         } else {
                             updateGlanceIrrig(null);
                         }
+                        if (el("dash-regional-optin")?.checked) scheduleDashRegionalPulse(user.uid);
+                        renderDashTwinCard();
+                        scheduleAmbientRefresh();
                     },
                     "weather_logs"
+                );
+
+                sub(
+                    query(collection(db, "field_context_state"), where("userId", "==", user.uid), limit(40)),
+                    (snap) => {
+                        dashRegional.contextByField = {};
+                        snap.forEach((d) => {
+                            dashRegional.contextByField[d.id] = { fieldId: d.id, ...d.data() };
+                        });
+                        if (el("dash-regional-optin")?.checked) scheduleDashRegionalPulse(user.uid);
+                        renderDashTwinCard();
+                        scheduleAmbientRefresh();
+                    },
+                    "field_context_state"
                 );
 
                 sub(

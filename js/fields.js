@@ -14,6 +14,7 @@ import {
   where,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+import { decorateNotificationForAmbient } from "./ambient/notification-decorator.js";
 
 const DRAFT_KEY = "agri_field_wizard_draft";
 
@@ -1047,7 +1048,7 @@ function mountFieldsPage(user) {
         schemaVersion: 1,
       });
 
-      batch.set(doc(collection(db, "notifications")), {
+      const notifDraft = {
         userId: user.uid,
         title: editingFieldId ? "Field updated" : "Field added",
         body: editingFieldId ? `${name} was updated.` : `${name} is ready for monitoring.`,
@@ -1056,7 +1057,13 @@ function mountFieldsPage(user) {
         createdAt: serverTimestamp(),
         entity: { kind: "field", id: fieldRef.id },
         schemaVersion: 1,
+      };
+      const decorated = decorateNotificationForAmbient(notifDraft, {
+        fieldId: fieldRef.id,
       });
+      if (decorated) {
+        batch.set(doc(collection(db, "notifications")), decorated);
+      }
 
       await batch.commit();
       editingFieldId = null;

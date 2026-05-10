@@ -19,9 +19,20 @@ import {
     uploadBytesResumable,
     getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-import { getAiConfig } from "./ai/config.js?v=33";
-import { startLiveDiseaseScan } from "./scanner-live-vision.js?v=33";
-import { runVisionJob } from "./inference-jobs.js?v=33";
+import { getAiConfig } from "./ai/config.js?v=34";
+import { startLiveDiseaseScan } from "./scanner-live-vision.js?v=35";
+import { runVisionJob } from "./inference-jobs.js?v=34";
+import { mergeSymptomScanIntoFieldMemory } from "./ai/field-context.js?v=34";
+import {
+    buildSymptomScanReliability,
+    gateAlertSeverity,
+    calibrateConfidence,
+    confidenceLabel,
+    EPISTEMIC,
+} from "./ai/reliability/core.js";
+import { queueLearningFlush } from "./learning/scheduler.js";
+import { decorateNotificationForAmbient } from "./ambient/notification-decorator.js";
+import { enqueueSensoryCue } from "./ambient/sensory-hooks.js";
 
 const SYMPTOMS = [
     { id: "leaf_spots", label: "Leaf spots", weight: 14, tags: ["fungal", "bacterial"] },
@@ -245,6 +256,10 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentPreviewUrl = null;
     let computed = null;
     let liveHandle = null;
+    /** @type {any[]} */
+    let fieldsListLast = [];
+    /** @type {any[]} */
+    let fieldContextStatesLast = [];
 
     const visionPanel = qs("vision-result-panel");
     const visionText = qs("vision-result-text");
@@ -280,6 +295,14 @@ document.addEventListener("DOMContentLoaded", () => {
             for (const d of dets.slice(0, 5)) {
                 lines.push(`• ${d.label} (${Math.round((d.confidence || 0) * 100)}%)`);
             }
+            if (r.contextualIntel?.risk_tier) {
+                lines.push(
+                    `Field intelligence risk: ${r.contextualIntel.risk_tier}` +
+                        (r.contextualIntel.risk_score_0_100 != null
+                            ? ` (score ${r.contextualIntel.risk_score_0_100})`
+                            : ""),
+                );
+            }
             if (r.explanation) lines.push(r.explanation);
             if (r.environmentalReasoning && r.environmentalReasoning.length) {
                 lines.push(`Context: ${r.environmentalReasoning.join(" ")}`);
@@ -298,7 +321,14 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
         showVisionLoading();
-        runVisionJob(db, currentUserId, blob, { source: "scanner", fieldId: fieldSel ? fieldSel.value : null })
+        runVisionJob(db, currentUserId, blob, {
+            source: "scanner",
+            fieldId: fieldSel ? fieldSel.value || null : null,
+            cropSlug: cropSel ? cropSel.value || null : null,
+            fieldContextStates: fieldContextStatesLast,
+            fields: fieldsListLast,
+            scans: [],
+        })
             .then(showVisionJobResult)
             .catch((e) => {
                 if (visionText) visionText.textContent = `Vision error: ${e.message || e}`;
@@ -394,9 +424,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 limit(50)
             );
             onSnapshot(fieldsQ, (snap) => {
+                fieldsListLast = [];
                 const prev = fieldSel.value;
                 fieldSel.innerHTML = `<option value="">No field selected</option>`;
                 snap.forEach((d) => {
+                    fieldsListLast.push({ id: d.id, ...d.data() });
                     const f = d.data();
                     const opt = document.createElement("option");
                     opt.value = d.id;
@@ -404,6 +436,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     fieldSel.appendChild(opt);
                 });
                 fieldSel.value = prev;
+            });
+            const fcQ = query(collection(db, "field_context_state"), where("userId", "==", user.uid), limit(40));
+            onSnapshot(fcQ, (snap) => {
+                fieldContextStatesLast = [];
+                snap.forEach((d) => fieldContextStatesLast.push({ id: d.id, fieldId: d.id, ...d.data() }));
             });
         }
     });
@@ -562,6 +599,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     schemaVersion: 1,
                 });
 
+                const scanReliability = buildSymptomScanReliability(computed, imageMeta);
+
                 // Store recommendations as first-class realtime items
                 for (const r of computed.recommendations) {
                     const recRef = doc(collection(db, "ai_recommendations"));
@@ -574,7 +613,17 @@ document.addEventListener("DOMContentLoaded", () => {
                         text: r.text,
                         status: "active",
                         createdAt: serverTimestamp(),
-                        schemaVersion: 1,
+                        schemaVersion: 2,
+                        reliability: scanReliability,
+                        recommendationAudit: {
+                            primaryEpistemic: scanReliability.primaryEpistemic,
+                            evidenceBundle: scanReliability.evidenceBundle,
+                            contributingSignals: scanReliability.contributingSignals,
+                            reasoningSummary: scanReliability.reasoningSummary,
+                            calibratedConfidence: scanReliability.calibratedConfidence,
+                            confidenceLabel: scanReliability.confidenceLabel,
+                            actionKind: r.type,
+                        },
                     });
                 }
 
@@ -597,6 +646,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     computed.severity?.level === "critical" ? "high"
                     : computed.diagnosis?.category === "risk" && computed.healthScore < 55 ? "medium"
                     : "low";
+                const symptomN = computed.selectedSymptoms?.length || 0;
+                const pestRaw = prLevel === "high" ? 0.58 : prLevel === "medium" ? 0.48 : 0.38;
+                const pestCal = calibrateConfidence(pestRaw, {
+                    evidenceStrength: symptomN >= 2 ? 0.56 : 0.42,
+                    freshness01: 1,
+                    penaltyStack: ["rules_only"],
+                });
                 batch.set(pestRef, {
                     userId: currentUserId,
                     fieldId: computed.fieldId || null,
@@ -608,24 +664,40 @@ document.addEventListener("DOMContentLoaded", () => {
                     basis: {
                         diagnosisCode: computed.diagnosis?.code || null,
                         healthScore: computed.healthScore,
-                        symptomCount: computed.selectedSymptoms?.length ?? 0,
+                        symptomCount: symptomN,
+                    },
+                    reliability: {
+                        schemaVersion: 1,
+                        primaryEpistemic: EPISTEMIC.PREDICTED,
+                        rawConfidence: pestRaw,
+                        calibratedConfidence: pestCal,
+                        confidenceLabel: confidenceLabel(pestCal),
+                        evidenceBundle: { basis: "symptom_scan_heuristic", prLevel, symptomCount: symptomN },
                     },
                     createdAt: serverTimestamp(),
-                    schemaVersion: 1,
+                    schemaVersion: 2,
                 });
 
                 if (computed.severity?.level === "critical" || computed.healthScore < 45) {
                     const alertRef = doc(collection(db, "alerts"));
+                    let alertSev = computed.severity?.level === "critical" ? "high" : "warn";
+                    alertSev = gateAlertSeverity(alertSev, scanReliability.calibratedConfidence);
                     batch.set(alertRef, {
                         userId: currentUserId,
-                        severity: computed.severity?.level === "critical" ? "high" : "warn",
-                        title: computed.diagnosis?.label || "Crop health alert",
-                        body: `Scan recorded ${computed.healthScore}% health for ${computed.cropType}. Open recommendations and schedule a field check.`,
+                        severity: alertSev,
+                        title: computed.diagnosis?.label || "Crop health notice",
+                        body:
+                            `Scan recorded ${computed.healthScore}% health for ${computed.cropType}. ` +
+                            `This is an inferred signal from your logged symptoms — please verify in the field. ` +
+                            `Review recommendations and schedule a scouting pass.`,
                         type: "crop_scan",
                         readAt: null,
                         entity: { kind: "crop_scan", id: scanRef.id },
                         createdAt: serverTimestamp(),
-                        schemaVersion: 1,
+                        schemaVersion: 2,
+                        reliability: scanReliability,
+                        epistemicPrimary: scanReliability.primaryEpistemic,
+                        dataScope: "inferred_from_symptoms",
                     });
                 }
 
@@ -640,9 +712,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     schemaVersion: 1,
                 });
 
-                // Notify
+                // Notify (ambient-classified; duplicates soft-throttled for low-signal types)
                 const notifRef = doc(collection(db, "notifications"));
-                batch.set(notifRef, {
+                const notifDraft = {
                     userId: currentUserId,
                     title: "Scan saved",
                     body: `${computed.cropType} scan saved to your history.`,
@@ -651,9 +723,52 @@ document.addEventListener("DOMContentLoaded", () => {
                     createdAt: serverTimestamp(),
                     entity: { kind: "crop_scan", id: scanRef.id },
                     schemaVersion: 1,
+                };
+                const decorated = decorateNotificationForAmbient(notifDraft, {
+                    healthScore: computed.healthScore,
+                    severityLevel: computed.severity?.level,
+                    fieldId: computed.fieldId || null,
                 });
+                if (decorated) {
+                    batch.set(notifRef, decorated);
+                    if (decorated.ambientTier === "elevated") {
+                        enqueueSensoryCue("escalation", { fieldId: computed.fieldId, scanId: scanRef.id });
+                    }
+                }
 
                 await batch.commit();
+                try {
+                    const { ensurePostScanFollowUpTask } = await import("./ops/operations-service.js");
+                    if (computed.fieldId) {
+                        await ensurePostScanFollowUpTask(
+                            db,
+                            currentUserId,
+                            computed.fieldId,
+                            scanRef.id,
+                            computed.healthScore,
+                        );
+                    }
+                } catch (opErr) {
+                    console.warn("[ops] follow-up task:", opErr?.message || opErr);
+                }
+                if (computed.fieldId) {
+                    try {
+                        await mergeSymptomScanIntoFieldMemory(db, currentUserId, computed.fieldId, {
+                            diagnosisLabel: computed.diagnosis?.label,
+                            diagnosis: computed.diagnosis,
+                            healthScore: computed.healthScore,
+                            cropSlug: computed.cropType,
+                            severity: computed.severity?.level,
+                        });
+                    } catch (memErr) {
+                        console.warn("field memory (symptom scan):", memErr);
+                    }
+                }
+                try {
+                    queueLearningFlush(db, currentUserId, "scan_saved");
+                } catch (learErr) {
+                    console.warn("[learning] scan_saved:", learErr?.message || learErr);
+                }
                 window.location.href = "index.html";
             } catch (e) {
                 console.error(e);

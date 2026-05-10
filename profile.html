@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
   <link rel="stylesheet" href="css/nav.css">
+  <link rel="stylesheet" href="css/reliability.css">
   <style>
     :root{
       --bg:#030609;--surface:#0A1118;--surface2:rgba(10,17,24,.7);
@@ -524,6 +525,16 @@
         <div class="mi-body"><h4>AI Settings</h4><p>Customize AI recommendations</p></div>
         <span class="mi-arr"></span>
       </div>
+      <div class="menu-item" onclick="openPanel('panel-ai-diagnostics'); refreshAiDiag();">
+        <div class="mi-ic" style="color:#67d4f0;"><i class="ri-shield-check-line"></i></div>
+        <div class="mi-body"><h4>AI reliability</h4><p>System health &amp; data freshness</p></div>
+        <span class="mi-arr"></span>
+      </div>
+      <div class="menu-item" onclick="openPanel('panel-learning-evolution')">
+        <div class="mi-ic" style="color:#A78BFA;"><i class="ri-git-branch-line"></i></div>
+        <div class="mi-body"><h4>Learning evolution</h4><p>Reflections, audit trail &amp; refresh</p></div>
+        <span class="mi-arr"></span>
+      </div>
       <div class="menu-item" onclick="openPanel('panel-notifications')">
         <div class="mi-ic" style="color:var(--primary);"><i class="ri-notification-3-line"></i></div>
         <div class="mi-body"><h4>Notifications</h4><p>Manage alerts and updates</p></div>
@@ -830,6 +841,88 @@
 
 
   <!-- ════════════════════════════════════════
+       PANEL: AI RELIABILITY / DIAGNOSTICS
+  ════════════════════════════════════════ -->
+  <div id="panel-ai-diagnostics" class="panel">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="closePanel('panel-ai-diagnostics')"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title">AI reliability</span>
+      </div>
+      <div class="hdr-action" onclick="refreshAiDiag()" title="Refresh"><i class="ri-refresh-line"></i></div>
+    </div>
+    <p style="margin:12px 16px 0;font-size:12px;line-height:1.5;color:var(--dim);">
+      Calm, non-alarming snapshot for this device session. Used for graceful degradation — not medical or legal advice.
+    </p>
+    <pre id="ai-diag-body" class="ai-diag-pre" aria-live="polite">Loading…</pre>
+    <div style="margin:0 16px 20px;font-size:10px;color:var(--dim);line-height:1.45;">
+      Observed = your inputs or raw readings. Inferred = fused heuristics. Predicted = forward estimates — always verify in the field.
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       PANEL: LEARNING EVOLUTION
+  ════════════════════════════════════════ -->
+  <div id="panel-learning-evolution" class="panel">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="closePanel('panel-learning-evolution')"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title">Learning evolution</span>
+      </div>
+      <div class="hdr-action" onclick="closePanel('panel-learning-evolution')" title="Close"><i class="ri-close-line"></i></div>
+    </div>
+    <p style="margin:12px 16px 0;font-size:12px;line-height:1.5;color:var(--dim);">
+      Bounded notes from your scans, interventions, and weather co-occurrence — for transparency, not hype. Nothing here runs in the field automatically.
+    </p>
+    <div class="info-card" style="margin-top:12px;">
+      <div class="info-row">
+        <div class="ir-ic"><i class="ri-time-line"></i></div>
+        <div class="ir-body">
+          <div class="ir-label">Last merged</div>
+          <div class="ir-val" id="learn-ev-last-agg">—</div>
+        </div>
+      </div>
+      <div class="info-row">
+        <div class="ir-ic"><i class="ri-node-tree"></i></div>
+        <div class="ir-body">
+          <div class="ir-label">Relationship links (sample)</div>
+          <div class="ir-val" id="learn-ev-edge-teaser" style="font-size:12px;line-height:1.45;">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="sec-h">Latest reflections</div>
+    <div class="toggle-card" style="margin:0 16px;">
+      <ul id="learn-ev-reflections" style="margin:0;padding:12px 14px 14px 22px;font-size:12px;line-height:1.5;color:var(--txt);list-style:disc;">
+        <li style="color:var(--dim);list-style:none;margin-left:-10px;">No reflections yet — save scans or refresh below.</li>
+      </ul>
+    </div>
+    <div class="sec-h">Timeline (recent)</div>
+    <div class="toggle-card" style="margin:0 16px;">
+      <ul id="learn-ev-timeline" style="margin:0;padding:12px 14px 14px 22px;font-size:11px;line-height:1.45;color:var(--dim);list-style:disc;"></ul>
+    </div>
+    <div class="sec-h">Why it evolved (audit)</div>
+    <div class="toggle-card" style="margin:0 16px;">
+      <ul id="learn-ev-audit" style="margin:0;padding:12px 14px 14px 22px;font-size:11px;line-height:1.45;color:var(--dim);list-style:disc;"></ul>
+    </div>
+    <div class="toggle-card" style="margin:12px 16px 0;">
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-flask-line"></i></div>
+        <div class="tr-body">
+          <div class="tr-title">Sandbox preview (this device)</div>
+          <div class="tr-sub">Mirrors <code style="font-size:10px;opacity:.85;">agri_learning_preview</code> — optional test multipliers only</div>
+        </div>
+        <label class="sw"><input type="checkbox" id="learn-ev-sandbox"><div class="sw-track"></div></label>
+      </div>
+    </div>
+    <div style="margin:16px;padding-bottom:8px;">
+      <button class="btn-primary" type="button" id="learn-ev-refresh" style="width:100%;">
+        <i class="ri-refresh-line"></i>&nbsp; Refresh learning
+      </button>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════
        PANEL: NOTIFICATIONS
   ════════════════════════════════════════ -->
   <div id="panel-notifications" class="panel">
@@ -867,6 +960,40 @@
         <div class="tr-ic"><i class="ri-book-2-line"></i></div>
         <div class="tr-body"><div class="tr-title">Tips &amp; Education</div><div class="tr-sub">Farming tips and guides</div></div>
         <label class="sw"><input type="checkbox" id="n-tips" checked><div class="sw-track"></div></label>
+      </div>
+    </div>
+
+    <div class="sec-h">Ambient &amp; attention</div>
+    <div class="toggle-card">
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-contrast-drop-line"></i></div>
+        <div class="tr-body"><div class="tr-title">Focus mode</div><div class="tr-sub">Calm batches cues; active surfaces more</div></div>
+        <select id="amb-focus" aria-label="Focus mode"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--txt);padding:6px 8px;font-size:11px;max-width:110px;">
+          <option value="calm">Calm</option>
+          <option value="balanced" selected>Balanced</option>
+          <option value="active">Active</option>
+        </select>
+      </div>
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-hand-heart-line"></i></div>
+        <div class="tr-body"><div class="tr-title">Interruption sensitivity</div><div class="tr-sub">Low keeps passive items out of the badge</div></div>
+        <select id="amb-intr" aria-label="Interruption sensitivity"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--txt);padding:6px 8px;font-size:11px;max-width:110px;">
+          <option value="low">Low</option>
+          <option value="standard" selected>Standard</option>
+          <option value="high">High</option>
+        </select>
+      </div>
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-notification-badge-line"></i></div>
+        <div class="tr-body"><div class="tr-title">Count passive in badge</div><div class="tr-sub">Ambient confirmations (e.g. steady scans)</div></div>
+        <label class="sw"><input type="checkbox" id="amb-badge-passive"><div class="sw-track"></div></label>
+      </div>
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-sun-foggy-line"></i></div>
+        <div class="tr-body"><div class="tr-title">Morning briefing on home</div><div class="tr-sub">Short operational paragraph, cached per day</div></div>
+        <label class="sw"><input type="checkbox" id="amb-morning-brief" checked><div class="sw-track"></div></label>
       </div>
     </div>
 
@@ -1320,6 +1447,7 @@
     }, {passive:true});
   })();
 </script>
-<script type="module" src="js/profile.js?v=38"></script>
+<script>window.refreshAiDiag = function () {};</script>
+<script type="module" src="js/profile.js?v=41"></script>
 </body>
 </html>

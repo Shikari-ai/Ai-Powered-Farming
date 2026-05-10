@@ -484,8 +484,8 @@
 
     /* ── QUICK ACTIONS ── */
     .qactions {
-      display: flex; justify-content: space-between;
-      margin-bottom: 14px; padding: 0 2px;
+      display: flex; flex-wrap: wrap; justify-content: space-between;
+      margin-bottom: 14px; padding: 0 2px; gap: 8px 4px;
     }
     .qa {
       display: flex; flex-direction: column;
@@ -507,6 +507,7 @@
     }
     .qa-ico.qa-blue { color: var(--blue); }
     .qa-ico.qa-purple { color: var(--purple); }
+    .qa-ico.qa-cyan { color: #22d3ee; }
     .qa span {
       font-size: 10px; font-weight: 500;
       color: var(--text-dim); text-align: center;
@@ -931,6 +932,33 @@
     .np-content h4 { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
     .np-content p { font-size: 11px; color: var(--text-dim); line-height: 1.45; }
     .np-time { font-size: 9px; color: var(--text-muted); margin-top: 4px; }
+    .np-item.np-passive {
+      opacity: 0.88;
+      border-left: 2px solid rgba(148, 163, 184, 0.35);
+    }
+    .np-item.np-passive .np-content h4 { font-weight: 500; color: rgba(236,253,245,0.85); }
+    .np-amb-tag {
+      font-size: 9px; color: rgba(148,163,184,0.9); margin-top: 4px; letter-spacing: 0.02em;
+    }
+
+    /* ── Ambient intelligence (calm feed) ── */
+    .amb-card {
+      border: 1px solid rgba(167, 139, 250, 0.14);
+      background: linear-gradient(145deg, rgba(15, 23, 18, 0.92), rgba(10, 18, 14, 0.88));
+    }
+    .dash-amb-insights {
+      margin: 0; padding: 0 18px 8px; list-style: none;
+    }
+    .dash-amb-insights li {
+      font-size: 11px; line-height: 1.5; color: rgba(236, 253, 245, 0.78);
+      padding: 8px 0; border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .dash-amb-insights li:first-child { border-top: none; padding-top: 2px; }
+    .dash-amb-brief {
+      margin: 0 18px 14px; padding: 10px 12px; border-radius: 12px;
+      font-size: 10px; line-height: 1.55; color: rgba(236, 253, 245, 0.72);
+      background: rgba(167, 139, 250, 0.06); border: 1px solid rgba(167, 139, 250, 0.12);
+    }
 
     /* ── LANG TOGGLE (Header hidden, accessible via Profile) ── */
     .lang-btn {
@@ -993,6 +1021,23 @@
       line-height: 1.45;
     }
     .dash-alerts-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .dash-ops-list { display: flex; flex-direction: column; gap: 8px; }
+    .dash-ops-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 12px;
+    }
+    .dash-ops-pri { font-size: 9px; font-weight: 700; text-transform: uppercase; color: #6ee7b7; flex-shrink: 0; width: 52px; }
+    .dash-ops-sub { font-size: 10px; color: rgba(255, 255, 255, 0.45); margin-top: 4px; line-height: 1.35; }
+    .dash-ops-empty { font-size: 12px; color: rgba(255, 255, 255, 0.38); padding: 8px 0; line-height: 1.45; }
+
     .dash-alert-row {
       display: flex;
       gap: 12px;
@@ -1174,10 +1219,74 @@
         <div class="qa-ico qa-blue"><i class="ri-water-flash-line"></i></div>
         <span data-i18n="irrigation">Irrigation</span>
       </a>
+      <a href="copilot.html" class="qa rw">
+        <div class="qa-ico qa-cyan"><i class="ri-broadcast-line"></i></div>
+        <span>AI Copilot</span>
+      </a>
       <a href="assistant.html" class="qa rw">
         <div class="qa-ico qa-purple"><i class="ri-sparkling-2-line"></i></div>
         <span data-i18n="aiAssistant">AI Assistant</span>
       </a>
+    </div>
+
+    <!-- AMBIENT INTELLIGENCE (calm context — not a notification storm) -->
+    <div class="dcard fade-up fade-up-d1 amb-card" id="dash-ambient-root" style="opacity:0;">
+      <div class="dcard-hdr">
+        <div class="dcard-ttl" style="gap:8px;">
+          <i class="ri-mist-line" style="color:#c4b5fd;"></i>
+          <span>Ambient context</span>
+        </div>
+        <span class="dcard-lnk" style="cursor:default;opacity:0.65;">Steady · local</span>
+      </div>
+      <ul id="dash-ambient-insights" class="dash-amb-insights" aria-live="polite"></ul>
+      <p id="dash-ambient-brief" class="dash-amb-brief" style="display:none;"></p>
+    </div>
+
+    <!-- REGIONAL INTELLIGENCE (opt-in anonymized network layer) -->
+    <div class="dcard fade-up fade-up-d1b" id="dash-regional-card" style="border:1px solid rgba(34,211,238,0.12);">
+      <div class="dcard-hdr">
+        <div class="dcard-ttl" style="gap:8px;">
+          <i class="ri-earth-line" style="color:#22d3ee;"></i>
+          <span>Regional Intelligence Network</span>
+        </div>
+        <a href="regional.html" class="dcard-lnk">Open map</a>
+      </div>
+      <div style="padding:0 18px 16px;">
+        <label style="display:flex;align-items:flex-start;gap:10px;font-size:12px;color:rgba(255,255,255,0.52);cursor:pointer;line-height:1.45;">
+          <input type="checkbox" id="dash-regional-optin" style="margin-top:3px;accent-color:#22d3ee;flex-shrink:0;" />
+          <span>Opt in to contribute <strong style="font-weight:600;color:rgba(236,253,245,0.78);">anonymized</strong> coarse-grid signals only. We never share farm ownership, field boundaries, or chat.</span>
+        </label>
+        <p id="dash-regional-brief" style="margin-top:12px;font-size:12px;line-height:1.55;color:rgba(236,253,245,0.82);">Loading regional briefing…</p>
+      </div>
+    </div>
+
+    <!-- FIELD OPERATIONS (interventions + tasks — human-in-the-loop) -->
+    <div class="dcard fade-up fade-up-d1c" id="dash-ops-card" style="border:1px solid rgba(16,185,129,0.15);">
+      <div class="dcard-hdr">
+        <div class="dcard-ttl" style="gap:8px;">
+          <i class="ri-calendar-check-line" style="color:#34d399;"></i>
+          <span>Field operations</span>
+        </div>
+        <a href="fields.html" class="dcard-lnk">Fields</a>
+      </div>
+      <div style="padding:0 18px 14px;">
+        <p id="dash-ops-summary" style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:8px;line-height:1.45;">Loading tasks…</p>
+        <div id="dash-ops-list" class="dash-ops-list"></div>
+      </div>
+    </div>
+
+    <!-- DIGITAL TWIN (coarse simulated contrast — open field Twin tab for full curves) -->
+    <div class="dcard fade-up fade-up-d1c" id="dash-twin-card" style="border:1px solid rgba(56,189,248,0.18);">
+      <div class="dcard-hdr">
+        <div class="dcard-ttl" style="gap:8px;">
+          <i class="ri-pulse-line" style="color:#38bdf8;"></i>
+          <span>Digital twin teaser</span>
+        </div>
+        <a href="fields.html" class="dcard-lnk" id="dash-twin-field-link">Field</a>
+      </div>
+      <div style="padding:0 18px 14px;">
+        <p id="dash-twin-summary" style="font-size:11px;color:rgba(255,255,255,0.5);line-height:1.45;">Loading simulation hint…</p>
+      </div>
     </div>
 
     <!-- RECENT ALERTS (Firestore `alerts`, realtime) -->
@@ -1528,7 +1637,7 @@
 </script>
 
 <script src="js/app.js?v=26"></script>
-<script type="module" src="js/dashboard.js?v=31"></script>
+<script type="module" src="js/dashboard.js?v=33"></script>
 <script type="module" src="js/i18n.js?v=4"></script>
 </body>
 </html>

@@ -28,6 +28,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet" />
   <link rel="stylesheet" href="css/nav.css">
+  <link rel="stylesheet" href="css/reliability.css">
   <style>
     :root {
       --bg: #000000;
@@ -169,6 +170,198 @@
 
     .hidden { display: none !important; }
     .empty { text-align: center; color: var(--dim); font-size: 12px; padding: 24px 12px; }
+
+    /* —— Field Intelligence command center —— */
+    #panel-intelligence { padding: 0 0 24px; }
+    .glass-fi {
+      background: rgba(8, 12, 10, 0.78);
+      border: 1px solid rgba(57, 255, 20, 0.22);
+      border-radius: 20px;
+      padding: 16px;
+      margin: 12px;
+      backdrop-filter: blur(18px);
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(57, 255, 20, 0.08);
+    }
+    .fi-wrap { animation: fadeIn 0.4s ease; }
+    .fi-hero { position: relative; overflow: hidden; }
+    .fi-hero::before {
+      content: "";
+      position: absolute; inset: -40%;
+      background: conic-gradient(from 120deg, transparent, rgba(57, 255, 20, 0.06), transparent);
+      animation: fi-slow 18s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes fi-slow { to { transform: rotate(360deg); } }
+    .fi-hero-label {
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      color: var(--neon);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      position: relative;
+      z-index: 1;
+    }
+    .fi-blink {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--neon);
+      box-shadow: 0 0 12px var(--neon);
+      animation: fi-pulse-dot 1.6s ease-in-out infinite;
+    }
+    @keyframes fi-pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.35} }
+    .fi-orbit-row {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      flex-wrap: wrap;
+      position: relative;
+      z-index: 1;
+    }
+    .fi-orbit-svg { display: block; filter: drop-shadow(0 0 16px rgba(57,255,20,0.25)); }
+    .fi-leg-item { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; font-size: 11px; }
+    .fi-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .fi-leg-k { color: var(--dim); font-size: 10px; }
+    .fi-leg-v { color: var(--neon); font-weight: 600; }
+    .fi-module { }
+    .fi-mod-head {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 12px;
+    }
+    .fi-mod-head h4 { font-size: 13px; color: var(--neon); font-weight: 600; }
+    .fi-tag {
+      font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em;
+      padding: 4px 8px; border-radius: 999px;
+      border: 1px solid rgba(57, 255, 20, 0.35);
+      color: var(--neon);
+    }
+    .fi-tag.proj { border-color: rgba(167, 139, 250, 0.5); color: #c4b5fd; }
+    .fi-hint { font-size: 9px; color: var(--dim); }
+    .fi-explain-line {
+      font-size: 11px; padding: 10px 12px; margin-bottom: 8px;
+      border-radius: 12px;
+      background: rgba(57, 255, 20, 0.05);
+      border: 1px solid rgba(57, 255, 20, 0.12);
+      animation: fadeIn 0.5s ease backwards;
+    }
+    .fi-chevron { color: var(--neon); margin-right: 6px; }
+    .fi-timeline-outer {
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 28px 8px 16px;
+      border-radius: 14px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(57, 255, 20, 0.1);
+      -webkit-overflow-scrolling: touch;
+    }
+    .fi-timeline-inner {
+      position: relative;
+      min-height: 88px;
+      transition: transform 0.12s ease-out;
+    }
+    .fi-timeline-inner::before {
+      content: "";
+      position: absolute; left: 20px; right: 20px; top: 36px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--neon-dim), transparent);
+      opacity: 0.5;
+    }
+    .fi-node {
+      position: absolute;
+      top: 14px;
+      transform: translateX(-50%);
+      min-width: 100px;
+      max-width: 140px;
+      padding: 8px 6px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      color: var(--text);
+      font-size: 10px;
+      text-align: center;
+    }
+    .fi-node-ic { display: block; font-size: 14px; margin-bottom: 4px; }
+    .fi-node-lbl { display: block; line-height: 1.25; max-height: 2.6em; overflow: hidden; }
+    .fi-tooltip {
+      position: absolute;
+      z-index: 50;
+      transform: translate(-50%, -100%);
+      background: rgba(0, 0, 0, 0.92);
+      border: 1px solid var(--neon);
+      color: var(--text);
+      font-size: 10px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      max-width: 220px;
+      pointer-events: none;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+    }
+    .fi-select {
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 11px;
+    }
+    .fi-hm-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+    .fi-hm-table th, .fi-hm-table td { padding: 6px 4px; text-align: center; border: 1px solid rgba(57,255,20,0.08); }
+    .fi-hm-row { text-align: left !important; color: var(--neon); max-width: 90px; overflow: hidden; text-overflow: ellipsis; }
+    .fi-hm-cell { position: relative; padding: 0 !important; height: 28px; vertical-align: middle; }
+    .fi-hm-fill {
+      display: block; margin: 3px; height: 18px; border-radius: 6px;
+      background: rgba(57, 255, 20, var(--fi, 0.15));
+      box-shadow: 0 0 14px rgba(57, 255, 20, calc(var(--fi, 0.2) * 0.8));
+    }
+    .fi-disclaimer { font-size: 9px; color: var(--dim); margin-top: 10px; line-height: 1.4; }
+    .fi-chart .fi-conf-svg { width: 100%; max-height: 120px; }
+    .fi-env-row { margin-bottom: 12px; }
+    .fi-env-k { font-size: 11px; display: flex; justify-content: space-between; color: var(--text); }
+    .fi-env-k span { color: var(--dim); font-size: 10px; }
+    .fi-env-bar { height: 8px; border-radius: 6px; background: rgba(255,255,255,0.06); margin-top: 6px; overflow: hidden; }
+    .fi-env-bar span {
+      display: block; height: 100%; border-radius: 6px;
+      background: linear-gradient(90deg, #39ff14, #5eead4);
+      box-shadow: 0 0 12px rgba(57,255,20,0.35);
+      transition: width 0.4s ease;
+    }
+    .fi-proj-svg { width: 100%; max-height: 100px; }
+    .fi-mem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .fi-mem-card {
+      padding: 10px; border-radius: 12px;
+      border: 1px solid rgba(251, 113, 133, 0.25);
+      background: rgba(251, 113, 133, 0.06);
+      font-size: 10px;
+    }
+    .fi-mem-title { color: #fda4af; font-weight: 600; margin-bottom: 4px; }
+    .fi-mem-meta { color: var(--dim); }
+    .fi-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+    .fi-chip {
+      font-size: 9px; padding: 5px 10px; border-radius: 999px;
+      border: 1px solid rgba(57,255,20,0.35);
+      background: rgba(0,0,0,0.35);
+    }
+    .fi-stab-svg { width: 100%; max-height: 80px; }
+    .fi-stab-meta { font-size: 10px; color: var(--dim); margin-top: 8px; }
+    .fi-empty { font-size: 11px; color: var(--dim); padding: 16px 8px; text-align: center; }
+    .tab { font-size: 10px; padding: 10px 4px; }
+    .ops-disclaimer { font-size: 10px; color: var(--dim); line-height: 1.45; margin-bottom: 12px; }
+    .twin-disclaimer { font-size: 10px; color: var(--dim); line-height: 1.45; margin-bottom: 12px; }
+    .twin-chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .twin-chip {
+      border: 1px solid var(--border); background: rgba(0,0,0,0.35); color: var(--text);
+      border-radius: 999px; padding: 8px 12px; font-size: 10px; cursor: pointer; transition: 0.2s ease;
+    }
+    .twin-chip.twin-chip-active {
+      background: var(--neon); color: #000; font-weight: 600; border-color: var(--neon);
+    }
+    .twin-card {
+      border: 1px solid var(--border); border-radius: 14px; padding: 12px; margin-bottom: 10px;
+      background: rgba(57,255,20,0.05); font-size: 11px;
+    }
+    .twin-card h4 { font-size: 12px; color: var(--neon); margin-bottom: 6px; }
+    .twin-card ul { margin: 8px 0 0 16px; line-height: 1.45; color: var(--dim); }
   </style>
 </head>
 <body>
@@ -192,6 +385,9 @@
       <div class="tab active" data-tab="overview" role="tab">Overview</div>
       <div class="tab" data-tab="crops" role="tab">Crops</div>
       <div class="tab" data-tab="health" role="tab">Health</div>
+      <div class="tab" data-tab="intelligence" role="tab">Intel</div>
+      <div class="tab" data-tab="twin" role="tab">Twin</div>
+      <div class="tab" data-tab="operations" role="tab">Ops</div>
       <div class="tab" data-tab="activity" role="tab">Activity</div>
     </div>
 
@@ -275,9 +471,80 @@
         <div id="fd-latest-scan"><div class="empty">No scans for this field yet.</div></div>
       </div>
       <div class="glass">
-        <h3>Field intelligence</h3>
+        <h3>Field notes</h3>
         <div id="fd-insights"><div class="empty">Insights appear after scans and weather sync.</div></div>
       </div>
+    </div>
+
+    <div id="panel-operations" class="panel">
+      <div class="glass">
+        <h3>Log intervention</h3>
+        <p class="ops-disclaimer">You control all field actions. Log what you did — the app tracks outcomes from scans over time (advisory only, not a substitute for labels or agronomy advice).</p>
+        <label for="fd-ops-type">Type</label>
+        <select id="fd-ops-type"></select>
+        <label for="fd-ops-notes">Notes</label>
+        <textarea id="fd-ops-notes" placeholder="Product/rate if you want (optional), coverage, conditions…"></textarea>
+        <label for="fd-ops-window">Expected outcome window (hours)</label>
+        <input id="fd-ops-window" type="number" inputmode="numeric" min="6" max="336" value="72" />
+        <label for="fd-ops-followup">Follow-up plan (optional)</label>
+        <textarea id="fd-ops-followup" placeholder="e.g. Re-scout low rows in 36h"></textarea>
+        <button type="button" class="btn-neon" id="fd-ops-log">Log intervention</button>
+      </div>
+      <div class="glass">
+        <h3>Field outcomes</h3>
+        <p id="fd-ops-brief" style="font-size:11px;color:var(--dim);line-height:1.45;margin-bottom:8px;">—</p>
+        <p class="ops-disclaimer" style="margin-top:0;">Compare <strong>what-if</strong> weeks (simulated) anytime in the <strong>Twin</strong> tab.</p>
+        <div id="fd-ops-interventions"><div class="empty">Loading…</div></div>
+      </div>
+      <div class="glass">
+        <h3>Open tasks</h3>
+        <div id="fd-ops-tasks"><div class="empty">—</div></div>
+      </div>
+      <div class="glass">
+        <h3>Suggested tasks</h3>
+        <p style="font-size:10px;color:var(--dim);margin-bottom:8px;">From scans, alerts, and weather context — add what makes sense for your operation.</p>
+        <div id="fd-ops-proposals"><div class="empty">—</div></div>
+      </div>
+      <div class="glass">
+        <h3>Seasonal rhythm</h3>
+        <div id="fd-ops-seasonal"><div class="empty">—</div></div>
+      </div>
+      <div class="glass">
+        <h3>Operational timeline</h3>
+        <div id="fd-ops-timeline"><div class="empty">—</div></div>
+      </div>
+    </div>
+
+    <div id="panel-twin" class="panel">
+      <div class="glass">
+        <h3>Digital field twin</h3>
+        <p class="twin-disclaimer">A living sketch of this field: scans, weather, memory, and your ops history feed a small simulation. <strong>All curves are hypothetical</strong> — use them to think through tradeoffs, not as yield or disease guarantees.</p>
+        <div id="fd-twin-summary" style="font-size:11px;color:var(--dim);line-height:1.45;">—</div>
+      </div>
+      <div class="glass">
+        <h3>Scenarios</h3>
+        <p style="font-size:10px;color:var(--dim);margin-bottom:4px;">Select up to three paths to compare (estimated).</p>
+        <div id="fd-twin-scenarios" class="twin-chip-row"></div>
+      </div>
+      <div class="glass">
+        <h3>Trajectory replay</h3>
+        <p style="font-size:10px;color:var(--dim);margin-bottom:8px;">Scrub the simulated week — shaded bands widen when scan context is thin.</p>
+        <div id="fd-twin-chart"><div class="empty">Load weather to see projections.</div></div>
+        <label for="fd-twin-replay" style="margin-top:10px;">Playback day</label>
+        <input type="range" id="fd-twin-replay" min="0" max="7" value="7" style="margin-bottom:0;" />
+      </div>
+      <div class="glass">
+        <h3>Scenario cards</h3>
+        <div id="fd-twin-cards"></div>
+      </div>
+      <div class="glass">
+        <h3>Why paths diverge</h3>
+        <ul id="fd-twin-explain" style="font-size:11px;color:var(--dim);padding-left:18px;line-height:1.5;margin:0;"></ul>
+      </div>
+    </div>
+
+    <div id="panel-intelligence" class="panel">
+      <div id="fi-command-root"></div>
     </div>
 
     <div id="panel-activity" class="panel">
@@ -300,7 +567,7 @@
     <a href="profile.html" class="b-nav-item"><i class="ri-user-smile-line"></i><span data-i18n="navProfile">Profile</span></a>
   </nav>
 
-  <script type="module" src="js/field-detail.js?v=31"></script>
+  <script type="module" src="js/field-detail.js?v=40"></script>
   <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>

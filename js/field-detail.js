@@ -3,11 +3,13 @@ import "./i18n.js";
 import { auth, db, storage } from "./auth.js?v=31";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
+  addDoc,
   collection,
   deleteDoc,
   doc,
   limit,
   onSnapshot,
+  orderBy,
   query,
   serverTimestamp,
   updateDoc,
@@ -15,6 +17,25 @@ import {
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+import { FieldIntelligenceViz } from "./field-intelligence-viz.js?v=1";
+import { reliabilityRowHTML } from "./ai/reliability/ui.js";
+import {
+  logIntervention,
+  createOperationalTask,
+  completeOperationalTask,
+  dismissOperationalTask,
+} from "./ops/operations-service.js";
+import { INTERVENTION_TYPES, INTERVENTION_LABELS, TASK_PRIORITY_ORDER } from "./ops/types.js";
+import { proposeFieldTasks } from "./ops/task-proposals.js";
+import { assessInterventionOutcome, summarizeOperationsAnalytics } from "./ops/effectiveness.js";
+import { decorateNotificationForAmbient } from "./ambient/notification-decorator.js";
+import { buildOperationsTimeline } from "./ops/timeline.js";
+import { getSeasonalWorkflowHints } from "./ops/seasonal-workflows.js";
+import { buildDigitalTwinState } from "./twin/twin-state.js";
+import { compareScenarios, explainSimulationDifference, SCENARIO_PRESETS } from "./twin/simulation-engine.js";
+import { buildTwinTrajectorySvg, formatScenarioCard } from "./twin/twin-visualization.js";
+import { getRecommendationCalibration } from "./learning/calibration-apply.js";
+import { queueLearningFlush } from "./learning/scheduler.js";
 
 const qs = (s) => document.querySelector(s);
 const el = (id) => document.getElementById(id);
@@ -125,6 +146,24 @@ function buildInsights(field, latest, scansDesc, soilMoisture) {
 
 let detach = null;
 
+let _intelTabCallback = null;
+let _fieldTabsBound = false;
+
+function bindFieldTabsGlobal() {
+  if (_fieldTabsBound) return;
+  const t = qs(".tabs");
+  if (!t) return;
+  _fieldTabsBound = true;
+  t.addEventListener("click", (e) => {
+    const tab = e.target.closest(".tab");
+    if (!tab) return;
+    const id = tab.dataset.tab;
+    document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("active", x === tab));
+    document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("active", p.id === `panel-${id}`));
+    _intelTabCallback?.(id);
+  });
+}
+
 function attachFieldDetail(user, fieldId) {
   const unsubs = [];
   let fieldSnap = null;
@@ -132,6 +171,26 @@ function attachFieldDetail(user, fieldId) {
   let recs = [];
   let activities = [];
   let latestWeatherMoisture = null;
+  /** @type {any | null} */
+  let latestWeatherLogDoc = null;
+  /** @type {any} */
+  let ctxState = null;
+  let ctxEvents = [];
+  let inferenceJobs = [];
+  let fieldInterventions = [];
+  let fieldTasks = [];
+  let fieldAlerts = [];
+  /** @type {any | null} */
+  let learningProfileDoc = null;
+  /** @type {FieldIntelligenceViz | null} */
+  let fiViz = null;
+
+  _intelTabCallback = (tabId) => {
+    if (tabId === "intelligence") rerenderAll();
+    if (tabId === "operations") rerenderAll();
+    if (tabId === "twin") rerenderAll();
+  };
+  bindFieldTabsGlobal();
 
   const unsubField = onSnapshot(doc(db, "fields", fieldId), (snap) => {
     if (!snap.exists()) {
@@ -195,11 +254,13 @@ function attachFieldDetail(user, fieldId) {
     onSnapshot(query(collection(db, "weather_logs"), where("userId", "==", user.uid), limit(40)), (snap) => {
       let best = 0;
       let moisture = null;
+      let bestDoc = null;
       snap.forEach((d) => {
         const x = d.data();
         const t = tsToMs(x.fetchedAt);
         if (t >= best) {
           best = t;
+          bestDoc = { id: d.id, ...x };
           moisture =
             typeof x.derived?.soilMoistureEstimate === "number"
               ? x.derived.soilMoistureEstimate
@@ -207,9 +268,197 @@ function attachFieldDetail(user, fieldId) {
         }
       });
       latestWeatherMoisture = moisture;
+      latestWeatherLogDoc = bestDoc;
       rerenderAll();
     }),
   );
+
+  unsubs.push(
+    onSnapshot(doc(db, "field_context_state", fieldId), (snap) => {
+      ctxState = snap.exists() ? { id: snap.id, ...snap.data() } : null;
+      rerenderAll();
+    }),
+  );
+
+  unsubs.push(
+    onSnapshot(
+      query(
+        collection(db, "field_context_events"),
+        where("userId", "==", user.uid),
+        where("fieldId", "==", fieldId),
+        orderBy("createdAt", "desc"),
+        limit(100),
+      ),
+      (snap) => {
+        ctxEvents = [];
+        snap.forEach((d) => ctxEvents.push({ id: d.id, ...d.data() }));
+        rerenderAll();
+      },
+    ),
+  );
+
+  unsubs.push(
+    onSnapshot(
+      query(
+        collection(db, "ai_inference_jobs"),
+        where("userId", "==", user.uid),
+        where("fieldId", "==", fieldId),
+        orderBy("createdAt", "desc"),
+        limit(45),
+      ),
+      (snap) => {
+        inferenceJobs = [];
+        snap.forEach((d) => inferenceJobs.push({ id: d.id, ...d.data() }));
+        rerenderAll();
+      },
+    ),
+  );
+
+  unsubs.push(
+    onSnapshot(
+      query(
+        collection(db, "farm_interventions"),
+        where("userId", "==", user.uid),
+        where("fieldId", "==", fieldId),
+        orderBy("performedAt", "desc"),
+        limit(36),
+      ),
+      (snap) => {
+        fieldInterventions = [];
+        snap.forEach((d) => fieldInterventions.push({ id: d.id, ...d.data() }));
+        rerenderAll();
+      },
+    ),
+  );
+
+  unsubs.push(
+    onSnapshot(
+      query(
+        collection(db, "farm_operational_tasks"),
+        where("userId", "==", user.uid),
+        where("fieldId", "==", fieldId),
+        orderBy("createdAt", "desc"),
+        limit(40),
+      ),
+      (snap) => {
+        fieldTasks = [];
+        snap.forEach((d) => fieldTasks.push({ id: d.id, ...d.data() }));
+        rerenderAll();
+      },
+    ),
+  );
+
+  unsubs.push(
+    onSnapshot(query(collection(db, "alerts"), where("userId", "==", user.uid), limit(50)), (snap) => {
+      fieldAlerts = [];
+      snap.forEach((d) => {
+        const x = { id: d.id, ...d.data() };
+        if (x.fieldId === fieldId || !x.fieldId) fieldAlerts.push(x);
+      });
+      rerenderAll();
+    }),
+  );
+
+  unsubs.push(
+    onSnapshot(doc(db, "learning_profiles", user.uid), (snap) => {
+      learningProfileDoc = snap.exists() ? snap.data() : null;
+      rerenderAll();
+    }),
+  );
+
+  /** @type {string[]} */
+  let twinScenarioIds = ["baseline", "continued_rain", "immediate_intervention"];
+  let lastOpsProposals = [];
+
+  const twinPanelRoot = el("panel-twin");
+  if (twinPanelRoot && !twinPanelRoot.dataset.twinUiBound) {
+    twinPanelRoot.dataset.twinUiBound = "1";
+    twinPanelRoot.addEventListener("click", (e) => {
+      const chip = e.target.closest("[data-twin-scenario]");
+      if (!chip) return;
+      const id = chip.dataset.twinScenario;
+      if (!id) return;
+      const on = twinScenarioIds.includes(id);
+      if (on) twinScenarioIds = twinScenarioIds.filter((x) => x !== id);
+      else {
+        twinScenarioIds.push(id);
+        if (twinScenarioIds.length > 3) twinScenarioIds = twinScenarioIds.slice(-3);
+      }
+      if (!twinScenarioIds.length) twinScenarioIds = ["baseline"];
+      renderTwinPanel();
+    });
+    el("fd-twin-replay")?.addEventListener("input", () => renderTwinPanel());
+  }
+
+  function renderTwinPanel() {
+    const panel = el("panel-twin");
+    const f = fieldSnap;
+    if (!panel || !f) return;
+    const sumEl = el("fd-twin-summary");
+    const twin = buildDigitalTwinState({
+      field: f,
+      scans,
+      ctxState,
+      interventions: fieldInterventions,
+    });
+    const stage = twin.growth?.label || "—";
+    if (sumEl) {
+      sumEl.innerHTML = `Crop <strong style="color:var(--neon)">${escapeHtml(f.cropType || "—")}</strong> · growth stage <strong>${escapeHtml(stage)}</strong> (heuristic) · twin data confidence <strong>${escapeHtml(twin.dataConfidence)}</strong> · scans <strong>${twin.scanCount}</strong>.`;
+    }
+
+    const hostChips = el("fd-twin-scenarios");
+    if (hostChips) {
+      hostChips.innerHTML = SCENARIO_PRESETS.map((p) => {
+        const active = twinScenarioIds.includes(p.id);
+        return `<button type="button" class="twin-chip${active ? " twin-chip-active" : ""}" data-twin-scenario="${escapeHtml(p.id)}">${escapeHtml(p.label)}</button>`;
+      }).join("");
+    }
+
+    const wx = latestWeatherLogDoc;
+    const bundle = wx ? { current: wx.current, daily: wx.daily, hourly: wx.hourly, fetchedAt: wx.fetchedAt } : null;
+
+    const chartEl = el("fd-twin-chart");
+    const cardsEl = el("fd-twin-cards");
+    const explainEl = el("fd-twin-explain");
+    const replay = el("fd-twin-replay");
+
+    if (!bundle?.daily?.precipitation_sum) {
+      if (chartEl) chartEl.innerHTML = '<div class="empty">Weather bundle missing — open the app with location once, then return.</div>';
+      if (cardsEl) cardsEl.innerHTML = "";
+      if (explainEl) explainEl.innerHTML = "";
+      return;
+    }
+
+    const ids = twinScenarioIds.length ? twinScenarioIds : ["baseline"];
+    const learningCal = getRecommendationCalibration(learningProfileDoc);
+    const suite = compareScenarios(twin, bundle, ids, { regionalStress01: 0.14, learningCal });
+    const horizon = suite[0]?.projection?.steps?.length ? suite[0].projection.steps.length - 1 : 7;
+    if (replay) replay.max = String(horizon);
+
+    const day = replay ? Number(replay.value) : horizon;
+    if (chartEl) chartEl.innerHTML = buildTwinTrajectorySvg(suite, { replayDay: day });
+
+    if (cardsEl) {
+      cardsEl.innerHTML = suite
+        .map((item) => {
+          const c = formatScenarioCard(item);
+          return `<div class="twin-card"><h4>${escapeHtml(c.title)}</h4><p style="color:var(--dim);">${escapeHtml(c.body)}</p><ul>${c.metrics.map((m) => `<li>${escapeHtml(m)}</li>`).join("")}</ul></div>`;
+        })
+        .join("");
+    }
+
+    if (explainEl) {
+      const baseItem = suite.find((s) => s.meta.id === "baseline") || suite[0];
+      const baseProj = baseItem?.projection;
+      const altItem = suite.find((s) => s.meta.id !== baseItem?.meta?.id) || suite[1];
+      const altProj = altItem?.projection;
+      const lines =
+        baseProj && altProj && baseItem?.meta?.id !== altItem?.meta?.id
+          ? explainSimulationDifference(baseProj, altProj)
+          : ["Select two distinct scenarios to compare explanatory notes."];
+      explainEl.innerHTML = lines.map((x) => `<li>${escapeHtml(x)}</li>`).join("");
+    }
+  }
 
   function latestScan() {
     let best = null;
@@ -222,6 +471,164 @@ function attachFieldDetail(user, fieldId) {
       }
     }
     return best;
+  }
+
+  function renderOperationsPanel() {
+    const root = el("panel-operations");
+    if (!root || !fieldSnap) return;
+
+    const sel = el("fd-ops-type");
+    if (sel && sel.options.length === 0) {
+      for (const t of INTERVENTION_TYPES) {
+        const o = document.createElement("option");
+        o.value = t;
+        o.textContent = INTERVENTION_LABELS[t] || t;
+        sel.appendChild(o);
+      }
+    }
+
+    const f = fieldSnap;
+    const fieldOnlyAlerts = fieldAlerts.filter((a) => a.fieldId === fieldId);
+    const proposals = proposeFieldTasks({
+      scans,
+      alerts: fieldOnlyAlerts,
+      ctxState,
+      weatherLog: latestWeatherLogDoc,
+      fieldId,
+      fieldName: f.name || "Field",
+    });
+    lastOpsProposals = proposals;
+
+    const openTasks = fieldTasks
+      .filter((t) => t.status === "open")
+      .slice()
+      .sort((a, b) => {
+        const oa = TASK_PRIORITY_ORDER[a.priority] ?? 9;
+        const ob = TASK_PRIORITY_ORDER[b.priority] ?? 9;
+        if (oa !== ob) return oa - ob;
+        return tsToMs(a.dueAt || a.createdAt) - tsToMs(b.dueAt || b.createdAt);
+      });
+
+    const seasonal = getSeasonalWorkflowHints(f.cropType, new Date());
+    const timeline = buildOperationsTimeline(
+      {
+        interventions: fieldInterventions,
+        tasks: fieldTasks,
+        alerts: fieldOnlyAlerts,
+        scans,
+        recs,
+        activities,
+        weatherLogs: latestWeatherLogDoc ? [{ id: latestWeatherLogDoc.id || "wx", ...latestWeatherLogDoc }] : [],
+      },
+      40,
+    );
+
+    const intvHost = el("fd-ops-interventions");
+    if (intvHost) {
+      const intvRows = fieldInterventions
+        .slice()
+        .sort((a, b) => tsToMs(b.performedAt) - tsToMs(a.performedAt))
+        .slice(0, 14)
+        .map((inv) => {
+          const assessed = assessInterventionOutcome(inv, scans);
+          const label = INTERVENTION_LABELS[inv.interventionType] || inv.interventionType;
+          const eff =
+            typeof assessed.effectivenessScore === "number"
+              ? `${Math.round(assessed.effectivenessScore * 100)}% (${String(assessed.recoveryConfidence).replace(/_/g, " ")})`
+              : String(assessed.recoveryConfidence).replace(/_/g, " ");
+          const trig = inv.aiTriggerSource?.kind || "manual";
+          return `
+        <div class="scan-card">
+          <div class="score">${escapeHtml(label)}</div>
+          <div style="margin-top:6px;font-size:10px;color:var(--dim);">Source: ${escapeHtml(trig)}</div>
+          <div style="margin-top:6px;font-size:11px;color:var(--dim);line-height:1.45;">${escapeHtml(assessed.narrative)}</div>
+          <div style="margin-top:8px;font-size:10px;opacity:.9;"><strong>Inferred trend</strong>: ${escapeHtml(eff)} · not proof of causation</div>
+          ${
+            inv.followUpRecommendation
+              ? `<div style="margin-top:6px;font-size:10px;">Follow-up: ${escapeHtml(inv.followUpRecommendation)}</div>`
+              : ""
+          }
+          ${inv.notes ? `<div style="margin-top:6px;font-size:11px;">${escapeHtml(inv.notes)}</div>` : ""}
+          <div class="t">${formatAgo(tsToMs(inv.performedAt))}</div>
+        </div>`;
+        })
+        .join("");
+      intvHost.innerHTML = intvRows || '<div class="empty">No interventions logged yet.</div>';
+    }
+
+    const tasksHost = el("fd-ops-tasks");
+    if (tasksHost) {
+      tasksHost.innerHTML = openTasks.length
+        ? openTasks
+            .map(
+              (t) => `
+      <div class="insight-row">
+        <i class="ri-task-line"></i>
+        <div style="flex:1;min-width:0;">
+          <div><span style="color:var(--neon);font-size:10px;">${escapeHtml(t.priority || "normal")}</span> · ${escapeHtml(t.title)}</div>
+          ${t.detail ? `<div style="font-size:11px;color:var(--dim);margin-top:4px;line-height:1.4;">${escapeHtml(t.detail)}</div>` : ""}
+          <div class="t">${t.dueAt ? `Due ${new Date(tsToMs(t.dueAt)).toLocaleString()}` : formatAgo(tsToMs(t.createdAt))}</div>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button type="button" class="btn-ghost fd-ops-task-done" data-id="${escapeHtml(t.id)}" style="margin:0;flex:1;padding:8px;font-size:11px;">Done</button>
+            <button type="button" class="btn-ghost fd-ops-task-dismiss" data-id="${escapeHtml(t.id)}" style="margin:0;flex:1;padding:8px;font-size:11px;">Dismiss</button>
+          </div>
+        </div>
+      </div>`,
+            )
+            .join("")
+        : '<div class="empty">No open tasks. Suggested actions appear below.</div>';
+    }
+
+    const propHost = el("fd-ops-proposals");
+    if (propHost) {
+      propHost.innerHTML = proposals.length
+        ? proposals
+            .map(
+              (p, i) => `
+      <div class="insight-row">
+        <i class="ri-sparkling-line"></i>
+        <div style="flex:1;min-width:0;">
+          <div>${escapeHtml(p.title)}</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:4px;line-height:1.4;">${escapeHtml(p.detail || "")}</div>
+          <button type="button" class="btn-ghost fd-ops-add-proposal" data-idx="${i}" style="margin-top:8px;padding:8px;font-size:11px;">Add as task</button>
+        </div>
+      </div>`,
+            )
+            .join("")
+        : '<div class="empty">No suggested tasks from current signals. Scan or sync weather to refresh.</div>';
+    }
+
+    const seasHost = el("fd-ops-seasonal");
+    if (seasHost) {
+      const items = seasonal.items || [];
+      seasHost.innerHTML =
+        items.length > 0
+          ? `<p style="font-size:11px;color:var(--neon);margin-bottom:8px;">${escapeHtml(seasonal.title || "")}</p>
+            <ul style="font-size:11px;padding-left:18px;line-height:1.55;color:var(--text);">${items.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ul>
+            <p style="font-size:9px;color:var(--dim);margin-top:10px;line-height:1.4;">${escapeHtml(seasonal.scope || "")}</p>`
+          : '<div class="empty">Set crop type on this field for seasonal rhythm hints.</div>';
+    }
+
+    const tlHost = el("fd-ops-timeline");
+    if (tlHost) {
+      tlHost.innerHTML = timeline.length
+        ? timeline
+            .map(
+              (ev) => `
+      <div class="activity-item">
+        <div><span style="color:var(--neon);font-size:10px;">${escapeHtml(ev.label)}</span><br/>${escapeHtml((ev.text || "").slice(0, 220))}</div>
+        <div class="t">${ev.ts ? new Date(ev.ts).toLocaleString() : ""}</div>
+      </div>`,
+            )
+            .join("")
+        : '<div class="empty">Operational timeline will appear as you log work.</div>';
+    }
+
+    const brief = el("fd-ops-brief");
+    if (brief) {
+      const analytics = summarizeOperationsAnalytics(fieldInterventions, scans);
+      brief.textContent = analytics.summary;
+    }
   }
 
   function paintFieldHeader(f) {
@@ -291,13 +698,31 @@ function attachFieldDetail(user, fieldId) {
       recHost.innerHTML = '<div class="empty">No recommendations yet. Run a scan linked to this field.</div>';
     } else {
       recHost.innerHTML = fieldRecs
-        .map(
-          (r) => `
+        .map((r) => {
+          const relBlock = r.reliability?.schemaVersion ? reliabilityRowHTML(r.reliability) : "";
+          const audit = r.recommendationAudit;
+          const evJson = audit?.evidenceBundle
+            ? JSON.stringify(audit.evidenceBundle).slice(0, 480)
+            : "";
+          const why = audit
+            ? `<details class="rel-details" style="margin-top:6px;"><summary class="rel-detail-toggle">Why &amp; audit</summary><div class="rel-detail-body open" style="display:block;margin-top:6px;">${escapeHtml(audit.reasoningSummary || "")}${
+                audit.contributingSignals?.length
+                  ? `<div style="margin-top:8px;font-size:10px;opacity:.88;">Contributors: ${escapeHtml(audit.contributingSignals.join(" · "))}</div>`
+                  : ""
+              }${
+                evJson
+                  ? `<div style="margin-top:8px;font-size:10px;opacity:.75;">Evidence (snapshot): ${escapeHtml(evJson)}</div>`
+                  : ""
+              }</div></details>`
+            : "";
+          return `
         <div class="insight-row"><i class="ri-lightbulb-flash-line"></i><div>
           <div><span style="color:var(--neon);font-size:10px;">${escapeHtml(r.type || "tip")}</span><br/>${escapeHtml(r.text || "")}</div>
+          ${relBlock}
+          ${why}
           <div class="t">${formatAgo(tsToMs(r.createdAt))}</div>
-        </div></div>`,
-        )
+        </div></div>`;
+        })
         .join("");
     }
 
@@ -360,6 +785,45 @@ function attachFieldDetail(user, fieldId) {
         )
         .join("");
     }
+    renderOperationsPanel();
+    renderTwinPanel();
+    refreshIntelPanel();
+  }
+
+  function refreshIntelPanel() {
+    const root = el("fi-command-root");
+    const panel = el("panel-intelligence");
+    if (!root || !panel?.classList.contains("active")) {
+      if (fiViz) fiViz.stop();
+      return;
+    }
+    if (!fiViz) fiViz = new FieldIntelligenceViz({ host: root, fieldId });
+    const latest = latestScan();
+    let scanPestHint = 0;
+    if (latest) {
+      const obs = Array.isArray(latest.observedSymptoms) ? latest.observedSymptoms.join(" ").toLowerCase() : "";
+      if (/pest|hole|chew|insect|borer|aphid/.test(obs)) scanPestHint = 0.35;
+    }
+    fiViz.update({
+      ctxState,
+      ctxEvents,
+      scans,
+      field: fieldSnap,
+      inferenceJobs,
+      latestScan: latest,
+      latestMoisture: latestWeatherMoisture,
+      scanPestHint,
+    });
+    fiViz.render();
+    try {
+      const raw = localStorage.getItem("agri_location_details");
+      const loc = raw ? JSON.parse(raw) : null;
+      if (loc && typeof loc.lat === "number" && typeof loc.lon === "number") {
+        void fiViz.ensureWeather(loc.lat, loc.lon);
+      }
+    } catch (_) {
+      /* ignore */
+    }
   }
 
   function escapeHtml(s) {
@@ -412,7 +876,7 @@ function attachFieldDetail(user, fieldId) {
         meta: { fieldId, source: "field_detail" },
         schemaVersion: 1,
       });
-      batch.set(doc(collection(db, "notifications")), {
+      const notifDraft = {
         userId: user.uid,
         title: "Field updated",
         body: `${name} was updated.`,
@@ -421,7 +885,11 @@ function attachFieldDetail(user, fieldId) {
         createdAt: serverTimestamp(),
         entity: { kind: "field", id: fieldId },
         schemaVersion: 1,
-      });
+      };
+      const decorated = decorateNotificationForAmbient(notifDraft, { fieldId });
+      if (decorated) {
+        batch.set(doc(collection(db, "notifications")), decorated);
+      }
       await batch.commit();
     } catch (e) {
       console.error(e);
@@ -445,20 +913,90 @@ function attachFieldDetail(user, fieldId) {
     window.location.href = `fields.html?edit=${encodeURIComponent(fieldId)}`;
   };
 
-  return () => unsubs.forEach((u) => u());
-}
+  const opsRoot = el("panel-operations");
+  if (opsRoot && !opsRoot.dataset.opsBound) {
+    opsRoot.dataset.opsBound = "1";
+    opsRoot.addEventListener("click", async (e) => {
+      const doneBtn = e.target.closest(".fd-ops-task-done");
+      const dismissBtn = e.target.closest(".fd-ops-task-dismiss");
+      const addProp = e.target.closest(".fd-ops-add-proposal");
+      try {
+        if (doneBtn?.dataset.id) {
+          await completeOperationalTask(db, doneBtn.dataset.id);
+        } else if (dismissBtn?.dataset.id) {
+          await dismissOperationalTask(db, dismissBtn.dataset.id);
+        } else if (addProp && addProp.dataset.idx != null) {
+          const idx = Number(addProp.dataset.idx);
+          const p = lastOpsProposals[idx];
+          if (p) await createOperationalTask(db, user.uid, p);
+        }
+      } catch (err) {
+        console.error(err);
+        alert(err?.message || "Action failed");
+      }
+    });
+  }
 
-let tabsWired = false;
-function setupTabs() {
-  if (tabsWired) return;
-  tabsWired = true;
-  qs(".tabs")?.addEventListener("click", (e) => {
-    const tab = e.target.closest(".tab");
-    if (!tab) return;
-    const id = tab.dataset.tab;
-    document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t === tab));
-    document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("active", p.id === `panel-${id}`));
-  });
+  const logOpsBtn = el("fd-ops-log");
+  if (logOpsBtn) {
+    logOpsBtn.onclick = async () => {
+      const type = el("fd-ops-type")?.value;
+      if (!type) {
+        alert("Choose an intervention type.");
+        return;
+      }
+      const notes = el("fd-ops-notes")?.value?.trim() || "";
+      const fu = el("fd-ops-followup")?.value?.trim() || "";
+      const wv = parseInt(el("fd-ops-window")?.value, 10);
+      const windowHrs = Number.isFinite(wv) && wv > 0 ? wv : 72;
+      logOpsBtn.disabled = true;
+      try {
+        const latest = latestScan();
+        await logIntervention(db, user.uid, {
+          fieldId,
+          interventionType: type,
+          notes,
+          aiTriggerSource: { kind: "manual", page: "field_detail" },
+          expectedOutcomeWindowHours: windowHrs,
+          followUpRecommendation: fu || `Re-scan or scout within ~${windowHrs}h to compare canopy trend.`,
+          preScanSnapshot: latest
+            ? {
+                healthScore: latest.healthScore,
+                scanId: latest.id,
+                severity: latest.severity?.level || null,
+              }
+            : null,
+        });
+        const batch = writeBatch(db);
+        batch.set(doc(collection(db, "activity_history")), {
+          userId: user.uid,
+          type: "field.intervention_logged",
+          createdAt: serverTimestamp(),
+          entity: { kind: "field", id: fieldId },
+          meta: { fieldId, interventionType: type, source: "field_detail" },
+          schemaVersion: 1,
+        });
+        await batch.commit();
+        el("fd-ops-notes").value = "";
+        el("fd-ops-followup").value = "";
+        try {
+          queueLearningFlush(db, user.uid, "intervention_logged");
+        } catch (le) {
+          console.warn("[learning]", le?.message || le);
+        }
+      } catch (err) {
+        console.error(err);
+        alert(err?.message || "Could not log intervention");
+      } finally {
+        logOpsBtn.disabled = false;
+      }
+    };
+  }
+
+  return () => {
+    if (fiViz) fiViz.stop();
+    unsubs.forEach((u) => u());
+  };
 }
 
 onAuthStateChanged(auth, (user) => {
@@ -475,6 +1013,5 @@ onAuthStateChanged(auth, (user) => {
     window.location.href = "fields.html";
     return;
   }
-  setupTabs();
   detach = attachFieldDetail(user, fid);
 });

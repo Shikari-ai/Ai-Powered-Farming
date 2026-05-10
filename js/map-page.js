@@ -13,6 +13,29 @@ import {
 import { resolveLocationApprox } from "./weather-location.js";
 import { runLocationIntelligence, CATEGORIES } from "./location-intelligence.js";
 import { NAVIC_GPS_OPTIONS, detectGNSSSource, navicBadgeHTML } from "./navic.js";
+import { getActiveBasemapDescriptor, getNdviTileLayerConfig } from "./geo/satellite-providers.js";
+import {
+  buildStressGridGeoJson,
+  buildSpreadWedgeFeature,
+  summarizeStressGrid,
+  buildGeoNarration,
+  computeFusionSignals,
+} from "./geo/geo-intelligence-engine.js";
+import {
+  ensureRegionalMapLayers,
+  setRegionalMapData,
+  setRegionalMapVisible,
+} from "./geo/regional-map-layers.js";
+import { fetchRegionalCellsForMap } from "./network/regional-briefing.js";
+import {
+  ensureGeoIntelLayers,
+  setStressGridData,
+  setSpreadData,
+} from "./geo/map-geo-layers.js";
+import { mergeGeoIntelSnapshot } from "./geo/land-memory-sync.js";
+import { syncGeoDerivedAlerts } from "./geo/geo-alert-sync.js";
+import { oneLineTwinHint } from "./twin/map-twin-hint.js";
+import { applyMapAmbientMood, getMapMoodDataset } from "./ambient/map-mood.js";
 
 /* ── helpers ── */
 function el(id) { return document.getElementById(id); }
@@ -55,10 +78,22 @@ let is3D = false;
 let layerState = {
   sat: true, bounds: true, health: true,
   moisture: false, weather: true, pest: false, irrigation: false,
+  geoStress: false, geoSpread: false, geoNdvi: false,
+  regionalNetwork: false,
 };
+/** @type {GeoJSON.FeatureCollection|null} */
+let regionalMapCache = null;
 let gpsMkr = null;
 let fieldMarkers = [];    // { marker, fieldId }
 let previewFieldId = null;
+/** @type {Record<string, object>} */
+let contextByField = {};
+let weatherLogs = [];
+let lastWindDeg = 45;
+let timelineMonths = 0;
+let geoPersistTimer = null;
+let lastGeoAlertKey = "";
+let mapUserId = null;
 
 /* ── Map style constants ── */
 const SATELLITE_STYLE = {
@@ -87,6 +122,156 @@ const SATELLITE_STYLE = {
 };
 const STREET_STYLE = "https://tiles.openfreemap.org/styles/liberty";
 
+function getLatestWeatherLog() {
+  return weatherLogs.slice().sort((a, b) => tsMs(b.fetchedAt) - tsMs(a.fetchedAt))[0] || null;
+}
+
+function updateGeoAttributionStrip() {
+  const base = getActiveBasemapDescriptor();
+  const ndvi = getNdviTileLayerConfig();
+  const g = el("geo-attribution");
+  if (g) {
+    g.textContent = `Basemap: ${base.label} (${base.notes || "see provider docs"}). ` +
+      (ndvi.kind === "tiles" ? "NDVI tile proxy active." : "NDVI tiles: optional meta agri-geo-tiles-proxy. ") +
+      "Stress mesh: inferred client-side fusion — not a substitute for processed Sentinel/Landsat rasters.";
+  }
+}
+
+function refreshGeoIntelOverlays() {
+  if (!map || !map.loaded()) return;
+  const wx = getLatestWeatherLog();
+  ensureGeoIntelLayers(map, {
+    showStress: layerState.geoStress,
+    showSpread: layerState.geoSpread,
+    showNdviTiles: layerState.geoNdvi,
+  });
+  if (!layerState.geoStress) {
+    setStressGridData(map, { type: "FeatureCollection", features: [] });
+  }
+  if (!layerState.geoSpread) {
+    setSpreadData(map, null);
+  }
+  if (!layerState.geoStress && !layerState.geoSpread) {
+    const narr = el("geo-narration");
+    if (narr) narr.textContent = "Enable stress mesh or spread corridor to render land-scale fusion layers.";
+    return;
+  }
+
+  const allFeatures = [];
+  for (const f of fields) {
+    if (!f.boundary?.coordinates || f.boundary.coordinates.length < 3) continue;
+    const scan = scansByField[f.id];
+    const ctx = contextByField[f.id] || null;
+    const fc = buildStressGridGeoJson(f, scan || {}, wx, ctx, { historyMonthsAgo: timelineMonths });
+    for (const ft of fc.features) {
+      allFeatures.push({ ...ft, properties: { ...ft.properties, fieldId: f.id } });
+    }
+  }
+  const collectionFc = { type: "FeatureCollection", features: allFeatures };
+  if (layerState.geoStress) setStressGridData(map, collectionFc);
+
+  const focus = previewFieldId
+    ? fields.find((x) => x.id === previewFieldId)
+    : fields.find((ff) => ff.boundary?.coordinates?.length >= 3);
+  if (layerState.geoSpread && focus) {
+    setSpreadData(map, buildSpreadWedgeFeature(focus, lastWindDeg));
+  } else {
+    setSpreadData(map, null);
+  }
+
+  const { meanStress, meanNdvi } = summarizeStressGrid(collectionFc);
+  if (document.documentElement.dataset.agriPerf !== "low") {
+    applyMapAmbientMood(wx, meanStress);
+  }
+
+  const narr = buildGeoNarration({
+    fieldLabel: focus?.name || "",
+    monthsAgo: timelineMonths,
+    meanStress,
+    meanNdvi,
+    bearing: lastWindDeg,
+  });
+  let twinLine = "";
+  try {
+    if (focus) {
+      twinLine = oneLineTwinHint(
+        focus,
+        scansByField[focus.id] || null,
+        getLatestWeatherLog(),
+        contextByField[focus.id] || null,
+      );
+    }
+  } catch (_) {
+    twinLine = "";
+  }
+  const narrEl = el("geo-narration");
+  if (narrEl) narrEl.textContent = [narr, twinLine].filter(Boolean).join(" ");
+
+  if (typeof mapUserId === "string" && focus?.id) {
+    scheduleLandMemoryPersist(mapUserId, focus.id);
+    void maybeEmitGeoAlert(mapUserId, focus.id);
+  }
+}
+
+function scheduleLandMemoryPersist(userId, focusFieldId) {
+  if (!userId || !focusFieldId || !layerState.geoStress) return;
+  clearTimeout(geoPersistTimer);
+  geoPersistTimer = setTimeout(async () => {
+    const focus = fields.find((x) => x.id === focusFieldId);
+    if (!focus) return;
+    const wx = getLatestWeatherLog();
+    const scan = scansByField[focusFieldId];
+    const ctx = contextByField[focusFieldId];
+    const fc = buildStressGridGeoJson(focus, scan || {}, wx, ctx || null, { historyMonthsAgo: timelineMonths });
+    const { meanStress, meanNdvi } = summarizeStressGrid(fc);
+    const periodKey = new Date().toISOString().slice(0, 7);
+    try {
+      await mergeGeoIntelSnapshot(db, userId, focusFieldId, periodKey, {
+        inferred: {
+          meanStress,
+          meanNdviProxy: meanNdvi,
+          windDeg: lastWindDeg,
+          timelineMonths,
+          fusionSignals: computeFusionSignals(focus, scan || {}, wx, ctx || null).map((s) => s.id),
+        },
+        observed: {
+          basemap: getActiveBasemapDescriptor().id,
+          satelliteNote: "Esri World Imagery mosaic — per-tile capture dates vary.",
+        },
+      });
+    } catch (e) {
+      console.warn("[geo] land memory:", e?.message || e);
+    }
+  }, 4000);
+}
+
+async function maybeEmitGeoAlert(userId, focusFieldId) {
+  if (!userId || !focusFieldId || timelineMonths > 0) return;
+  const focus = fields.find((x) => x.id === focusFieldId);
+  if (!focus) return;
+  const wx = getLatestWeatherLog();
+  const scan = scansByField[focusFieldId];
+  const ctx = contextByField[focusFieldId];
+  const fc = buildStressGridGeoJson(focus, scan || {}, wx, ctx || null, { historyMonthsAgo: 0 });
+  const { meanStress, meanNdvi } = summarizeStressGrid(fc);
+  if (typeof meanStress !== "number" || meanStress < 0.72) return;
+  const dayKey = new Date().toISOString().slice(0, 10);
+  const k = `${focusFieldId}_${dayKey}`;
+  if (lastGeoAlertKey === k) return;
+  lastGeoAlertKey = k;
+  try {
+    await syncGeoDerivedAlerts(db, userId, {
+      fieldId: focusFieldId,
+      fieldName: focus.name,
+      stressMean: meanStress,
+      ndviProxy: meanNdvi,
+      signals: computeFusionSignals(focus, scan || {}, wx, ctx || null),
+    });
+  } catch (e) {
+    console.warn("[geo] alert:", e?.message || e);
+  }
+}
+
 /* ══════════════════════════════════════════════
    MAP INIT
 ══════════════════════════════════════════════ */
@@ -103,9 +288,38 @@ function initMap(center) {
 
   map.once("load", () => {
     addFieldLayers();
+    ensureRegionalMapLayers(map, "field-fills");
+    if (regionalMapCache) setRegionalMapData(map, regionalMapCache);
+    setRegionalMapVisible(map, layerState.regionalNetwork);
+    updateGeoAttributionStrip();
+    ensureGeoIntelLayers(map, {
+      showStress: layerState.geoStress,
+      showSpread: layerState.geoSpread,
+      showNdviTiles: layerState.geoNdvi,
+    });
+    refreshGeoIntelOverlays();
     updateScale();
     map.on("zoom", updateScale);
   });
+}
+
+async function syncRegionalMapOverlay() {
+  if (!map?.loaded()) return;
+  ensureRegionalMapLayers(map, "field-fills");
+  if (!layerState.regionalNetwork) {
+    setRegionalMapVisible(map, false);
+    return;
+  }
+  try {
+    if (!regionalMapCache || !regionalMapCache.features?.length) {
+      regionalMapCache = await fetchRegionalCellsForMap(db, undefined, 72);
+    }
+    setRegionalMapData(map, regionalMapCache);
+  } catch (e) {
+    console.warn("[regional] map overlay:", e?.message || e);
+    setRegionalMapData(map, { type: "FeatureCollection", features: [] });
+  }
+  setRegionalMapVisible(map, true);
 }
 
 function addFieldLayers() {
@@ -186,6 +400,7 @@ function refreshFieldLayer() {
   const src = map?.getSource("fields-src");
   if (src) src.setData(buildFieldsGeoJSON());
   refreshHealthBadges();
+  refreshGeoIntelOverlays();
 }
 
 /* ── Health badges (DOM Markers) ── */
@@ -214,6 +429,12 @@ function refreshHealthBadges() {
 
     const div = document.createElement("div");
     div.className = "field-health-badge";
+    const mood = getMapMoodDataset();
+    const stressLike = mood === "stress" || mood === "watch";
+    const lowScore = score !== null && score < 52;
+    if (stressLike || lowScore) {
+      if (document.documentElement.dataset.agriPerf !== "low") div.classList.add("field-health-badge--pulse");
+    }
     if (!showBadges) div.style.display = "none";
     div.innerHTML = `
       <div class="fhb-name">${f.name || "Unnamed"}</div>
@@ -283,7 +504,17 @@ function applyLayers() {
     map.setStyle(targetStyle);
     map.once("style.load", () => {
       addFieldLayers();
+      ensureRegionalMapLayers(map, "field-fills");
+      if (regionalMapCache) setRegionalMapData(map, regionalMapCache);
+      setRegionalMapVisible(map, layerState.regionalNetwork);
       refreshHealthBadges();
+      updateGeoAttributionStrip();
+      ensureGeoIntelLayers(map, {
+        showStress: layerState.geoStress,
+        showSpread: layerState.geoSpread,
+        showNdviTiles: layerState.geoNdvi,
+      });
+      refreshGeoIntelOverlays();
     });
     return; // layers re-added in style.load handler
   }
@@ -299,6 +530,18 @@ function applyLayers() {
   // Badge visibility
   const showBadges = layerState.health && layerState.bounds;
   fieldMarkers.forEach(({ div }) => { div.style.display = showBadges ? "block" : "none"; });
+
+  ensureGeoIntelLayers(map, {
+    showStress: layerState.geoStress,
+    showSpread: layerState.geoSpread,
+    showNdviTiles: layerState.geoNdvi,
+  });
+  refreshGeoIntelOverlays();
+  if (layerState.regionalNetwork) {
+    syncRegionalMapOverlay();
+  } else {
+    setRegionalMapVisible(map, false);
+  }
 }
 
 function bindLayerToggles() {
@@ -315,14 +558,31 @@ function bindLayerToggles() {
   map_toggle("lyr-weather",   "weather");
   map_toggle("lyr-pest",      "pest");
   map_toggle("lyr-irrigation","irrigation");
+  map_toggle("lyr-geo-ndvi",     "geoNdvi");
+  map_toggle("lyr-geo-stress",   "geoStress");
+  map_toggle("lyr-geo-spread",   "geoSpread");
+
+  el("lyr-regional-network")?.addEventListener("change", async (e) => {
+    layerState.regionalNetwork = e.target.checked;
+    if (e.target.checked) regionalMapCache = null;
+    await syncRegionalMapOverlay();
+    if (!e.target.checked) applyLayers();
+  });
 
   el("btn-reset-layers")?.addEventListener("click", () => {
-    layerState = { sat: true, bounds: true, health: true, moisture: false, weather: true, pest: false, irrigation: false };
-    // Sync checkboxes
+    layerState = {
+      sat: true, bounds: true, health: true, moisture: false, weather: true, pest: false, irrigation: false,
+      geoStress: false, geoSpread: false, geoNdvi: false, regionalNetwork: false,
+    };
+    regionalMapCache = null;
     el("lyr-sat").checked = true; el("lyr-bounds").checked = true;
     el("lyr-health").checked = true; el("lyr-moisture").checked = false;
     el("lyr-weather").checked = true; el("lyr-pest").checked = false;
     el("lyr-irrigation").checked = false;
+    if (el("lyr-geo-ndvi")) el("lyr-geo-ndvi").checked = false;
+    if (el("lyr-geo-stress")) el("lyr-geo-stress").checked = false;
+    if (el("lyr-geo-spread")) el("lyr-geo-spread").checked = false;
+    if (el("lyr-regional-network")) el("lyr-regional-network").checked = false;
     applyLayers();
   });
 }
@@ -334,6 +594,15 @@ function openPanel(id) {
   document.querySelectorAll(".mp-panel").forEach(p => p.classList.remove("open"));
   el(id)?.classList.add("open");
   el("mp-backdrop")?.classList.add("show");
+  if (id === "panel-geo") {
+    if (el("lyr-geo-stress")) el("lyr-geo-stress").checked = !!layerState.geoStress;
+    if (el("lyr-geo-spread")) el("lyr-geo-spread").checked = !!layerState.geoSpread;
+    if (el("geo-timeline")) el("geo-timeline").value = String(timelineMonths);
+    updateGeoAttributionStrip();
+  }
+  if (id === "panel-layers" && el("lyr-regional-network")) {
+    el("lyr-regional-network").checked = !!layerState.regionalNetwork;
+  }
 }
 function closeAllPanels() {
   document.querySelectorAll(".mp-panel").forEach(p => p.classList.remove("open"));
@@ -395,6 +664,8 @@ function showFieldPreview(fieldId) {
   // View button
   if (el("fp-view-btn")) el("fp-view-btn").onclick = () => { window.location.href = `fields.html`; };
 
+  refreshGeoIntelOverlays();
+
   el("field-preview")?.classList.add("open");
 }
 
@@ -440,18 +711,21 @@ function renderNearby() {
 ══════════════════════════════════════════════ */
 async function loadMapWeather(lat, lng) {
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true&hourly=relativehumidity_2m,windspeed_10m&timezone=auto`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true&hourly=relativehumidity_2m,windspeed_10m,winddirection_10m&timezone=auto`;
     const res = await fetch(url);
     const data = await res.json();
     const cw = data.current_weather;
     if (!cw) return;
     const hIdx = data.hourly?.time?.findIndex(t => t === cw.time) ?? 0;
     const hum  = data.hourly?.relativehumidity_2m?.[hIdx >= 0 ? hIdx : 0] ?? "--";
+    const wdir = data.hourly?.winddirection_10m?.[hIdx >= 0 ? hIdx : 0];
+    if (typeof wdir === "number") lastWindDeg = wdir;
     if (el("mp-w-temp"))  el("mp-w-temp").textContent  = `${Math.round(cw.temperature)}°C`;
     if (el("mp-w-hum"))   el("mp-w-hum").textContent   = `${hum}%`;
     if (el("mp-w-wind"))  el("mp-w-wind").textContent  = `${Math.round(cw.windspeed)} km/h`;
     // Sync field preview temperature
     if (el("fp-temp")) el("fp-temp").textContent = `${Math.round(cw.temperature)}°C`;
+    refreshGeoIntelOverlays();
   } catch (e) {
     console.warn("[Map] Weather fetch failed:", e.message);
   }
@@ -462,6 +736,7 @@ async function loadMapWeather(lat, lng) {
 ══════════════════════════════════════════════ */
 onAuthStateChanged(auth, async (user) => {
   if (!user) { window.location.replace("login.html"); return; }
+  mapUserId = user.uid;
 
   /* ── 1. Quick IP location → init map immediately ── */
   let initCenter = [78.9629, 22.5937]; // India fallback [lng, lat]
@@ -489,7 +764,7 @@ onAuthStateChanged(auth, async (user) => {
   });
 
   /* ── 3. Firestore: stream scans (for health scores) ── */
-  const scansQ = query(collection(db, "scans"), where("userId", "==", user.uid), orderBy("createdAt", "desc"), limit(200));
+  const scansQ = query(collection(db, "crop_scans"), where("userId", "==", user.uid), orderBy("createdAt", "desc"), limit(200));
   onSnapshot(scansQ, (snap) => {
     scansByField = {};
     snap.forEach(d => {
@@ -499,6 +774,18 @@ onAuthStateChanged(auth, async (user) => {
       }
     });
     if (map.loaded()) refreshFieldLayer();
+  });
+
+  onSnapshot(query(collection(db, "field_context_state"), where("userId", "==", user.uid), limit(40)), (snap) => {
+    contextByField = {};
+    snap.forEach((d) => { contextByField[d.id] = { fieldId: d.id, ...d.data() }; });
+    if (map?.loaded()) refreshGeoIntelOverlays();
+  });
+
+  onSnapshot(query(collection(db, "weather_logs"), where("userId", "==", user.uid), limit(15)), (snap) => {
+    weatherLogs = [];
+    snap.forEach((d) => weatherLogs.push({ id: d.id, ...d.data() }));
+    if (map?.loaded()) refreshGeoIntelOverlays();
   });
 
   /* ── 4. GPS (NavIC / ISRO on compatible devices) ── */
@@ -521,6 +808,7 @@ onAuthStateChanged(auth, async (user) => {
 
   /* ── 6. FAB bindings ── */
   el("fab-layers")?.addEventListener("click", () => openPanel("panel-layers"));
+  el("fab-geo")?.addEventListener("click", () => openPanel("panel-geo"));
   el("fab-nearby")?.addEventListener("click", () => {
     openPanel("panel-nearby");
     if (!nearbyPlaces.length) {
@@ -560,8 +848,14 @@ onAuthStateChanged(auth, async (user) => {
   /* ── 7. Panel close bindings ── */
   el("close-layers")?.addEventListener("click", closeAllPanels);
   el("close-nearby")?.addEventListener("click", closeAllPanels);
+  el("close-geo")?.addEventListener("click", closeAllPanels);
   el("mp-backdrop")?.addEventListener("click", closeAllPanels);
   el("fp-close")?.addEventListener("click", () => el("field-preview")?.classList.remove("open"));
+
+  el("geo-timeline")?.addEventListener("input", (e) => {
+    timelineMonths = Math.max(0, Math.min(6, Number(e.target.value) || 0));
+    refreshGeoIntelOverlays();
+  });
 
   /* ── 8. Category chips ── */
   el("nearby-cats")?.addEventListener("click", (e) => {
