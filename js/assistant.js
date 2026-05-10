@@ -18,11 +18,13 @@ import {
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { runAgriOrchestrator } from "./ai/orchestrator.js?v=50";
-import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=50";
-import { getAiConfig } from "./ai/config.js?v=49";
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=52";
+import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=52";
+import { getAiConfig, isLlmProxyConfigured } from "./ai/config.js?v=52";
 import {
   buildProactiveDigest,
+  compactMemoryForBundle,
+  buildCompanionDirectives,
   defaultCompanionProfile,
   mergeCompanionAfterTurn,
   normalizeCompanionProfile,
@@ -479,9 +481,44 @@ onAuthStateChanged(auth, (user) => {
       let orch = null;
       let reply = "";
 
-      if (routing.mode === "casual") {
+      const useGemini = isLlmProxyConfigured();
+
+      if (useGemini && (routing.mode === "casual" || routing.mode === "clarify")) {
+        const locale = getLang() || "en";
+        const { callLlmProxy } = await import("./ai/llm-proxy.js");
+        const companionBlock = companionProfile
+          ? {
+              memory: compactMemoryForBundle(companionProfile),
+              directives: buildCompanionDirectives(companionProfile, locale),
+            }
+          : null;
+        const cognitiveDirective =
+          routing.mode === "clarify"
+            ? "Vague symptom / something looks off. Ask 1–2 focused clarifying questions (where on the plant, pace of spread, crop). Calm and supportive; suggest a photo or saved scan when helpful. Do not invent measurements or diagnoses."
+            : "Casual greeting or light check-in. Short warm reply; one optional gentle next step. Avoid generic call-center tone. Only use fieldCount and scanCount from EVIDENCE_JSON — never fabricate farm data.";
+        const bundle = {
+          turnKind: routing.mode,
+          reasoningDepth: 0,
+          cognitiveDirective,
+          fieldCount: fields.length,
+          scanCount: scans.length,
+          companion: companionBlock,
+          degradedMode: false,
+          degradedReasons: [],
+          reliabilityPolicy:
+            "Only use facts present in EVIDENCE_JSON. If counts are zero, say so kindly and suggest add field or scan.",
+        };
+        try {
+          const res = await callLlmProxy({ question: text, locale, bundle });
+          reply = String(res.text || "").trim();
+        } catch (e) {
+          reply = `Gemini request failed: ${String(e?.message || e).slice(0, 280)}`;
+        }
+        if (!reply) reply = "Gemini returned an empty reply. Try again shortly.";
+        orch = null;
+      } else if (!useGemini && routing.mode === "casual") {
         reply = buildCasualAssistantReply(text, { fieldCount: fields.length, scanCount: scans.length });
-      } else if (routing.mode === "clarify") {
+      } else if (!useGemini && routing.mode === "clarify") {
         reply = buildVagueSymptomReply(text, { fieldCount: fields.length, scanCount: scans.length });
       } else {
         if (routing.mode !== "weather_quick" && !regionalBriefingText) {
@@ -523,9 +560,14 @@ onAuthStateChanged(auth, (user) => {
           routingReason: routing.reason,
         });
 
-        if (!reply) {
+        if (!reply && !useGemini) {
           reply = buildAssistantReply({ question: text, fields, scans, recs, weatherLogs });
         }
+      }
+
+      if (!reply && useGemini && routing.mode !== "casual" && routing.mode !== "clarify") {
+        reply =
+          "Could not build a Gemini reply. Check agri-llm-proxy / agri-ai-base and that the API server exposes POST /v1/chat/grounded with GEMINI_API_KEY set.";
       }
 
       const mood = detectConversationMood(text);
@@ -545,11 +587,17 @@ onAuthStateChanged(auth, (user) => {
       try {
         const orchForMemory =
           orch ||
-          ({
-            intents: {},
-            results: {},
-            enginePackVersion: routing.mode === "clarify" ? "clarify-turn" : "casual-turn",
-          });
+          (useGemini && (routing.mode === "casual" || routing.mode === "clarify")
+            ? {
+                intents: {},
+                results: { llm: { engine: "gemini", text: reply } },
+                enginePackVersion: "gemini-chat",
+              }
+            : {
+                intents: {},
+                results: {},
+                enginePackVersion: routing.mode === "clarify" ? "clarify-turn" : "casual-turn",
+              });
         const nextProfile = mergeCompanionAfterTurn(companionProfile, {
           userText: text,
           assistantReply: reply,

@@ -67,6 +67,13 @@ def grounded_farm_reply(
         elif cognitive_depth >= 2:
             depth_hint = "Use clear, structured reasoning; moderate length."
 
+    turn_kind = evidence_bundle.get("turnKind") if isinstance(evidence_bundle, dict) else None
+    turn_hint = ""
+    if turn_kind == "casual":
+        turn_hint = "Turn type: CASUAL or greeting — keep it short, warm, human; no farm brief unless the user asked."
+    elif turn_kind == "clarify":
+        turn_hint = "Turn type: CLARIFY — user was vague about symptoms; prefer 1–2 sharp questions over conclusions."
+
     directives = ""
     companion = evidence_bundle.get("companion") if isinstance(evidence_bundle, dict) else None
     if isinstance(companion, dict):
@@ -84,6 +91,7 @@ def grounded_farm_reply(
         "- Avoid alarmist language; prefer 'elevated risk' and early verification.",
         f"- Preferred locale for this turn: {loc}. Use it when natural.",
         depth_hint,
+        turn_hint,
         directives,
         "\nEVIDENCE_JSON:\n",
         bundle_json,

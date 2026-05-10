@@ -247,8 +247,10 @@
             <div class="empty" id="assistant-empty">
                 <i class="ri-sparkling-line"></i>
                 <p>
-                    Multimodal farm intelligence: live Open-Meteo analysis, pest outlooks from your real scans,
-                    vision inference when you connect the FastAPI service, and answers drafted by <strong>Gemini</strong> when your server exposes <code>/v1/chat/grounded</code>.
+                    Chat is powered by <strong>Google Gemini</strong> when you set
+                    <code>agri-ai-base</code> or <code>agri-llm-proxy</code> to your HTTPS API that exposes
+                    <code>POST /v1/chat/grounded</code> (API key stays on the server only).
+                    Open‑Meteo and your Firestore data are still passed in as grounding context.
                     No fabricated analytics — empty states stay honest.
                 </p>
                 <div class="cta-row">

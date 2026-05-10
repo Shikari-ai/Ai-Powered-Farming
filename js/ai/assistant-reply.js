@@ -1,4 +1,5 @@
 import { tsToMs } from "./farmer-context.js?v=34";
+import { isLlmProxyConfigured } from "./config.js";
 import { softenOverclaimProse } from "./reliability/core.js";
 import { summarizeOperationsAnalytics } from "../ops/effectiveness.js";
 import { INTERVENTION_LABELS } from "../ops/types.js";
@@ -119,6 +120,10 @@ function composeMinimalAgriReply(question, orch, profile, extra = {}) {
         return softenOverclaimProse(prefix + llmText);
     }
 
+    if (isLlmProxyConfigured()) {
+        return "Could not get a reply from Gemini. Check agri-llm-proxy (or agri-ai-base), network access, and GEMINI_API_KEY on your API host.";
+    }
+
     if (r.weatherIntelligence && !r.weatherIntelligence.error) {
         const w = r.weatherIntelligence;
         const rd = w.readings || {};
@@ -189,8 +194,19 @@ export function composeAssistantReply(
     let llmText = r.llm && !r.llm.error && r.llm.text ? String(r.llm.text).trim() : "";
     llmText = softenOverclaimProse(softenAlarmistProse(llmText, profile));
     if (llmText) {
+        if (isLlmProxyConfigured()) {
+            let head = "";
+            if (Array.isArray(orch.degradedHints) && orch.degradedHints.length) {
+                head = "Status: " + orch.degradedHints.join(" ") + "\n\n";
+            }
+            return softenOverclaimProse(head + llmText);
+        }
         const head = lines.length ? lines.join("\n") + "\n\n" : "";
         return softenOverclaimProse(head + llmText);
+    }
+
+    if (isLlmProxyConfigured()) {
+        return "Could not get a reply from Gemini. Check agri-llm-proxy (or agri-ai-base), network access, and GEMINI_API_KEY on your API host.";
     }
 
     const epEarly = !compact && profile?.episodeArchive?.length ? profile.episodeArchive[profile.episodeArchive.length - 1] : null;
