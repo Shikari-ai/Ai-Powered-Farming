@@ -35,8 +35,9 @@ function knowledgeLearningReplyLines(kl) {
     return lines;
 }
 
-/** @param {any} snapshot orch.snapshot after attach */
-function buildOperationsReplyLines(snapshot) {
+/** @param {any} snapshot orch.snapshot after attach @param {{ compact?: boolean }} [opts] */
+function buildOperationsReplyLines(snapshot, opts = {}) {
+    const compact = !!opts.compact;
     if (!snapshot) return [];
     const scans = snapshot.scans || [];
     const intr = snapshot.interventions || [];
@@ -50,28 +51,38 @@ function buildOperationsReplyLines(snapshot) {
             const order = { urgent: 0, high: 1, normal: 2, low: 3 };
             return (order[a.priority] ?? 9) - (order[b.priority] ?? 9);
         });
+    const openCap = compact ? 2 : 5;
     if (open.length) {
         lines.push(`Open tasks (${open.length}):`);
-        for (const t of open.slice(0, 5)) {
+        for (const t of open.slice(0, openCap)) {
             const fieldNote = t.fieldId ? " · field-linked" : "";
             lines.push(`• ${t.priority || "normal"}: ${t.title}${fieldNote}`);
         }
     }
+    const recentCap = compact ? 1 : 3;
     const recent = intr
         .slice()
         .sort((a, b) => tsToMs(b.performedAt) - tsToMs(a.performedAt))
-        .slice(0, 3);
-    if (recent.length) {
+        .slice(0, recentCap);
+    if (recent.length && !compact) {
         lines.push("Recent interventions (trends from your scans are advisory, not proof a product worked):");
         for (const i of recent) {
             const lab = INTERVENTION_LABELS[i.interventionType] || i.interventionType;
             lines.push(`• ${lab} · ${formatAgoBrief(tsToMs(i.performedAt))}`);
         }
+    } else if (recent.length && compact) {
+        const i = recent[0];
+        const lab = INTERVENTION_LABELS[i.interventionType] || i.interventionType;
+        lines.push(`Latest intervention noted: ${lab} · ${formatAgoBrief(tsToMs(i.performedAt))}`);
     }
     const unread = alerts.filter((a) => !a.readAt).length;
-    if (unread) lines.push(`Unread alerts: ${unread} — worth a glance in the app.`);
-    const analytics = summarizeOperationsAnalytics(intr, scans);
-    if (analytics?.summary) lines.push(analytics.summary);
+    if (unread) {
+        lines.push(compact ? `Unread alerts: ${unread}.` : `Unread alerts: ${unread} — worth a glance in the app.`);
+    }
+    if (!compact) {
+        const analytics = summarizeOperationsAnalytics(intr, scans);
+        if (analytics?.summary) lines.push(analytics.summary);
+    }
     return lines;
 }
 
@@ -142,14 +153,19 @@ export function composeAssistantReply(question, orch, { locale: _locale = "en", 
     if (replyVerbosity === "minimal") {
         return composeMinimalAgriReply(question, orch, companionProfile);
     }
+    const compact = replyVerbosity === "compact";
     const profile = companionProfile;
     const q = String(question || "").trim();
     const lines = [];
     const { intents } = orch;
     const r = orch.results || {};
 
-    if (profile?.expertiseLevel === "beginner") {
+    if (profile?.expertiseLevel === "beginner" && !compact) {
         lines.push("I’ll stay practical—tell me if you want the deeper technical version.\n");
+    }
+
+    if (profile?.expertiseLevel === "beginner" && compact) {
+        lines.push("Keeping this tight — say if you want the longer version.\n");
     }
 
     const modalityNote = modalityPreamble(profile);
@@ -168,7 +184,7 @@ export function composeAssistantReply(question, orch, { locale: _locale = "en", 
         lines.push("— Grounded engine summary (verified inputs) —");
     }
 
-    const epEarly = profile?.episodeArchive?.length ? profile.episodeArchive[profile.episodeArchive.length - 1] : null;
+    const epEarly = !compact && profile?.episodeArchive?.length ? profile.episodeArchive[profile.episodeArchive.length - 1] : null;
     if (epEarly?.summary && profile?.expertiseLevel !== "beginner") {
         lines.push(`Picking up from earlier: ${epEarly.summary.slice(0, 220)}`);
         lines.push("");
@@ -203,9 +219,9 @@ export function composeAssistantReply(question, orch, { locale: _locale = "en", 
                 `Reliability (calibrated): ${rel.confidenceLabel}. (${rel.primaryEpistemic || "inferred"} signal.)`,
             );
         }
-        if (r.diseaseVision.explanation) lines.push(r.diseaseVision.explanation);
+        if (r.diseaseVision.explanation && !compact) lines.push(r.diseaseVision.explanation);
         const dets = r.diseaseVision.detections;
-        const detLimit = profile?.expertiseLevel === "beginner" ? 3 : 6;
+        const detLimit = compact ? 2 : profile?.expertiseLevel === "beginner" ? 3 : 6;
         if (Array.isArray(dets) && dets.length) {
             lines.push(`Bounding-box regions (${dets.length}):`);
             for (const d of dets.slice(0, detLimit)) {
@@ -227,10 +243,12 @@ export function composeAssistantReply(question, orch, { locale: _locale = "en", 
             const fac = ci.confidence_factors;
             if (Array.isArray(fac) && fac.length) {
                 lines.push("Why the score adapted:");
-                for (const f of fac.slice(0, 6)) lines.push(`  · ${String(f).replace(/\*\*/g, "")}`);
+                for (const f of fac.slice(0, compact ? 3 : 6)) lines.push(`  · ${String(f).replace(/\*\*/g, "")}`);
             }
             if (Array.isArray(ci.field_memory_snippets) && ci.field_memory_snippets.length) {
-                lines.push(`Field timeline cues: ${ci.field_memory_snippets.slice(0, 3).join(" ")}`);
+                lines.push(
+                    `Field timeline cues: ${ci.field_memory_snippets.slice(0, compact ? 1 : 3).join(" ")}`,
+                );
             }
         }
         const predRel = r.diseaseVision.predictionReliability;
@@ -265,7 +283,7 @@ export function composeAssistantReply(question, orch, { locale: _locale = "en", 
         lines.push("");
     }
 
-    if ((r.environmental?.sensorDocCount || 0) > 0) {
+    if ((r.environmental?.sensorDocCount || 0) > 0 && !compact) {
         lines.push(`Environmental records in your account: ${r.environmental.sensorDocCount} document(s).`);
         lines.push("");
     }
@@ -286,12 +304,12 @@ export function composeAssistantReply(question, orch, { locale: _locale = "en", 
         );
         if (w.fungalDiseasePressure) {
             lines.push(
-                `Fungal pressure: ${w.fungalDiseasePressure.label} (${pct(w.fungalDiseasePressure.score)} index).`
+                `Fungal pressure: ${w.fungalDiseasePressure.label} (${pct(w.fungalDiseasePressure.score)} index).`,
             );
-            if (w.fungalDiseasePressure.reasons?.[0]) lines.push(`Why: ${w.fungalDiseasePressure.reasons[0]}`);
+            if (!compact && w.fungalDiseasePressure.reasons?.[0]) lines.push(`Why: ${w.fungalDiseasePressure.reasons[0]}`);
         }
-        for (const x of (w.irrigation || []).slice(0, 1)) lines.push(`Irrigation: ${x}`);
-        for (const x of (w.spraying || []).slice(0, 1)) lines.push(`Spray window: ${x}`);
+        for (const x of (w.irrigation || []).slice(0, compact ? 0 : 1)) lines.push(`Irrigation: ${x}`);
+        for (const x of (w.spraying || []).slice(0, compact ? 0 : 1)) lines.push(`Spray window: ${x}`);
         lines.push("");
     } else if (r.weatherIntelligence?.error) {
         lines.push(`Weather intelligence paused: ${r.weatherIntelligence.message}`);
@@ -300,27 +318,31 @@ export function composeAssistantReply(question, orch, { locale: _locale = "en", 
 
     if (r.pestPrediction) {
         const p = r.pestPrediction;
-        lines.push(`Pest outlook: ${p.riskLabel} (index ${Math.round((p.pestPressureIndex || 0) * 100)}%).`);
-        if (p.reasons?.[0]) lines.push(`Why: ${p.reasons[0]}`);
+        lines.push(
+            compact
+                ? `Pest outlook: ${p.riskLabel}.`
+                : `Pest outlook: ${p.riskLabel} (index ${Math.round((p.pestPressureIndex || 0) * 100)}%).`,
+        );
+        if (!compact && p.reasons?.[0]) lines.push(`Why: ${p.reasons[0]}`);
         lines.push("");
     }
 
-    const opsLines = buildOperationsReplyLines(orch.snapshot);
+    const opsLines = buildOperationsReplyLines(orch.snapshot, { compact });
     if (opsLines.length) {
         lines.push("Farm operations (you execute all field work; I only organize and interpret signals):");
         for (const L of opsLines) lines.push(L);
         lines.push("");
     }
 
-    const twinLines = formatShallowTwinReplyLines(orch.twinBrief);
+    const twinLines = !compact ? formatShallowTwinReplyLines(orch.twinBrief) : [];
     if (twinLines.length) {
         lines.push("Digital twin (simulated week contrast, not certainty):");
         for (const L of twinLines) lines.push(L);
         lines.push("");
     }
 
-    const learnNar = orch.learningNarrative && String(orch.learningNarrative).trim();
-    const kLines = knowledgeLearningReplyLines(orch.knowledgeLearning);
+    const learnNar = !compact && orch.learningNarrative && String(orch.learningNarrative).trim();
+    const kLines = !compact ? knowledgeLearningReplyLines(orch.knowledgeLearning) : [];
     if (learnNar || kLines.length) {
         lines.push("Learning / knowledge evolution:");
         lines.push(
@@ -340,11 +362,11 @@ export function composeAssistantReply(question, orch, { locale: _locale = "en", 
         (intents.disease || intents.pest || intents.weather || /\b(region|regional|network|outbreak)\b/i.test(q))
     ) {
         lines.push("Regional network context (anonymized coarse cells — inferred aggregates, not your exact farm):");
-        lines.push(String(rb).replace(/\s+/g, " ").trim().slice(0, 900));
+        lines.push(String(rb).replace(/\s+/g, " ").trim().slice(0, compact ? 420 : 900));
         lines.push("");
     }
 
-    if (r.yieldOutlook) {
+    if (r.yieldOutlook && r.yieldOutlook.status !== "skipped") {
         const y = r.yieldOutlook;
         if (y.status === "trend_only" && y.outlook) {
             let yline = `Yield outlook (health-trend only): ${y.interpretation || y.outlook.trend}`;
@@ -358,7 +380,7 @@ export function composeAssistantReply(question, orch, { locale: _locale = "en", 
 
     if (r.recommendations?.actions?.length) {
         lines.push("Prioritized actions:");
-        const maxA = profile?.explanationStyle === "concise" ? 2 : 4;
+        const maxA = compact ? 2 : profile?.explanationStyle === "concise" ? 2 : 4;
         for (const a of r.recommendations.actions.slice(0, maxA)) {
             const c =
                 typeof a.calibratedConfidence === "number" ? a.calibratedConfidence : a.confidence || 0;
@@ -366,7 +388,7 @@ export function composeAssistantReply(question, orch, { locale: _locale = "en", 
             lines.push(
                 `• ${a.title} — ${a.reasoning} (${lbl}; reliability index ${Math.round(c * 100)}%).`,
             );
-            const maxS = profile?.expertiseLevel === "beginner" ? 1 : 2;
+            const maxS = compact ? 1 : profile?.expertiseLevel === "beginner" ? 1 : 2;
             for (const s of (a.steps || []).slice(0, maxS)) lines.push(`  - ${s}`);
         }
         lines.push("");
@@ -385,7 +407,7 @@ export function composeAssistantReply(question, orch, { locale: _locale = "en", 
         })
         .filter((x) => x.lab);
 
-    if (sortedFields.length && profile?.expertiseLevel !== "beginner") {
+    if (sortedFields.length && profile?.expertiseLevel !== "beginner" && !compact) {
         const ref = sortedFields[0];
         ctxLines.push(
             `If this reminds you of prior stress: ${ref.name || "A field"} recently showed **${ref.lab}** in your intelligence timeline — humidity and season matter for recurrence.`,
@@ -401,7 +423,7 @@ export function composeAssistantReply(question, orch, { locale: _locale = "en", 
     }
 
     const fcs = orch.snapshot?.fieldContextStates;
-    if (Array.isArray(fcs) && fcs.length) {
+    if (Array.isArray(fcs) && fcs.length && !compact) {
         const first = fcs[0];
         const lab = first.lastTopHypothesis || first.lastVisionLabels?.[0];
         if (lab || first.stabilityScore != null) {
@@ -411,7 +433,7 @@ export function composeAssistantReply(question, orch, { locale: _locale = "en", 
         }
     }
 
-    const lastTrust = profile?.trustNotes?.length ? profile.trustNotes[profile.trustNotes.length - 1] : null;
+    const lastTrust = !compact && profile?.trustNotes?.length ? profile.trustNotes[profile.trustNotes.length - 1] : null;
     if (lastTrust?.note && profile?.expertiseLevel === "advanced") {
         lines.push(`Why weights shifted this turn: ${lastTrust.note}`);
         lines.push("");
@@ -425,10 +447,14 @@ export function composeAssistantReply(question, orch, { locale: _locale = "en", 
         lines.push(`In plain terms: start with “${a0.title}” because ${a0.reasoning}`.slice(0, 320));
     }
 
-    if (!llmText && lines.filter(Boolean).length < 3) {
+    if (!llmText && lines.filter(Boolean).length < 3 && !compact) {
         lines.push(
-            "\nTip: Ask about irrigation timing, spray drift risk, pest scouting, or yield trends — I route each question through the relevant farm engine."
+            "\nTip: Ask about irrigation timing, spray drift risk, pest scouting, or yield trends — I route each question through the relevant farm engine.",
         );
+    }
+
+    if (!llmText && lines.filter(Boolean).length < 3 && compact) {
+        lines.push("\nSay **more depth** anytime if you want the full engine pass.");
     }
 
     return softenOverclaimProse(lines.filter(Boolean).join("\n").trim());

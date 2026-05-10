@@ -8,10 +8,12 @@ import { runYieldOutlook } from "./engines/yield-outlook.js";
 import { runEnvironmentalIntelligence } from "./engines/environmental-intelligence.js";
 import { resolveWeatherLocation, FALLBACK_LOC } from "../weather-location.js";
 import { buildRichVisionContextBundle } from "./vision-context.js?v=34";
-import { compactMemoryForBundle, buildCompanionDirectives } from "./companion-memory.js?v=35";
+import { compactMemoryForBundle, buildCompanionDirectives } from "./companion-memory.js?v=47";
 import { buildVisionReliability } from "./reliability/core.js";
 import { getDegradedState } from "./system-health.js";
 import { shallowTwinForBundle } from "../twin/assistant-twin-brief.js";
+import { buildCognitivePlan, planForWeatherQuick, summarizeCognitivePlan } from "./cognitive-plan.js?v=47";
+import { buildReflectiveVerification } from "./cognitive-verify.js?v=47";
 
 async function resolveGeoForAI(ctx) {
     const w = ctx.latestWeatherLog;
@@ -51,7 +53,23 @@ export async function runAgriOrchestrator(question, snapshot, media = {}, opts =
     const ctx = buildFarmerContext(snapshot);
     const intents = detectIntents(question);
     const degraded = getDegradedState();
-    const twinBrief = routingMode === "weather_quick" ? null : shallowTwinForBundle(snapshot);
+
+    const cognitivePlan =
+        opts.cognitivePlan ||
+        (routingMode === "weather_quick"
+            ? planForWeatherQuick()
+            : buildCognitivePlan({
+                  question,
+                  routingMode: "full",
+                  intents,
+                  hasImage: !!media.imageBlob,
+                  flowSnapshot: opts.flowSnapshot || null,
+              }));
+
+    const stages = cognitivePlan.stages;
+
+    const twinBrief =
+        routingMode === "weather_quick" || !stages.twinBrief ? null : shallowTwinForBundle(snapshot);
 
     const geo = await resolveGeoForAI(ctx);
 
@@ -86,13 +104,19 @@ export async function runAgriOrchestrator(question, snapshot, media = {}, opts =
     });
 
     const envIntel =
-        routingMode === "weather_quick"
-            ? { engine: "environmental", version: 1, summary: "", sensorDocCount: 0, _skippedForQuick: true }
+        routingMode === "weather_quick" || !stages.environmental
+            ? {
+                  engine: "environmental",
+                  version: 1,
+                  summary: "",
+                  sensorDocCount: 0,
+                  _skippedForCognitiveStage: true,
+              }
             : runEnvironmentalIntelligence(ctx, wxReadings);
 
     const lp = snapshot.learningProfile || null;
     const reflectionLines =
-        routingMode === "weather_quick"
+        routingMode === "weather_quick" || !stages.learningDigest
             ? []
             : (() => {
                   const r = lp?.reflections;
@@ -105,7 +129,7 @@ export async function runAgriOrchestrator(question, snapshot, media = {}, opts =
               })();
     const learningNarrative = reflectionLines.join("\n").trim();
     const knowledgeLearning =
-        routingMode === "weather_quick"
+        routingMode === "weather_quick" || !stages.learningDigest
             ? null
             : (() => {
                   if (!lp || typeof lp !== "object") return null;
@@ -130,13 +154,20 @@ export async function runAgriOrchestrator(question, snapshot, media = {}, opts =
                   };
               })();
 
-    const recIntel =
-        routingMode === "weather_quick"
-            ? { actions: [], quickWeatherMode: true }
-            : runRecommendationEngine(ctx, { weatherIntel, pestIntel, degraded }, lp);
+    let recIntel =
+        routingMode === "weather_quick" || stages.recommendations === "none"
+            ? { actions: [], quickWeatherMode: true, cognitiveSkipped: true, engine: "recommendation_merge", version: 2 }
+            : runRecommendationEngine(
+                  ctx,
+                  { weatherIntel, pestIntel, degraded },
+                  lp,
+                  { cognitiveMode: stages.recommendations === "threats_only" ? "threats_only" : "full" },
+              );
 
     const yieldIntel =
-        routingMode === "weather_quick" ? { status: "skipped", message: null, outlook: null } : runYieldOutlook(ctx);
+        routingMode === "weather_quick" || !stages.yieldOutlook
+            ? { status: "skipped", message: null, outlook: null, _skippedForCognitiveStage: true }
+            : runYieldOutlook(ctx);
 
     if (media.imageBlob && cfg.inferenceBaseUrl) {
         try {
@@ -176,8 +207,40 @@ export async function runAgriOrchestrator(question, snapshot, media = {}, opts =
         };
     }
 
+    const results = {
+        weatherIntelligence: weatherIntel,
+        pestPrediction: pestIntel,
+        environmental: envIntel,
+        recommendations: recIntel,
+        yieldOutlook: yieldIntel,
+        diseaseVision: visionIntel,
+        llm: null,
+    };
+
+    const cognitiveVerification = buildReflectiveVerification({
+        cognitivePlan,
+        results,
+        snapshot,
+        degraded,
+    });
+
+    if (cognitiveVerification.softenStrongClaims && results.recommendations?.actions?.length) {
+        results.recommendations = {
+            ...results.recommendations,
+            actions: results.recommendations.actions.map((a) =>
+                typeof a.calibratedConfidence === "number"
+                    ? { ...a, calibratedConfidence: Math.max(0.12, a.calibratedConfidence * 0.94) }
+                    : a,
+            ),
+        };
+        recIntel = results.recommendations;
+    }
+
     let llmIntel = null;
-    if (routingMode !== "weather_quick" && isLlmProxyConfigured()) {
+    const regionalCap = stages.regionalBriefMaxChars || 0;
+    const narrCap = cognitivePlan.llmTier === "rich" ? 900 : 450;
+
+    if (routingMode !== "weather_quick" && cognitivePlan.llmTier !== "off" && isLlmProxyConfigured()) {
         try {
             const { callLlmProxy } = await import("./llm-proxy.js");
             const companionBlock = snapshot.companion
@@ -186,12 +249,20 @@ export async function runAgriOrchestrator(question, snapshot, media = {}, opts =
                       directives: buildCompanionDirectives(snapshot.companion, snapshot.locale || "en"),
                   }
                 : null;
+
+            const opsHeavy = cognitivePlan.llmTier === "rich";
             llmIntel = await callLlmProxy({
                 question,
                 locale: snapshot.locale || "en",
                 bundle: shallowForFirestore(
                     {
                         intents,
+                        cognitiveLayer: cognitivePlan.layer,
+                        reasoningDepth: cognitivePlan.reasoningDepth,
+                        cognitiveDirective:
+                            cognitivePlan.llmTier === "standard"
+                                ? "User turn fits a medium-depth plan: prioritize clarity and evidence-backed bullets; avoid long essays."
+                                : "User turn fits a deep reasoning plan: connect signals, state uncertainties, and separate observed vs predicted.",
                         weatherIntel,
                         pestIntel,
                         envIntel,
@@ -199,9 +270,11 @@ export async function runAgriOrchestrator(question, snapshot, media = {}, opts =
                         yieldIntel,
                         visionIntel,
                         companion: companionBlock,
-                        regionalNetworkBrief: snapshot.regionalBriefing
-                            ? String(snapshot.regionalBriefing).slice(0, 1400)
-                            : null,
+                        regionalNetworkBrief:
+                            regionalCap > 0 && snapshot.regionalBriefing
+                                ? String(snapshot.regionalBriefing).slice(0, regionalCap)
+                                : null,
+                        cognitiveVerificationChecks: cognitiveVerification.checks,
                         degradedMode: degraded.degraded,
                         degradedReasons: degraded.reasons,
                         reliabilityPolicy:
@@ -209,28 +282,48 @@ export async function runAgriOrchestrator(question, snapshot, media = {}, opts =
                             "Never guarantee outcomes. If evidence is weak, say so and recommend field verification. " +
                             "Avoid catastrophic or panic language. Never imply autonomous field execution—you advise only; " +
                             "humans apply treatments.",
-                        farmOperations: shallowForFirestore(
-                            {
-                                openTasks: (snapshot.operationalTasks || [])
-                                    .filter((t) => t.status === "open")
-                                    .slice(0, 8)
-                                    .map((t) => ({
-                                        title: String(t.title || "").slice(0, 140),
-                                        priority: t.priority || "normal",
-                                        fieldId: t.fieldId || null,
-                                    })),
-                                recentInterventions: (snapshot.interventions || []).slice(0, 6).map((i) => ({
-                                    type: i.interventionType,
-                                    fieldId: i.fieldId,
-                                    performedAtMs: tsToMs(i.performedAt),
-                                })),
-                                unreadAlerts: (snapshot.alerts || []).filter((a) => !a.readAt).length,
-                            },
-                            3,
-                        ),
+                        farmOperations: opsHeavy
+                            ? shallowForFirestore(
+                                  {
+                                      openTasks: (snapshot.operationalTasks || [])
+                                          .filter((t) => t.status === "open")
+                                          .slice(0, 8)
+                                          .map((t) => ({
+                                              title: String(t.title || "").slice(0, 140),
+                                              priority: t.priority || "normal",
+                                              fieldId: t.fieldId || null,
+                                          })),
+                                      recentInterventions: (snapshot.interventions || []).slice(0, 6).map((i) => ({
+                                          type: i.interventionType,
+                                          fieldId: i.fieldId,
+                                          performedAtMs: tsToMs(i.performedAt),
+                                      })),
+                                      unreadAlerts: (snapshot.alerts || []).filter((a) => !a.readAt).length,
+                                  },
+                                  3,
+                              )
+                            : shallowForFirestore(
+                                  {
+                                      openTasks: (snapshot.operationalTasks || [])
+                                          .filter((t) => t.status === "open")
+                                          .slice(0, 4)
+                                          .map((t) => ({
+                                              title: String(t.title || "").slice(0, 120),
+                                              priority: t.priority || "normal",
+                                              fieldId: t.fieldId || null,
+                                          })),
+                                      recentInterventions: (snapshot.interventions || []).slice(0, 3).map((i) => ({
+                                          type: i.interventionType,
+                                          fieldId: i.fieldId,
+                                          performedAtMs: tsToMs(i.performedAt),
+                                      })),
+                                      unreadAlerts: (snapshot.alerts || []).filter((a) => !a.readAt).length,
+                                  },
+                                  3,
+                              ),
                         digitalTwin: shallowForFirestore(twinBrief, 3),
                         knowledgeLearning: knowledgeLearning ? shallowForFirestore(knowledgeLearning, 2) : null,
-                        learningNarrativePreview: learningNarrative ? String(learningNarrative).slice(0, 900) : null,
+                        learningNarrativePreview: learningNarrative ? String(learningNarrative).slice(0, narrCap) : null,
                     },
                     4
                 ),
@@ -240,22 +333,23 @@ export async function runAgriOrchestrator(question, snapshot, media = {}, opts =
         }
     }
 
+    results.llm = llmIntel;
+
+    const mergedHints = [...(degraded.hints || [])];
+    for (const n of cognitiveVerification.notes || []) {
+        if (n) mergedHints.push(n);
+    }
+
     return {
         enginePackVersion: cfg.enginePackVersion,
         intents,
         geo,
-        degradedHints: degraded.hints,
+        cognitivePlan,
+        cognitiveVerification,
+        degradedHints: mergedHints,
         degradedReasons: degraded.reasons,
         weatherFresh01: degraded.weatherFresh01,
-        results: {
-            weatherIntelligence: weatherIntel,
-            pestPrediction: pestIntel,
-            environmental: envIntel,
-            recommendations: recIntel,
-            yieldOutlook: yieldIntel,
-            diseaseVision: visionIntel,
-            llm: llmIntel,
-        },
+        results,
         twinBrief,
         learningNarrative,
         knowledgeLearning,
@@ -268,6 +362,8 @@ export async function runAgriOrchestrator(question, snapshot, media = {}, opts =
                 yieldStatus: yieldIntel.status,
                 reliability: visionIntel?.reliability || null,
                 degraded: degraded.degraded,
+                cognitive: summarizeCognitivePlan(cognitivePlan),
+                verificationChecks: cognitiveVerification.checks,
             },
             3
         ),

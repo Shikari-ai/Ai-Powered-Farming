@@ -18,24 +18,25 @@ import {
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { runAgriOrchestrator } from "./ai/orchestrator.js?v=45";
-import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=45";
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=47";
+import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=47";
 import { getAiConfig } from "./ai/config.js?v=34";
 import {
   buildProactiveDigest,
   defaultCompanionProfile,
   mergeCompanionAfterTurn,
   normalizeCompanionProfile,
-} from "./ai/companion-memory.js?v=35";
+} from "./ai/companion-memory.js?v=47";
 import { fetchRegionalBriefing } from "./network/regional-briefing.js";
 import {
   buildCasualAssistantReply,
   buildVagueSymptomReply,
   classifyAssistantRouting,
-} from "./ai/assistant-intent-router.js?v=45";
-import { detectConversationMood, polishFarmReportProse } from "./ai/conversation-naturals.js?v=45";
-import { runAssistantTextStream } from "./ai/assistant-stream.js?v=45";
-import { computePresencePlan, maybePresenceMemoryNudge, sleep as presenceSleep } from "./ai/conversation-presence.js?v=45";
+} from "./ai/assistant-intent-router.js?v=47";
+import { detectConversationMood, polishFarmReportProse } from "./ai/conversation-naturals.js?v=47";
+import { runAssistantTextStream } from "./ai/assistant-stream.js?v=47";
+import { computePresencePlan, maybePresenceMemoryNudge, sleep as presenceSleep } from "./ai/conversation-presence.js?v=47";
+import { getFlowSnapshot, recordFlowUserTurn, resolveReplyVerbosity, streamRhythmPreference } from "./ai/conversation-flow.js?v=47";
 
 function el(id) {
   return document.getElementById(id);
@@ -433,6 +434,7 @@ onAuthStateChanged(auth, (user) => {
     pendingImageBlob = null;
     refreshAttachUi();
 
+    const hadPriorStreamInterrupt = streamInFlight;
     streamAbort.abort();
     streamAbort = new AbortController();
     sendGeneration += 1;
@@ -443,6 +445,10 @@ onAuthStateChanged(auth, (user) => {
     if (inputEl) inputEl.value = "";
 
     try {
+      const flowTurnText = text || (imageBlob ? "(Image attached)" : "");
+      recordFlowUserTurn({ text: flowTurnText, hadPriorStreamInterrupt: hadPriorStreamInterrupt });
+      const flowSnap = getFlowSnapshot();
+
       const userMsgRef = await addDoc(collection(db, "assistant_messages"), {
         userId: user.uid,
         role: "user",
@@ -503,13 +509,17 @@ onAuthStateChanged(auth, (user) => {
           learningProfile: routing.mode === "weather_quick" ? null : learningProfile || null,
         };
 
-        const orchOpts = routing.mode === "weather_quick" ? { routingMode: "weather_quick" } : {};
-        orch = await runAgriOrchestrator(text || "Analyze the attached crop image.", snapshot, { imageBlob }, orchOpts);
+        orch = await runAgriOrchestrator(text || "Analyze the attached crop image.", snapshot, { imageBlob }, {
+          routingMode: routing.mode === "weather_quick" ? "weather_quick" : "full",
+          flowSnapshot: flowSnap,
+        });
         attachSnapshotForReply(orch, snapshot);
+        const replyVerbosity =
+          routing.mode === "weather_quick" ? "minimal" : resolveReplyVerbosity({ routingMode: routing.mode, profile: companionProfile, flow: flowSnap });
         reply = composeAssistantReply(text || "[image]", orch, {
           locale: snapshot.locale,
           companionProfile,
-          replyVerbosity: routing.mode === "weather_quick" ? "minimal" : "full",
+          replyVerbosity,
         });
 
         if (!reply) {
@@ -525,6 +535,7 @@ onAuthStateChanged(auth, (user) => {
         userText: text,
         replyLength: reply.length,
         fields,
+        flowSnapshot: flowSnap,
       });
       if (memNudge) {
         reply = `${reply.trimEnd()}\n\n${memNudge}`;
@@ -565,6 +576,14 @@ onAuthStateChanged(auth, (user) => {
           preview: orch?.persistedPreview || null,
           geo: orch?.geo || null,
           routingMode: orch?.routingMode || "full",
+          cognitive: orch?.cognitivePlan
+            ? {
+                layer: orch.cognitivePlan.layer,
+                reasoningDepth: orch.cognitivePlan.reasoningDepth,
+                llmTier: orch.cognitivePlan.llmTier,
+              }
+            : null,
+          verificationChecks: orch?.cognitiveVerification?.checks || null,
           schemaVersion: 1,
         });
       }
@@ -574,6 +593,7 @@ onAuthStateChanged(auth, (user) => {
         userText: text,
         replyLength: reply.length,
         mood,
+        flowSnapshot: flowSnap,
       });
       await presenceSleep(presencePlan.preStreamMs);
 
@@ -603,6 +623,7 @@ onAuthStateChanged(auth, (user) => {
         fullText: reply,
         streamProfile: routing.mode,
         streamLeadInMs: presencePlan.streamLeadInMs,
+        rhythmTone: streamRhythmPreference(flowSnap, routing.mode),
         signal: streamAbort.signal,
         shouldFollowScroll: () => followPinnedBottom,
         getScrollRoot: getAssistantScrollRoot,

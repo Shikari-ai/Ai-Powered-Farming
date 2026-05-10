@@ -56,6 +56,7 @@ function randBetween(a, b) {
  *   userText: string,
  *   replyLength?: number,
  *   mood?: string,
+ *   flowSnapshot?: import('./conversation-flow.js').FlowSnapshot | null,
  * }} opts
  * @returns {PresencePlan}
  */
@@ -64,6 +65,7 @@ export function computePresencePlan(opts) {
     const userText = String(opts.userText || "");
     const replyLength = typeof opts.replyLength === "number" ? opts.replyLength : 0;
     const mood = opts.mood || "neutral";
+    const flow = opts.flowSnapshot || null;
 
     let base = 200;
     let voiceEnergy = "steady";
@@ -90,6 +92,8 @@ export function computePresencePlan(opts) {
         if (replyLength > 1800) base += randBetween(70, 180);
         if (mood === "worry") base = Math.max(220, base * 0.88);
         if (/\b(urgent|asap|now|quick)\b/i.test(userText)) base = Math.min(base, randBetween(200, 380));
+        if (flow?.energy === "brisk") base *= randBetween(0.78, 0.92);
+        if (flow?.energy === "settled") base *= randBetween(1.04, 1.14);
     }
 
     const st = pacingState();
@@ -105,6 +109,8 @@ export function computePresencePlan(opts) {
     if (routingMode === "full") {
         streamLeadInMs = randBetween(40, 160);
         if (mood === "worry") streamLeadInMs *= 0.75;
+        if (flow?.energy === "brisk") streamLeadInMs *= randBetween(0.62, 0.88);
+        if (flow?.energy === "settled") streamLeadInMs *= randBetween(1.05, 1.28);
     } else if (routingMode === "weather_quick") {
         streamLeadInMs = randBetween(18, 85);
     } else if (routingMode === "casual" || routingMode === "clarify") {
@@ -127,11 +133,12 @@ export function sleep(ms) {
 /**
  * Very short clause tied to existing memory — rare, avoid “as we discussed”.
  * @param {object | null} profile normalized companion profile
- * @param {{ routingMode: string, userText: string, replyLength: number, fields?: object[] }} ctx
+ * @param {{ routingMode: string, userText: string, replyLength: number, fields?: object[], flowSnapshot?: import('./conversation-flow.js').FlowSnapshot | null }} ctx
  */
 export function maybePresenceMemoryNudge(profile, ctx) {
     const routingMode = ctx.routingMode || "";
     if (routingMode !== "full" && routingMode !== "weather_quick") return "";
+    if (ctx.flowSnapshot?.suppressAuxiliary && Math.random() < 0.72) return "";
     if ((ctx.replyLength || 0) < 120) return "";
     if (Math.random() > 0.36) return "";
 

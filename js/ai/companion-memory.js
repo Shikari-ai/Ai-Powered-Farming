@@ -5,6 +5,7 @@
  */
 
 import { tsToMs } from "./farmer-context.js?v=34";
+import { computeFlowHintsForProfile, getFlowSnapshot } from "./conversation-flow.js?v=47";
 
 const MAX_ROLLING = 520;
 const MAX_TOPIC_KEYS = 18;
@@ -40,6 +41,8 @@ export function defaultCompanionProfile(uid) {
             preferredLocale: null,
             modalities: ["text"],
         },
+        /** @type {{ avgUserChars?: number, bias?: string, sampleN?: number, updatedAt?: string } | null} */
+        flowHints: null,
     };
 }
 
@@ -69,6 +72,15 @@ export function normalizeCompanionProfile(raw, uid) {
             ...(typeof raw.voice === "object" && raw.voice ? raw.voice : {}),
             modalities: Array.isArray(raw?.voice?.modalities) ? raw.voice.modalities : d.voice.modalities,
         },
+        flowHints:
+            raw.flowHints && typeof raw.flowHints === "object"
+                ? {
+                      avgUserChars: typeof raw.flowHints.avgUserChars === "number" ? raw.flowHints.avgUserChars : undefined,
+                      bias: typeof raw.flowHints.bias === "string" ? raw.flowHints.bias.slice(0, 12) : undefined,
+                      sampleN: typeof raw.flowHints.sampleN === "number" ? raw.flowHints.sampleN : undefined,
+                      updatedAt: typeof raw.flowHints.updatedAt === "string" ? raw.flowHints.updatedAt : undefined,
+                  }
+                : d.flowHints,
     };
 }
 
@@ -157,6 +169,7 @@ export function compactMemoryForBundle(profile) {
         })),
         unresolved: (profile.unresolvedNotes || []).slice(0, 3),
         voice: profile.voice || { modalities: ["text"] },
+        flowHints: profile.flowHints || null,
     };
 }
 
@@ -195,6 +208,16 @@ export function buildCompanionDirectives(profile, locale) {
         lines.push("User prefers direct urgency when risk is high; still state uncertainty honestly.");
     } else {
         lines.push("Balanced urgency: proportional to evidence; acknowledge uncertainty when confidence is low.");
+    }
+    const fh = p.flowHints;
+    if (fh?.bias === "concise" && (fh.sampleN || 0) >= 2) {
+        lines.push(
+            "Explainable habit signal: replies have trended short — lead with the takeaway; expand only when asked.",
+        );
+    } else if (fh?.bias === "deep" && (fh.sampleN || 0) >= 2) {
+        lines.push(
+            "Explainable habit signal: user messages trend longer/analytical — a bit more reasoning structure is welcome.",
+        );
     }
     const lt = (p.lastTopics || []).slice(0, 4);
     if (lt.length) {
@@ -354,6 +377,10 @@ export function mergeCompanionAfterTurn(profile, {
     }
 
     p.proactiveDigest = buildProactiveDigest({ fields, scans, fieldContextStates, weatherLogs, recs });
+
+    const flowSnap = getFlowSnapshot();
+    const fhNext = computeFlowHintsForProfile(p, flowSnap);
+    if (fhNext) p.flowHints = fhNext;
 
     return p;
 }

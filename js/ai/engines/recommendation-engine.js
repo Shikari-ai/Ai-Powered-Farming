@@ -10,8 +10,11 @@ function clampThreshold(x) {
  * Merge deterministic signals into ranked actions. No random scores.
  * @param {any} ctx
  * @param {{ weatherIntel: any, pestIntel: any, degraded?: { weatherFresh01?: number } }} engines
+ * @param {any} learningProfile
+ * @param {{ cognitiveMode?: 'full' | 'threats_only' }} [opts] threats_only = weather/pest bars only; skips follow-ups from stored recs
  */
-export function runRecommendationEngine(ctx, { weatherIntel, pestIntel, degraded = {} }, learningProfile = null) {
+export function runRecommendationEngine(ctx, { weatherIntel, pestIntel, degraded = {} }, learningProfile = null, opts = {}) {
+    const cognitiveMode = opts.cognitiveMode || "full";
     const cal = learningProfile ? getRecommendationCalibration(learningProfile) : null;
     const fungalBar = clampThreshold(0.45 + (cal?.fungalThresholdNudge || 0));
     const pestBar = clampThreshold(0.45 + (cal?.pestThresholdNudge || 0));
@@ -47,18 +50,20 @@ export function runRecommendationEngine(ctx, { weatherIntel, pestIntel, degraded
         });
     }
 
-    const active = (ctx.recs || []).filter((r) => (r.status || "active") === "active");
-    active.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
-    for (const r of active.slice(0, 3)) {
-        actions.push({
-            priority: "follow_up",
-            title: "Existing recommendation",
-            steps: [r.text],
-            reasoning: "Already generated from your saved scan workflow.",
-            confidence: 0.85,
-            confidenceBasis: "Stored ai_recommendations tied to your account.",
-            primaryEpistemic: "inferred",
-        });
+    if (cognitiveMode === "full") {
+        const active = (ctx.recs || []).filter((r) => (r.status || "active") === "active");
+        active.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
+        for (const r of active.slice(0, 3)) {
+            actions.push({
+                priority: "follow_up",
+                title: "Existing recommendation",
+                steps: [r.text],
+                reasoning: "Already generated from your saved scan workflow.",
+                confidence: 0.85,
+                confidenceBasis: "Stored ai_recommendations tied to your account.",
+                primaryEpistemic: "inferred",
+            });
+        }
     }
 
     const scanCount = (ctx.scans || []).length;
@@ -86,5 +91,6 @@ export function runRecommendationEngine(ctx, { weatherIntel, pestIntel, degraded
         engine: "recommendation_merge",
         version: 2,
         actions: calibrated,
+        cognitiveMode,
     };
 }
