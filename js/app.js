@@ -659,7 +659,9 @@ function closeWeatherDetails() {
     document.getElementById('weather-details-modal').classList.add('hidden');
 }
 
-// Phase 1: IP region weather (~0.5s, no permission). Phase 2: upgrade to exact GPS when ready.
+// Phase 1: IP region weather (~0.5s, no permission). Phase 2: GPS upgrade after
+// the dashboard is visible — otherwise `dashboard-wait` keeps opacity at 0 and
+// users only see the OS location prompt on a blank screen.
 async function loadHomeWeather() {
     try {
         const mod = await import('./weather-location.js');
@@ -671,24 +673,39 @@ async function loadHomeWeather() {
             await updateWeatherForLocation(loc.city, loc.lat, loc.lon).catch(() => {});
         }).catch(() => {});
 
-        // Phase 2 — exact GPS (runs in parallel, upgrades when ready)
-        const gpsLoc = await mod.resolveWeatherLocation().catch(() => null);
-        if (gpsLoc && gpsLoc.source !== "fallback" && gpsLoc.source !== "insecure-context") {
-            gpsWon = true;
-            mod.persistLocationDetails(gpsLoc);
-            await updateWeatherForLocation(gpsLoc.city, gpsLoc.lat, gpsLoc.lon);
-            // Sync exact location to Firestore (fire-and-forget)
-            import('./auth.js').then(({ auth, db }) => {
-                if (!auth.currentUser) return;
-                import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js').then(({ doc, setDoc, serverTimestamp }) => {
-                    setDoc(doc(db, "users", auth.currentUser.uid), {
-                        village: gpsLoc.city,
-                        locationDetails: { city: gpsLoc.city, lat: gpsLoc.lat, lon: gpsLoc.lon, source: gpsLoc.source },
-                        updatedAt: serverTimestamp(),
-                    }, { merge: true }).catch(() => {});
+        const runGpsPhase = async () => {
+            const gpsLoc = await mod.resolveWeatherLocation().catch(() => null);
+            if (gpsLoc && gpsLoc.source !== "fallback" && gpsLoc.source !== "insecure-context") {
+                gpsWon = true;
+                mod.persistLocationDetails(gpsLoc);
+                await updateWeatherForLocation(gpsLoc.city, gpsLoc.lat, gpsLoc.lon);
+                // Sync exact location to Firestore (fire-and-forget)
+                import('./auth.js').then(({ auth, db }) => {
+                    if (!auth.currentUser) return;
+                    import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js').then(({ doc, setDoc, serverTimestamp }) => {
+                        setDoc(doc(db, "users", auth.currentUser.uid), {
+                            village: gpsLoc.city,
+                            locationDetails: { city: gpsLoc.city, lat: gpsLoc.lat, lon: gpsLoc.lon, source: gpsLoc.source },
+                            updatedAt: serverTimestamp(),
+                        }, { merge: true }).catch(() => {});
+                    });
                 });
-            });
-        }
+            }
+        };
+
+        let gpsStarted = false;
+        const startGpsOnce = () => {
+            if (gpsStarted) return;
+            gpsStarted = true;
+            // Small delay after reveal so the first paint / IP weather lands before the prompt.
+            setTimeout(() => {
+                runGpsPhase();
+            }, 600);
+        };
+
+        window.addEventListener("dashboard:revealed", startGpsOnce, { once: true });
+        // Pages without dashboard.js (or if the event never fires): still upgrade weather eventually.
+        setTimeout(startGpsOnce, 4500);
     } catch (e) {
         console.warn("Home weather load failed:", e);
     }

@@ -554,7 +554,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const revealDashboard = () => {
+        const wasWaiting = document.body.classList.contains("dashboard-wait");
         document.body.classList.remove("dashboard-wait");
+        // Lets `app.js` defer the GPS permission prompt until the UI is visible —
+        // otherwise users only see a blank screen + OS location dialog.
+        if (wasWaiting) {
+            try {
+                window.dispatchEvent(new CustomEvent("dashboard:revealed"));
+            } catch (_) {}
+        }
     };
 
     (async () => {
