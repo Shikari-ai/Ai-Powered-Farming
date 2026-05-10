@@ -232,6 +232,7 @@ export function createServerChunkStreamAdapter(_) {
  * @property {() => boolean} [shouldFollowScroll]
  * @property {(el: HTMLElement) => HTMLElement | null} [getScrollRoot]
  * @property {() => void} [onFirstChar]
+ * @property {number} [streamLeadInMs] conversational pause before first reveal batch
  */
 
 /**
@@ -248,6 +249,7 @@ export function runAssistantTextStream(opts) {
         shouldFollowScroll,
         getScrollRoot,
         onFirstChar,
+        streamLeadInMs = 0,
     } = opts;
 
     const plainEl = textHost.querySelector(".stream-plain");
@@ -377,7 +379,12 @@ export function runAssistantTextStream(opts) {
             timer = setTimeout(step, fastForwardRequested ? 0 : delay);
         };
 
-        requestAnimationFrame(step);
+        const lead = Math.max(0, Math.round(streamLeadInMs || 0));
+        if (lead > 0) {
+            timer = setTimeout(() => requestAnimationFrame(step), lead);
+        } else {
+            requestAnimationFrame(step);
+        }
     });
 
     return {

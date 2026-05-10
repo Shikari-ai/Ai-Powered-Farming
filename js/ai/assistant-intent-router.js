@@ -3,7 +3,7 @@
  * Gates full agricultural orchestration so greetings stay human and cheap.
  */
 import { detectIntents } from "./detect-intents.js";
-import { pickRotated } from "./conversation-naturals.js?v=44";
+import { pickRotated } from "./conversation-naturals.js?v=45";
 
 const AGRI_TOKEN =
     /\b(field|fields|crop|crops|scans?|pest|pests|disease|diseases|fungal|blight|rust|mildew|rot|aphid|thrips|nematode|irrigation|irrigat|spray|fungicide|pesticide|herbicide|rain|humidity|soil|moisture|yield|harvest|acre|hectare|nitrogen|fertil|deficien|tomato|potato|wheat|rice|corn|maize|cotton|soy|canopy|ndvi|scouting)\b/i;
@@ -18,10 +18,21 @@ const SUBSTANTIVE =
 const POSITIVE_CHECKIN =
     /\b(looks?\s+better|finally(\s+\w+){0,3}\s+better|recover|recovering|bouncing\s+back|picking\s+up|improved|much\s+better|turning\s+(around|a\s+corner)|on\s+the\s+mend)\b/i;
 
+/** Short “it worked” / relief — micro-ack, not a farm briefing. */
+const OUTCOME_AFFIRM =
+    /\b(that\s+)?(actually\s+)?worked|it\s+worked|that\s+did\s+it|that\s+helped|fixed(\s+it)?|sorted|resolved|all\s+good(\s+now)?|made\s+a\s+difference|good\s+call|paid\s+off\b/i;
+
 const VAGUE_WORRY = /\b(weird|off|wrong|looks?\s+bad|not\s+right|something['’]s?\s+off|strange|funny\s+(looking)?)\b/i;
 
 const SPECIFIC_SYMPTOM =
     /\b(yellow|chloros|spot|spots|mold|mildew|rust|blight|wilt|hole|chew|aphid|thrips|mite|bug|larvae|worm|rot|canker|curl|necrosis|stunt|stem\s+bore)\b/i;
+
+function isOutcomeAffirmMicro(text) {
+    const t = String(text || "").trim();
+    if (t.length > 100) return false;
+    if (DEEP_PIPELINE.test(t) || SUBSTANTIVE.test(t)) return false;
+    return OUTCOME_AFFIRM.test(t);
+}
 
 function isPositiveFarmShort(text) {
     const t = String(text || "").trim();
@@ -69,6 +80,10 @@ export function classifyAssistantRouting(rawText, opts = {}) {
 
     if (DEEP_PIPELINE.test(text) || SUBSTANTIVE.test(text)) {
         return { mode: "full", reason: "deep_or_substantive" };
+    }
+
+    if (isOutcomeAffirmMicro(text)) {
+        return { mode: "casual", reason: "outcome_affirm" };
     }
 
     if (isPositiveFarmShort(text)) {
@@ -140,8 +155,22 @@ function isCasualMessage(raw) {
  */
 export function buildCasualAssistantReply(text, ctx = {}) {
     const t = String(text || "").trim().toLowerCase();
+    const raw = String(text || "").trim();
     const fc = typeof ctx.fieldCount === "number" ? ctx.fieldCount : 0;
     const sc = typeof ctx.scanCount === "number" ? ctx.scanCount : 0;
+
+    if (isOutcomeAffirmMicro(raw)) {
+        return pickRotated("outcome_micro", [
+            "Nice.",
+            "That’s good to hear.",
+            "Glad it helped.",
+            "Good — glad that landed.",
+            "Sounds like you’re in a better spot.",
+            "Worth a quiet win.",
+            "Good to know it paid off.",
+            "Happy that worked out.",
+        ]);
+    }
 
     if (POSITIVE_CHECKIN.test(t) && AGRI_TOKEN.test(t) && t.length < 200) {
         return pickRotated("pos_farm", [

@@ -18,8 +18,8 @@ import {
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { runAgriOrchestrator } from "./ai/orchestrator.js?v=44";
-import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=44";
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=45";
+import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=45";
 import { getAiConfig } from "./ai/config.js?v=34";
 import {
   buildProactiveDigest,
@@ -32,9 +32,10 @@ import {
   buildCasualAssistantReply,
   buildVagueSymptomReply,
   classifyAssistantRouting,
-} from "./ai/assistant-intent-router.js?v=44";
-import { detectConversationMood, polishFarmReportProse } from "./ai/conversation-naturals.js?v=44";
-import { runAssistantTextStream } from "./ai/assistant-stream.js?v=44";
+} from "./ai/assistant-intent-router.js?v=45";
+import { detectConversationMood, polishFarmReportProse } from "./ai/conversation-naturals.js?v=45";
+import { runAssistantTextStream } from "./ai/assistant-stream.js?v=45";
+import { computePresencePlan, maybePresenceMemoryNudge, sleep as presenceSleep } from "./ai/conversation-presence.js?v=45";
 
 function el(id) {
   return document.getElementById(id);
@@ -209,8 +210,12 @@ onAuthStateChanged(auth, (user) => {
   }
 
   const listEl = el("assistant-messages");
+  document.body.classList.add("assistant-page");
+
   const emptyEl = el("assistant-empty");
   const inputEl = el("assistant-input");
+  inputEl?.addEventListener("focus", () => document.body.classList.add("assistant-composer-focus"));
+  inputEl?.addEventListener("blur", () => document.body.classList.remove("assistant-composer-focus"));
   const sendBtn = el("assistant-send");
   const clearBtn = el("assistant-clear");
   const subEl = el("assistant-subtitle");
@@ -515,6 +520,16 @@ onAuthStateChanged(auth, (user) => {
       const mood = detectConversationMood(text);
       reply = polishFarmReportProse(reply, { mood, routingMode: routing.mode });
 
+      const memNudge = maybePresenceMemoryNudge(companionProfile, {
+        routingMode: routing.mode,
+        userText: text,
+        replyLength: reply.length,
+        fields,
+      });
+      if (memNudge) {
+        reply = `${reply.trimEnd()}\n\n${memNudge}`;
+      }
+
       try {
         const orchForMemory =
           orch ||
@@ -554,6 +569,14 @@ onAuthStateChanged(auth, (user) => {
         });
       }
 
+      const presencePlan = computePresencePlan({
+        routingMode: routing.mode,
+        userText: text,
+        replyLength: reply.length,
+        mood,
+      });
+      await presenceSleep(presencePlan.preStreamMs);
+
       awaitingAssistantAfterUserId = null;
       streamInFlight = true;
       streamingAssistant = {
@@ -579,6 +602,7 @@ onAuthStateChanged(auth, (user) => {
         textHost: textEl,
         fullText: reply,
         streamProfile: routing.mode,
+        streamLeadInMs: presencePlan.streamLeadInMs,
         signal: streamAbort.signal,
         shouldFollowScroll: () => followPinnedBottom,
         getScrollRoot: getAssistantScrollRoot,

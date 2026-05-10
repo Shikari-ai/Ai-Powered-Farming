@@ -202,6 +202,30 @@
         .attach.has-file { border-color: rgba(16,185,129,0.55); color: var(--primary); background: rgba(16,185,129,0.08); }
         .hidden { display:none !important; }
 
+        body.assistant-page .app-layout {
+            background:
+                radial-gradient(ellipse 130% 70% at 50% -15%, rgba(16, 185, 129, 0.075), transparent 52%),
+                radial-gradient(ellipse 80% 50% at 100% 40%, rgba(59, 130, 246, 0.04), transparent 45%),
+                var(--bg-dark);
+            transition: filter 0.6s ease;
+        }
+        body.assistant-page.assistant-composer-focus .composer {
+            border-top-color: rgba(16, 185, 129, 0.12);
+            box-shadow: 0 -6px 28px rgba(0, 0, 0, 0.35), 0 -1px 0 rgba(16, 185, 129, 0.09);
+        }
+        body.assistant-page.assistant-composer-focus .app-layout {
+            filter: saturate(1.03);
+        }
+        @media (prefers-reduced-motion: reduce) {
+            body.assistant-page .msg.streaming-reply,
+            body.assistant-page .stream-caret,
+            body.assistant-page .stream-thinking-glow,
+            body.assistant-page .typing-dots span {
+                animation: none !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
         /* nav styles → css/nav.css */
     </style>
 </head>
@@ -268,7 +292,7 @@
         </a>
     </nav>
 
-    <script type="module" src="js/assistant.js?v=44"></script>
+    <script type="module" src="js/assistant.js?v=45"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>
