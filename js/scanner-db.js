@@ -453,7 +453,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
 
                 await batch.commit();
-                window.location.href = "index.html";
+                window.location.href = "fields.html";
             } catch (e) {
                 console.error(e);
                 alert(`Failed to save scan: ${e.message}`);

@@ -1,0 +1,9 @@
+{
+  "name": "smart-agri",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node .claude/lang-core-smoke.mjs",
+    "test:lang": "node .claude/lang-core-smoke.mjs"
+  }
+}

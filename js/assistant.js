@@ -112,7 +112,7 @@ function buildAssistantReply({ question, fields, scans, recs, weatherLogs }) {
   if (q.includes("weather") || q.includes("rain") || q.includes("humidity")) {
     if (!latestWeather) {
       lines.push("");
-      lines.push("No weather logs yet. Enable location on the dashboard to sync real weather data into your account.");
+      lines.push("No weather logs yet. Enable location in the app to sync real weather data into your account.");
       return lines.join("\n");
     }
     const c = latestWeather.city || "your area";

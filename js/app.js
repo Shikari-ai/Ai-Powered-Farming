@@ -1,7 +1,7 @@
 // App Logic
 console.log("AgriTech AI Core Initialized");
 
-// Legacy auth functions removed. Refer to js/auth.js and js/dashboard.js for Firebase implementation.
+// Legacy auth functions removed. Refer to js/auth.js and page modules (e.g. fields.js) for Firebase usage.
 
 
 
@@ -79,7 +79,7 @@ async function refreshLocationAndWeather() {
                 locElement.innerHTML = `<i class="ri-map-pin-line" style="color:var(--accent-orange)"></i> ${loc.city} (approx.)`;
                 const aiAlert = document.querySelector('.ai-alert');
                 if (aiAlert) {
-                    aiAlert.innerHTML = `<i class="ri-error-warning-line"></i> AI: Allow location for this site in your browser, then open the dashboard again.`;
+                    aiAlert.innerHTML = `<i class="ri-error-warning-line"></i> AI: Allow location for this site in your browser, then open the app again.`;
                     aiAlert.style.display = 'block';
                     aiAlert.style.color = "var(--accent-orange)";
                 }

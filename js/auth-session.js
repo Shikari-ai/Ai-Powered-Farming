@@ -1,10 +1,10 @@
 /**
  * Central authentication & session management for Smart Farming (Firebase Web).
  * - Protected routes: gate until user + ID token valid; realtime auth + token listeners.
- * - Public routes: bounce signed-in users to the dashboard.
+ * - Public routes: bounce signed-in users to Fields (home).
  * - Logout / token loss / invalid session: clean listeners, clear sensitive storage, redirect to login.
  *
- * Import this module FIRST on every HTML entry (before dashboard.js, fields.js, etc.).
+ * Import this module FIRST on every HTML entry (before fields.js, scanner-db.js, etc.).
  */
 import "./runtime-profile.js?v=28";
 import { auth, clearSensitiveLocalStorage } from "./auth.js?v=28";
@@ -300,12 +300,12 @@ async function runPublicGate() {
     return;
   }
 
-  setShellStatus("Opening your dashboard…");
+  setShellStatus("Opening Fields…");
   await new Promise((r) => setTimeout(r, 160));
   try {
-    location.replace(new URL("index.html", location.href).href);
+    location.replace(new URL("fields.html", location.href).href);
   } catch (_) {
-    location.replace("index.html");
+    location.replace("fields.html");
   }
 }
 
