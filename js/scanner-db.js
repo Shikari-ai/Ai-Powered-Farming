@@ -174,13 +174,17 @@ async function captureFromVideo(videoEl) {
     const canvas = document.createElement("canvas");
     canvas.width = videoEl.videoWidth || 1280;
     canvas.height = videoEl.videoHeight || 720;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { alpha: false });
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
     ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+    const tier = window.__agriCamera && typeof window.__agriCamera.getTier === "function" ? window.__agriCamera.getTier() : "high";
+    const q = tier === "low" ? 0.88 : 0.96;
     const blob = await new Promise((resolve, reject) => {
         canvas.toBlob((b) => {
             if (!b) reject(new Error("Could not capture image"));
             else resolve(b);
-        }, "image/jpeg", 0.92);
+        }, "image/jpeg", q);
     });
     return blob;
 }
@@ -305,9 +309,41 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Ensure camera starts (if available)
-    if (typeof window.initCamera === "function") {
-        window.initCamera();
+    const runShutterFlash = () => {
+        const flash = qs("cam-shutter-flash");
+        if (!flash) return;
+        flash.classList.add("cam-shutter-active");
+        requestAnimationFrame(() => {
+            setTimeout(() => flash.classList.remove("cam-shutter-active"), 95);
+        });
+    };
+
+    const cameraFeed = qs("camera-feed");
+    const assistBadge = qs("cam-assist-badge");
+    const assistText = qs("cam-assist-text");
+    if (cameraFeed && assistBadge && assistText) {
+        cameraFeed.addEventListener("agri-cam-luma", (e) => {
+            const luma = e.detail && typeof e.detail.luma === "number" ? e.detail.luma : null;
+            if (luma == null) return;
+            if (luma < 0.34) {
+                assistBadge.hidden = false;
+                assistText.textContent = "Low light — add light or hold steadier";
+            } else if (luma > 0.72) {
+                assistBadge.hidden = false;
+                assistText.textContent = "Bright scene — avoid washed highlights";
+            } else {
+                assistBadge.hidden = true;
+                assistText.textContent = "";
+            }
+        });
+    }
+
+    const flipBtn = qs("flip-camera");
+    if (flipBtn) {
+        flipBtn.addEventListener("click", () => {
+            const cam = window.__agriCamera;
+            if (cam && typeof cam.toggleFacing === "function") cam.toggleFacing();
+        });
     }
 
     if (captureBtn) {
@@ -315,6 +351,7 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
                 setBtnLoading(captureBtn, true, "Capturing...");
                 const videoEl = qs("videoElement");
+                runShutterFlash();
                 const blob = await captureFromVideo(videoEl);
                 currentBlob = blob;
                 currentPreviewUrl = URL.createObjectURL(blob);

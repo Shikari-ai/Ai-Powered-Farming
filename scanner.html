@@ -21,6 +21,19 @@
     })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script>
+    (function () {
+      try {
+        var low = false;
+        if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) low = true;
+        if (navigator.deviceMemory != null && navigator.deviceMemory <= 4) low = true;
+        if (navigator.hardwareConcurrency != null && navigator.hardwareConcurrency <= 3) low = true;
+        document.documentElement.dataset.agriPerf = low ? "low" : "high";
+      } catch (e) {
+        document.documentElement.dataset.agriPerf = "low";
+      }
+    })();
+    </script>
     <title>AI Crop Scanner</title>
     <link rel="stylesheet" href="css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -32,8 +45,17 @@
         
         <!-- Live Camera Background -->
         <div class="camera-feed" id="camera-feed">
-            <!-- Video element will be injected by JS, fallback styling used -->
-            <video id="videoElement" autoplay playsinline></video>
+            <div class="camera-preview-stack">
+                <video id="videoElement" autoplay playsinline muted></video>
+                <div class="cam-shutter-flash" id="cam-shutter-flash" aria-hidden="true"></div>
+                <div class="cam-focus-hud" aria-hidden="true">
+                    <div class="cam-roi" id="cam-roi"></div>
+                    <div class="cam-scan-pulse"></div>
+                </div>
+            </div>
+            <div class="cam-assist-badge" id="cam-assist-badge" hidden>
+                <i class="ri-contrast-2-line"></i><span id="cam-assist-text"></span>
+            </div>
             <div class="scan-line"></div>
         </div>
 

@@ -36,17 +36,25 @@ function loadSavedScans() {
 }
 
 // --- 3. SCANNER & AI LOGIC ---
+let _scannerCameraHandle = null;
+
 async function initCamera() {
     const videoElement = document.getElementById('videoElement');
     if (!videoElement) return;
 
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: 'environment' } 
+        const { attachPremiumCamera } = await import('./camera-engine.js?v=1');
+        if (_scannerCameraHandle && typeof _scannerCameraHandle.stop === 'function') {
+            _scannerCameraHandle.stop();
+            _scannerCameraHandle = null;
+        }
+        _scannerCameraHandle = await attachPremiumCamera(videoElement, {
+            feedRoot: document.getElementById('camera-feed') || videoElement.parentElement,
         });
-        videoElement.srcObject = stream;
+        window.__agriCamera = _scannerCameraHandle;
     } catch (err) {
         console.warn("Camera access denied or unavailable, using fallback image.", err);
+        window.__agriCamera = null;
         videoElement.style.display = 'none';
     }
 }
