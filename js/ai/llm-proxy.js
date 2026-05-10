@@ -1,5 +1,5 @@
 /**
- * Optional same-origin LLM proxy. POST JSON: { question, locale, bundle }
+ * Optional same-origin proxy for Gemini grounded chat. POST JSON: { question, locale, evidenceBundle }
  */
 import { getAiConfig } from "./config.js";
 

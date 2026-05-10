@@ -115,7 +115,8 @@ function composeMinimalAgriReply(question, orch, profile, extra = {}) {
     let llmText = r.llm && !r.llm.error && r.llm.text ? String(r.llm.text).trim() : "";
     llmText = softenOverclaimProse(softenAlarmistProse(llmText, profile));
     if (llmText) {
-        lines.push(llmText);
+        const prefix = lines.length ? `${lines.join("\n\n")}\n\n` : "";
+        return softenOverclaimProse(prefix + llmText);
     }
 
     if (r.weatherIntelligence && !r.weatherIntelligence.error) {
@@ -188,9 +189,8 @@ export function composeAssistantReply(
     let llmText = r.llm && !r.llm.error && r.llm.text ? String(r.llm.text).trim() : "";
     llmText = softenOverclaimProse(softenAlarmistProse(llmText, profile));
     if (llmText) {
-        lines.push(llmText);
-        lines.push("");
-        lines.push("— Grounded engine summary (verified inputs) —");
+        const head = lines.length ? lines.join("\n") + "\n\n" : "";
+        return softenOverclaimProse(head + llmText);
     }
 
     const epEarly = !compact && profile?.episodeArchive?.length ? profile.episodeArchive[profile.episodeArchive.length - 1] : null;

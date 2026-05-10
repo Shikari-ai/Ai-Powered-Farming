@@ -265,9 +265,16 @@ export async function runAgriOrchestrator(question, snapshot, media = {}, opts =
 
     let llmIntel = null;
     const regionalCap = stages.regionalBriefMaxChars || 0;
-    const narrCap = cognitivePlan.llmTier === "rich" ? 900 : 450;
+    const narrCap =
+        cognitivePlan.llmTier === "rich"
+            ? 900
+            : routingMode === "weather_quick"
+              ? 380
+              : cognitivePlan.llmTier === "standard"
+                ? 520
+                : 450;
 
-    if (routingMode !== "weather_quick" && cognitivePlan.llmTier !== "off" && isLlmProxyConfigured()) {
+    if (isLlmProxyConfigured()) {
         try {
             const { callLlmProxy } = await import("./llm-proxy.js");
             const companionBlock = snapshot.companion
@@ -278,6 +285,15 @@ export async function runAgriOrchestrator(question, snapshot, media = {}, opts =
                 : null;
 
             const opsHeavy = cognitivePlan.llmTier === "rich";
+            const cognitiveDirective =
+                routingMode === "weather_quick"
+                    ? "Brief, premium-toned answer from evidence only — weather and farm context, calm and practical; avoid generic support-bot voice."
+                    : cognitivePlan.llmTier === "rich"
+                      ? "User turn fits a deep reasoning plan: connect signals, state uncertainties, and separate observed vs predicted."
+                      : cognitivePlan.llmTier === "standard"
+                        ? "User turn fits a medium-depth plan: prioritize clarity and evidence-backed bullets; avoid long essays."
+                        : "Practical farm answer from evidence — warm, specific, and useful; skip boilerplate unless the user was only checking in.";
+
             llmIntel = await callLlmProxy({
                 question,
                 locale: snapshot.locale || "en",
@@ -286,10 +302,7 @@ export async function runAgriOrchestrator(question, snapshot, media = {}, opts =
                         intents,
                         cognitiveLayer: cognitivePlan.layer,
                         reasoningDepth: cognitivePlan.reasoningDepth,
-                        cognitiveDirective:
-                            cognitivePlan.llmTier === "standard"
-                                ? "User turn fits a medium-depth plan: prioritize clarity and evidence-backed bullets; avoid long essays."
-                                : "User turn fits a deep reasoning plan: connect signals, state uncertainties, and separate observed vs predicted.",
+                        cognitiveDirective,
                         weatherIntel,
                         pestIntel,
                         envIntel,
