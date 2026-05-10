@@ -21,10 +21,9 @@
     })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- Gemini + vision: run local API (server/.env with GEMINI_API_KEY). Default JS base is http://127.0.0.1:8000. -->
-    <!-- Hosted API or tunnel: <meta name="agri-ai-base" content="https://your-tunnel.example.com"> -->
-    <!-- <meta name="agri-inference-url" content="https://your-api.example.com"> -->
-    <!-- <meta name="agri-llm-proxy" content="https://your-api.example.com"> -->
+    <!-- Gemini: shared key is in js/ai/config.js (AGRI_SHARED_GEMINI_KEY) for all visitors. Or override per page: -->
+    <!-- <meta name="agri-public-gemini-key" content="..."> -->
+    <!-- Optional HTTP LLM backend (overrides shared browser Gemini): <meta name="agri-llm-proxy" content="https://..."> -->
     <title>AI Assistant - AgriTech AI</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
@@ -245,11 +244,9 @@
             <div class="empty" id="assistant-empty">
                 <i class="ri-sparkling-line"></i>
                 <p>
-                    Chat uses <strong>Gemini</strong> through your <strong>local Python API</strong>
-                    (<code>server/main.py</code>): put <code>GEMINI_API_KEY</code> in <code>server/.env</code> (gitignored),
-                    run <code>npm run api</code> or <code>uvicorn main:app --port 8000</code>, then open this app on
-                    <code>http://127.0.0.1</code> (same machine). Override <code>agri-ai-base</code> in meta if the API
-                    runs elsewhere. Open‑Meteo and Firestore still ground farm answers.
+                    Chat uses <strong>Gemini</strong> from a <strong>shared browser key</strong> (no setup per visitor).
+                    Vision and other APIs still use <code>agri-ai-base</code> / <code>http://127.0.0.1:8000</code> when you run
+                    the Python API. Open‑Meteo and Firestore ground answers when you’re signed in.
                 </p>
                 <div class="cta-row">
                     <button class="cta" onclick="window.location.href='scanner.html'">Start a scan</button>
@@ -293,7 +290,7 @@
         </a>
     </nav>
 
-    <script type="module" src="js/assistant.js?v=57"></script>
+    <script type="module" src="js/assistant.js?v=58"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>

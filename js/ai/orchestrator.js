@@ -1,4 +1,4 @@
-import { getAiConfig, isLlmProxyConfigured } from "./config.js";
+import { getAiConfig, isLlmProxyConfigured } from "./config.js?v=58";
 import { detectIntents } from "./detect-intents.js";
 import { buildFarmerContext, tsToMs } from "./farmer-context.js";
 import { runWeatherIntelligence } from "./engines/weather-intelligence.js";

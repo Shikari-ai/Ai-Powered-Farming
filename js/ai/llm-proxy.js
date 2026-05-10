@@ -3,7 +3,7 @@
  * POST JSON: { question, locale, evidenceBundle }
  */
 
-import { getAiConfig, getGeminiDirectApiKey } from "./config.js";
+import { getAiConfig, getGeminiDirectApiKey } from "./config.js?v=58";
 import { callGeminiDirect } from "./gemini-direct.js";
 
 /** Full URL for the grounded chat request (FastAPI path or bare Cloud Function URL). */
