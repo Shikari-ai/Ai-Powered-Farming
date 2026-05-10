@@ -1,6 +1,7 @@
 import "./auth-session.js?v=31";
 import "./i18n.js";
 import { auth, db } from "./auth.js?v=31";
+import { getLang } from "./i18n.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
   addDoc,
@@ -15,6 +16,10 @@ import {
   where,
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=32";
+import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=32";
+import { getAiConfig } from "./ai/config.js?v=32";
 
 function el(id) {
   return document.getElementById(id);
@@ -158,11 +163,30 @@ onAuthStateChanged(auth, (user) => {
   const inputEl = el("assistant-input");
   const sendBtn = el("assistant-send");
   const clearBtn = el("assistant-clear");
+  const subEl = el("assistant-subtitle");
 
   let fields = [];
   let scans = [];
   let recs = [];
   let weatherLogs = [];
+  let environmental = [];
+  let pendingImageBlob = null;
+
+  const attachInput = el("assistant-attach-input");
+  const attachBtn = el("assistant-attach");
+
+  if (subEl) {
+    const cfg = getAiConfig();
+    subEl.textContent = cfg.inferenceBaseUrl
+      ? `Agricultural intelligence • ${cfg.enginePackVersion} • vision API configured`
+      : `Agricultural intelligence • ${cfg.enginePackVersion} • live weather + your Firestore data`;
+  }
+
+  const refreshAttachUi = () => {
+    if (!attachBtn) return;
+    attachBtn.classList.toggle("has-file", !!pendingImageBlob);
+    attachBtn?.setAttribute("aria-label", pendingImageBlob ? "Replace attached image" : "Attach crop photo");
+  };
 
   const msgsQ = query(collection(db, "assistant_messages"), where("userId", "==", user.uid), limit(200));
   onSnapshot(msgsQ, (snap) => {
@@ -188,10 +212,27 @@ onAuthStateChanged(auth, (user) => {
     weatherLogs = [];
     snap.forEach((d) => weatherLogs.push({ id: d.id, ...d.data() }));
   });
+  onSnapshot(query(collection(db, "environmental_data"), where("userId", "==", user.uid), limit(40)), (snap) => {
+    environmental = [];
+    snap.forEach((d) => environmental.push({ id: d.id, ...d.data() }));
+  });
+
+  attachBtn?.addEventListener("click", () => attachInput?.click());
+  attachInput?.addEventListener("change", () => {
+    const f = attachInput.files?.[0];
+    if (!f || !String(f.type || "").startsWith("image/")) return;
+    pendingImageBlob = f;
+    refreshAttachUi();
+    attachInput.value = "";
+  });
 
   async function send() {
     const text = (inputEl?.value || "").trim();
-    if (!text) return;
+    const imageBlob = pendingImageBlob;
+    if (!text && !imageBlob) return;
+
+    pendingImageBlob = null;
+    refreshAttachUi();
 
     if (sendBtn) sendBtn.disabled = true;
     if (inputEl) inputEl.value = "";
@@ -200,19 +241,50 @@ onAuthStateChanged(auth, (user) => {
       const userMsgRef = await addDoc(collection(db, "assistant_messages"), {
         userId: user.uid,
         role: "user",
-        text,
+        text: text || (imageBlob ? "(Image attached)" : ""),
+        hasAttachment: !!imageBlob,
         createdAt: serverTimestamp(),
+        schemaVersion: 2,
+      });
+
+      const snapshot = {
+        userId: user.uid,
+        fields,
+        scans,
+        recs,
+        weatherLogs,
+        environmental,
+        locale: getLang() || "en",
+      };
+
+      const orch = await runAgriOrchestrator(text || "Analyze the attached crop image.", snapshot, { imageBlob });
+      attachSnapshotForReply(orch, snapshot);
+      let reply = composeAssistantReply(text || "[image]", orch, { locale: snapshot.locale });
+
+      if (!reply) {
+        reply = buildAssistantReply({ question: text, fields, scans, recs, weatherLogs });
+      }
+
+      await addDoc(collection(db, "ai_engine_runs"), {
+        userId: user.uid,
+        createdAt: serverTimestamp(),
+        replyTo: userMsgRef.id,
+        enginePackVersion: orch.enginePackVersion,
+        intents: orch.intents,
+        preview: orch.persistedPreview || null,
+        geo: orch.geo || null,
         schemaVersion: 1,
       });
 
-      const reply = buildAssistantReply({ question: text, fields, scans, recs, weatherLogs });
       await addDoc(collection(db, "assistant_messages"), {
         userId: user.uid,
         role: "assistant",
         text: reply,
         createdAt: serverTimestamp(),
         replyTo: userMsgRef.id,
-        schemaVersion: 1,
+        enginePackVersion: orch.enginePackVersion,
+        enginePreview: orch.persistedPreview || null,
+        schemaVersion: 2,
       });
     } catch (e) {
       console.error(e);
@@ -229,12 +301,14 @@ onAuthStateChanged(auth, (user) => {
   });
 
   clearBtn?.addEventListener("click", async () => {
-    const ok = confirm("Clear assistant chat history for this device/account?");
+    const ok = confirm("Clear assistant chat and engine run history for this account?");
     if (!ok) return;
     try {
-      const snap = await getDocs(msgsQ);
+      const runsQ = query(collection(db, "ai_engine_runs"), where("userId", "==", user.uid), limit(500));
+      const [msgSnap, runSnap] = await Promise.all([getDocs(msgsQ), getDocs(runsQ)]);
       const batch = writeBatch(db);
-      snap.forEach((d) => batch.delete(doc(db, "assistant_messages", d.id)));
+      msgSnap.forEach((d) => batch.delete(doc(db, "assistant_messages", d.id)));
+      runSnap.forEach((d) => batch.delete(doc(db, "ai_engine_runs", d.id)));
       await batch.commit();
     } catch (e) {
       console.error(e);

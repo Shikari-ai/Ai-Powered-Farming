@@ -21,6 +21,9 @@
     })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Optional inference + LLM proxy (same-origin or HTTPS you control; never ship raw API keys here). -->
+    <!-- <meta name="agri-inference-url" content="https://your-api.example.com"> -->
+    <!-- <meta name="agri-llm-proxy" content="https://your-proxy.example.com"> -->
     <title>AI Assistant - AgriTech AI</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
@@ -81,7 +84,17 @@
             border: 1px solid rgba(255,255,255,0.10);
             color: white; outline: none;
         }
-        .send { width: 44px; height: 44px; border-radius: 16px; border: 1px solid rgba(16,185,129,0.4); background: rgba(16,185,129,0.12); color: var(--primary); cursor:pointer; font-size: 18px; display:flex; align-items:center; justify-content:center; }
+        .send { width: 44px; height: 44px; border-radius: 16px; border: 1px solid rgba(16,185,129,0.4); background: rgba(16,185,129,0.12); color: var(--primary); cursor:pointer; font-size: 18px; display:flex; align-items:center; justify-content:center; flex-shrink: 0; }
+        .attach {
+            width: 44px; height: 44px; border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.06);
+            color: rgba(255,255,255,0.9);
+            cursor:pointer;
+            display:flex; align-items:center; justify-content:center;
+            flex-shrink: 0;
+        }
+        .attach.has-file { border-color: rgba(16,185,129,0.55); color: var(--primary); background: rgba(16,185,129,0.08); }
         .hidden { display:none !important; }
 
         /* nav styles → css/nav.css */
@@ -104,8 +117,9 @@
             <div class="empty" id="assistant-empty">
                 <i class="ri-sparkling-line"></i>
                 <p>
-                    No assistant history yet. This assistant only responds using your real account data
-                    (fields, scans, recommendations, weather logs). Start with a scan or add a field.
+                    Multimodal farm intelligence: live Open-Meteo analysis, pest outlooks from your real scans,
+                    vision inference when you connect the FastAPI service, and optional LLM grounding via a proxy.
+                    No fabricated analytics — empty states stay honest.
                 </p>
                 <div class="cta-row">
                     <button class="cta" onclick="window.location.href='scanner.html'">Start a scan</button>
@@ -119,8 +133,10 @@
 
     <div class="composer">
         <div class="composer-inner">
-            <input class="input" id="assistant-input" placeholder="Ask about your fields, scans, pests, or next actions…" />
-            <button class="send" id="assistant-send" title="Send"><i class="ri-send-plane-2-line"></i></button>
+            <input type="file" id="assistant-attach-input" accept="image/*" class="hidden" />
+            <button type="button" class="attach" id="assistant-attach" title="Attach crop photo" aria-label="Attach crop photo"><i class="ri-image-add-line"></i></button>
+            <input class="input" id="assistant-input" placeholder="Ask about irrigation, disease risk, pests, yields…" />
+            <button class="send" type="button" id="assistant-send" title="Send"><i class="ri-send-plane-2-line"></i></button>
         </div>
     </div>
 
@@ -146,7 +162,7 @@
         </a>
     </nav>
 
-    <script type="module" src="js/assistant.js?v=31"></script>
+    <script type="module" src="js/assistant.js?v=32"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>

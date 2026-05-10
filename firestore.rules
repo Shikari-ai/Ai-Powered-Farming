@@ -126,6 +126,12 @@ service cloud.firestore {
       allow delete: if isOwnerByField("userId");
     }
 
+    match /ai_engine_runs/{docId} {
+      allow create: if isOwnerNewByField("userId");
+      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow delete: if isOwnerByField("userId");
+    }
+
     // Default: deny
     match /{document=**} {
       allow read, write: if false;
