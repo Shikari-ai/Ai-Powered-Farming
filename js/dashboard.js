@@ -3,8 +3,8 @@
  * Fully connected to Firebase Auth, Firestore realtime listeners,
  * Weather API, i18n, and all backend subsystems.
  */
-import { registerAuthCleanup } from "./auth-session.js?v=28";
-import { auth, db } from "./auth.js?v=28";
+import { registerAuthCleanup } from "./auth-session.js?v=31";
+import { auth, db } from "./auth.js?v=31";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
     collection,

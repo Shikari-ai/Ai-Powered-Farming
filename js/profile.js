@@ -1,5 +1,5 @@
-import "./auth-session.js?v=28";
-import { auth, db, storage, logoutUser } from "./auth.js?v=28";
+import "./auth-session.js?v=31";
+import { auth, db, storage, logoutUser } from "./auth.js?v=31";
 import { LANGUAGES, setLanguage, getLang } from "./i18n.js";
 import { onAuthStateChanged, updateProfile, sendPasswordResetEmail }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
