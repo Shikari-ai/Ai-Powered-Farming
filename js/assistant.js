@@ -570,8 +570,8 @@ onAuthStateChanged(auth, (user) => {
           "Could not build a Gemini reply. Check agri-llm-proxy / agri-ai-base and that the API server exposes POST /v1/chat/grounded with GEMINI_API_KEY set.";
       }
 
+      const mood = detectConversationMood(text);
       if (!useGemini) {
-        const mood = detectConversationMood(text);
         reply = polishFarmReportProse(reply, { mood, routingMode: routing.mode });
       }
 
