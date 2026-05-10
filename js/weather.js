@@ -1,6 +1,6 @@
-import "./auth-session.js";
+import "./auth-session.js?v=28";
 import "./i18n.js";
-import { auth, db } from "./auth.js";
+import { auth, db } from "./auth.js?v=28";
 import { doc, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { openDeviceMaps } from "./maps-link.js";
 import { resolveWeatherLocation, resolveLocationApprox } from "./weather-location.js";

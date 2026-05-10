@@ -6,8 +6,8 @@
  *
  * Import this module FIRST on every HTML entry (before dashboard.js, fields.js, etc.).
  */
-import "./runtime-profile.js";
-import { auth, clearSensitiveLocalStorage } from "./auth.js";
+import "./runtime-profile.js?v=28";
+import { auth, clearSensitiveLocalStorage } from "./auth.js?v=28";
 import {
   onAuthStateChanged,
   onIdTokenChanged,

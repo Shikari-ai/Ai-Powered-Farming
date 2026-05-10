@@ -1,6 +1,6 @@
-import "./auth-session.js";
+import "./auth-session.js?v=28";
 import './i18n.js';
-import { auth, db, storage } from './auth.js';
+import { auth, db, storage } from './auth.js?v=28';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
     collection,

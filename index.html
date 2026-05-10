@@ -2,6 +2,24 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <script>
+  (function () {
+    var h = location.hostname || "";
+    if (!h.endsWith("github.io")) return;
+    var path = location.pathname;
+    var parts = path.split("/").filter(Boolean);
+    var repo = parts[0];
+    if (!repo || repo.indexOf(".") !== -1) return;
+    if (path === "/" + repo) {
+      location.replace("/" + repo + "/" + location.search + location.hash);
+      return;
+    }
+    var b = document.createElement("base");
+    b.href = "/" + repo + "/";
+    var hd = document.head || document.getElementsByTagName("head")[0];
+    if (hd) hd.insertBefore(b, hd.firstChild);
+  })();
+  </script>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -822,6 +840,21 @@
   </style>
 </head>
 <body class="dashboard-wait">
+<script>
+/* If module scripts fail (bad base URL, network, blockers), dashboard.js never runs and
+   body.dashboard-wait keeps the app invisible. Reveal UI so the site isn’t a blank screen. */
+(function () {
+  var ms = 12000;
+  setTimeout(function () {
+    try {
+      var b = document.body;
+      if (!b || !b.classList.contains("dashboard-wait")) return;
+      b.classList.add("dashboard-wait-failsafe");
+      b.classList.remove("dashboard-wait");
+    } catch (_) {}
+  }, ms);
+})();
+</script>
 <div id="dash-load-banner" class="dash-load-banner" role="status">
   Taking longer than usual. You can keep using the dashboard — data will catch up. If this message stays, try a refresh.
 </div>
@@ -1269,7 +1302,7 @@
 </script>
 
 <script src="js/app.js?v=24"></script>
-<script type="module" src="js/dashboard.js?v=27"></script>
+<script type="module" src="js/dashboard.js?v=28"></script>
 <script type="module" src="js/i18n.js?v=2"></script>
 </body>
 </html>

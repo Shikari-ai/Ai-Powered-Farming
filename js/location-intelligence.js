@@ -4,7 +4,7 @@
  * 100% free stack: OpenStreetMap / Nominatim / Overpass / Firebase / NavIC
  */
 
-import { db } from "./auth.js";
+import { db } from "./auth.js?v=28";
 import { doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { NAVIC_GPS_OPTIONS, detectGNSSSource } from "./navic.js";
 
