@@ -78,7 +78,7 @@ assert(getLang() === before, "invalid code should not change lang");
 assert(localStorage.getItem("agri_lang") === before, "localStorage agri_lang");
 
 const html = readFileSync(join(repoRoot, "profile.html"), "utf8");
-for (const id of ["as-lang-search", "as-lang-list", "panel-choose-language"]) {
+for (const id of ["as-lang-search", "as-lang-list", "lang-picker-overlay"]) {
   assert(html.includes(`id="${id}"`) || html.includes(`id='${id}'`), `profile.html missing #${id}`);
 }
 

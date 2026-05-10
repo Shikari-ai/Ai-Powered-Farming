@@ -41,8 +41,6 @@
     }
     .screen::-webkit-scrollbar,.panel::-webkit-scrollbar{display:none;}
     .screen.active,.panel.active{transform:translateX(0);}
-    /* Language panel is last in DOM; extra z-index keeps it above any stray stacking edge cases */
-    #panel-choose-language.active{z-index:40;}
     #screen-main{transform:translateX(0);}
 
     /* ── HEADER ── */
@@ -198,7 +196,8 @@
     }
     .lang-row-meta{flex:1;min-width:0;}
     .lang-row-meta strong{display:block;font-size:14px;font-weight:600;}
-    .lang-row-meta span{font-size:11px;color:var(--dim);}
+    .lang-row-meta .lang-row-sub{font-size:12px;color:var(--dim);display:block;margin-top:2px;}
+    .lang-row-meta .lang-row-region{font-size:10px;color:rgba(148,163,184,.85);margin-top:3px;display:block;}
     .lang-row-check{
       width:22px;height:22px;border-radius:50%;
       border:2px solid rgba(255,255,255,.22);flex-shrink:0;
@@ -208,20 +207,7 @@
     .lang-row.selected .lang-row-check{
       background:var(--primary);border-color:var(--primary);color:#020617;
     }
-    .lang-save-wrap{margin-top:14px;}
-    .lang-save-btn{
-      width:100%;border:none;border-radius:14px;padding:14px 16px;
-      font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;color:#020617;
-      background:linear-gradient(135deg,#6EE7B7 0%,#10B981 45%,#059669 100%);
-      box-shadow:0 8px 32px rgba(16,185,129,.38),inset 0 1px 0 rgba(255,255,255,.3);
-      transition:transform .12s,box-shadow .2s,opacity .2s;
-      display:flex;align-items:center;justify-content:center;gap:8px;
-    }
-    .lang-save-btn:active{transform:scale(.985);}
-    .lang-save-btn:disabled{opacity:.42;cursor:not-allowed;transform:none;box-shadow:none;}
-    .lang-hint{font-size:10px;color:var(--dim);margin-top:10px;line-height:1.45;}
-
-    /* ── Ripple (language cards) ── */
+    /* ── Ripple (language list rows) ── */
     .rw{position:relative;overflow:hidden;}
     .ripple-el{
       position:absolute;border-radius:50%;transform:scale(0);
@@ -230,190 +216,77 @@
     }
     @keyframes rippleAnim{to{transform:scale(4);opacity:0;}}
 
-    /* ── Shared language picker (globe, list labels) ── */
-    .lang-globe-wrap{
-      width:100px;height:100px;margin:8px auto 10px;
-      position:relative;display:flex;align-items:center;justify-content:center;
-    }
-    .lang-globe{
-      position:relative;
-      width:72px;height:72px;border-radius:50%;
-      background:radial-gradient(circle at 35% 30%,rgba(16,185,129,.45),rgba(3,6,9,.95));
-      border:1px solid rgba(16,185,129,.45);
-      box-shadow:0 0 40px rgba(16,185,129,.35),inset 0 0 30px rgba(16,185,129,.2);
-      display:flex;align-items:center;justify-content:center;
-      font-size:34px;color:rgba(240,253,250,.95);
-      animation:langGlobePulse 4s ease-in-out infinite;
-    }
-    .lang-globe::after{
-      content:"";position:absolute;left:50%;top:50%;
-      width:92px;height:92px;margin:-46px 0 0 -46px;
-      border-radius:50%;
-      border:1px dashed rgba(16,185,129,.25);
-      animation:langGlobeSpin 18s linear infinite;
-    }
-    @keyframes langGlobePulse{
-      0%,100%{transform:scale(1);filter:brightness(1);}
-      50%{transform:scale(1.04);filter:brightness(1.08);}
-    }
-    @keyframes langGlobeSpin{to{transform:rotate(360deg);}}
-    @keyframes langCheckPop{
-      0%{transform:scale(.6);}
-      100%{transform:scale(1);}
-    }
-    .lang-row-flag{
-      width:40px;height:40px;border-radius:12px;
-      background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);
-      display:flex;align-items:center;justify-content:center;
-      font-size:20px;flex-shrink:0;line-height:1;
-    }
-    .lang-row-meta{flex:1;min-width:0;}
-    .lang-row-meta strong{display:block;font-size:14px;font-weight:600;}
-    .lang-row-meta .lang-row-sub{font-size:12px;color:var(--dim);display:block;margin-top:2px;}
-    .lang-row-meta .lang-row-region{font-size:10px;color:rgba(148,163,184,.85);margin-top:3px;display:block;}
-
-    /* Inline account row (compact language entry) */
+    /* Inline account row */
     .as-lang-touch{cursor:pointer;}
     .as-lang-touch:active{background:rgba(255,255,255,.03);}
 
-    /* ── Choose Language full panel (matches premium mock) ── */
-    .panel-choose-lang{
-      background:linear-gradient(180deg,#0f172a 0%,#0c1222 35%,#0a1628 100%) !important;
+    /* ── Language modal (sub-sheet — no extra slide panel over account) ── */
+    .lang-picker-overlay{
+      position:fixed;inset:0;z-index:4000;
+      display:flex;align-items:flex-end;justify-content:center;
+      pointer-events:none;visibility:hidden;opacity:0;
+      transition:opacity .22s ease,visibility .22s;
     }
-    .panel-choose-lang .lang-page-top{
-      display:flex;align-items:center;justify-content:space-between;
-      padding:10px 16px 10px;
-      position:sticky;top:0;z-index:60;
-      background:rgba(15,23,42,.97);
-      backdrop-filter:blur(18px);
-      border-bottom:1px solid rgba(148,163,184,.2);
+    .lang-picker-overlay.active{
+      pointer-events:auto;visibility:visible;opacity:1;
     }
-    .lang-page-back{border:none;cursor:pointer;color:#F1F5F9;}
-    .lang-page-x{
-      width:38px;height:38px;border-radius:50%;
-      border:1px solid rgba(148,163,184,.35);background:rgba(30,41,59,.75);
-      color:#F1F5F9;font-size:20px;display:flex;align-items:center;justify-content:center;
-      cursor:pointer;transition:background .2s,box-shadow .2s,border-color .2s;
+    .lang-picker-backdrop{
+      position:absolute;inset:0;background:rgba(2,6,12,.74);
+      backdrop-filter:blur(8px);
     }
-    .lang-page-x:active{background:rgba(16,185,129,.22);border-color:rgba(52,211,153,.45);}
-    .lang-page-hero{text-align:center;padding:4px 20px 14px;}
-    .lang-page-title{font-size:20px;font-weight:600;margin-bottom:8px;color:#F8FAFC;}
-    .lang-page-sub{
-      font-size:12.5px;color:#CBD5E1;line-height:1.45;max-width:340px;margin:0 auto;
+    .lang-picker-sheet{
+      position:relative;z-index:1;
+      width:100%;max-width:480px;max-height:min(90dvh,720px);
+      background:linear-gradient(180deg,#0f172a 0%,#0b1220 100%);
+      border:1px solid rgba(148,163,184,.22);
+      border-radius:20px 20px 0 0;
+      display:flex;flex-direction:column;
+      box-shadow:0 -12px 48px rgba(0,0,0,.55);
     }
-    .lang-globe-hero{
-      width:118px;height:118px;margin:14px auto 12px;
-      position:relative;display:flex;align-items:center;justify-content:center;
+    .lang-picker-head{
+      display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+      padding:18px 18px 12px;border-bottom:1px solid rgba(148,163,184,.15);
     }
-    .lang-globe-hero .lang-globe{z-index:2;}
-    .lang-bubble{
-      position:absolute;z-index:3;
-      padding:7px 11px;border-radius:14px;
-      background:rgba(30,41,59,.94);border:1px solid rgba(52,211,153,.45);
-      box-shadow:0 4px 20px rgba(16,185,129,.2),0 0 0 1px rgba(255,255,255,.06);
-      font-size:13px;font-weight:600;color:#F8FAFC;
-      animation:langFloat 3.2s ease-in-out infinite;
+    .lang-picker-title-wrap{flex:1;min-width:0;}
+    .lang-picker-title{font-size:18px;font-weight:600;color:var(--txt);letter-spacing:-.02em;}
+    .lang-picker-sub{
+      font-size:12px;color:var(--dim);line-height:1.45;margin-top:6px;
     }
-    .lang-bubble-a{left:-6px;top:14px;}
-    .lang-bubble-wen{right:-10px;top:40px;animation-delay:.4s;}
-    @keyframes langFloat{
-      0%,100%{transform:translateY(0);}
-      50%{transform:translateY(-5px);}
+    .lang-picker-close{
+      width:40px;height:40px;border-radius:12px;flex-shrink:0;
+      border:1px solid rgba(148,163,184,.25);background:rgba(30,41,59,.65);
+      color:var(--txt);font-size:20px;display:flex;align-items:center;justify-content:center;
+      cursor:pointer;
     }
-    .lang-orbit-dot{
-      position:absolute;left:50%;top:50%;z-index:1;
-      width:5px;height:5px;margin:-2.5px;border-radius:50%;
-      background:rgba(16,185,129,.75);
-      transform:rotate(var(--d)) translateX(54px);
-      box-shadow:0 0 8px rgba(16,185,129,.5);
-      animation:orbitBlink 2.5s ease-in-out infinite;
+    .lang-picker-close:active{background:rgba(255,255,255,.08);}
+    .lang-picker-body{padding:14px 16px 0;flex:1;min-height:0;display:flex;flex-direction:column;}
+    .lang-picker-body .lang-search-shell{margin-bottom:12px;}
+    .lang-picker-list{
+      flex:1;min-height:180px;max-height:min(46dvh,380px);
+      overflow-y:auto;border-radius:14px;border:1px solid var(--border);
+      background:rgba(3,6,9,.55);-webkit-overflow-scrolling:touch;
     }
-    @keyframes orbitBlink{0%,100%{opacity:.35;}50%{opacity:1;}}
-    .lang-page-search{margin:0 16px 12px;}
-    .lang-page-search .lang-search-shell{
-      margin-bottom:0;
-      background:linear-gradient(135deg,rgba(30,41,59,.92),rgba(15,23,42,.96));
-      border:1px solid rgba(148,163,184,.3);
-      box-shadow:0 4px 24px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.06);
+    .lang-picker-list .lang-row{border-radius:0;border-bottom:1px solid var(--border);}
+    .lang-picker-list .lang-row:first-child{border-radius:14px 14px 0 0;}
+    .lang-picker-list .lang-row:last-child{border-radius:0 0 14px 14px;border-bottom:none;}
+    .lang-picker-actions{
+      display:flex;gap:10px;padding:14px 16px 18px;
+      border-top:1px solid rgba(148,163,184,.12);
+      background:rgba(15,23,42,.6);
     }
-    .lang-page-search .lang-search-shell>i{color:#34D399;}
-    .lang-page-search .lang-search-shell input{color:#F1F5F9;}
-    .lang-page-search .lang-search-shell input::placeholder{color:#94A3B8;}
-    .lang-filter-btn{
-      flex-shrink:0;width:42px;height:42px;border-radius:14px;
-      border:1px solid rgba(148,163,184,.28);background:rgba(30,41,59,.85);
-      color:#34D399;display:flex;align-items:center;justify-content:center;
-      cursor:pointer;font-size:18px;transition:background .2s,box-shadow .2s,border-color .2s;
+    .lang-picker-actions .btn-secondary{
+      flex:1;padding:13px 16px;border-radius:12px;border:1px solid rgba(148,163,184,.28);
+      background:rgba(255,255,255,.05);color:var(--txt);font-size:14px;font-weight:500;
+      font-family:inherit;cursor:pointer;
     }
-    .lang-filter-btn:active{background:rgba(16,185,129,.2);border-color:rgba(52,211,153,.4);}
-    .panel-choose-lang .lang-page-list{
-      margin:0 16px;
-      max-height:none;min-height:120px;
-      padding:4px 2px 8px;
-      border:none;background:rgba(15,23,42,.35);
-      border-radius:16px;
-      border:1px solid rgba(148,163,184,.12);
-      -webkit-overflow-scrolling:touch;
+    .lang-picker-actions .btn-secondary:active{background:rgba(255,255,255,.08);}
+    .lang-picker-actions .btn-lang-save{
+      flex:1;padding:13px 16px;border-radius:12px;border:none;
+      background:var(--primary);color:#020617;font-size:14px;font-weight:600;
+      font-family:inherit;cursor:pointer;transition:opacity .2s;
     }
-    .panel-choose-lang .lang-row{
-      border-radius:16px;margin-bottom:10px;padding:14px 14px;
-      background:rgba(30,41,59,.88);
-      border:1px solid rgba(148,163,184,.28);
-      border-bottom:1px solid rgba(148,163,184,.22);
-      transition:transform .2s,box-shadow .22s,border-color .22s,background .2s;
-    }
-    .panel-choose-lang .lang-row:last-child{margin-bottom:4px;}
-    .panel-choose-lang .lang-row:active{transform:scale(.987);}
-    .panel-choose-lang .lang-row.selected{
-      border-color:rgba(52,211,153,.7);
-      background:linear-gradient(135deg,rgba(16,185,129,.28),rgba(30,41,59,.92));
-      box-shadow:0 8px 28px rgba(16,185,129,.25),0 0 0 1px rgba(52,211,153,.35);
-    }
-    .panel-choose-lang .lang-row.selected .lang-row-check{
-      animation:langCheckPop .35s cubic-bezier(.34,1.56,.64,1);
-    }
-    .panel-choose-lang .lang-row-flag{
-      width:44px;height:44px;border-radius:50%;
-      background:rgba(255,255,255,.14);
-      border:1px solid rgba(255,255,255,.22);
-      box-shadow:inset 0 1px 2px rgba(0,0,0,.15);
-    }
-    .panel-choose-lang .lang-row-meta strong{font-size:15px;font-weight:600;color:#F8FAFC;}
-    .panel-choose-lang .lang-row-meta .lang-row-sub{font-size:12.5px;color:#CBD5E1;}
-    .panel-choose-lang .lang-row-meta .lang-row-region{font-size:10.5px;color:rgba(148,163,184,.98);}
-    .panel-choose-lang .lang-row-check{
-      border-color:rgba(148,163,184,.45);
-    }
-    .panel-choose-lang .lang-row.selected .lang-row-check{
-      border-color:transparent;
-    }
-    .lang-trust-premium{
-      margin:14px 16px 0;
-      padding:14px 16px;
-      display:flex;align-items:center;justify-content:space-between;
-      gap:12px;
-      background:rgba(16,185,129,.16);
-      border:1px solid rgba(52,211,153,.38);
-      border-radius:16px;
-      box-shadow:0 6px 20px rgba(0,0,0,.2);
-    }
-    .lang-trust-txt{font-size:12.5px;color:#E2E8F0;line-height:1.4;}
-    .lang-trust-left{display:flex;align-items:center;gap:12px;flex:1;min-width:0;}
-    .lang-trust-premium .lang-trust-left>i{font-size:22px;color:#34D399;flex-shrink:0;}
-    .lang-trust-glow-a{
-      position:relative;
-      width:38px;height:38px;border-radius:12px;
-      background:rgba(16,185,129,.12);
-      border:1px solid rgba(16,185,129,.45);
-      box-shadow:0 0 20px rgba(16,185,129,.4);
-      display:flex;align-items:center;justify-content:center;
-      font-weight:700;font-size:16px;color:#6EE7B7;
-      flex-shrink:0;
-    }
-    .lang-trust-glow-a .lang-sparkle{
-      position:absolute;top:-5px;right:-5px;font-size:13px;color:var(--primary);
-      filter:drop-shadow(0 0 6px rgba(16,185,129,.8));
-    }
+    .lang-picker-actions .btn-lang-save:disabled{opacity:.38;cursor:not-allowed;}
+    .lang-picker-actions .btn-lang-save:not(:disabled):active{opacity:.88;}
 
     .form-wrap{margin:0 16px;display:flex;flex-direction:column;gap:12px;}
     .field-group{display:flex;flex-direction:column;gap:6px;}
@@ -735,7 +608,6 @@
         <span class="hdr-title">Account Settings</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-        <div class="hdr-action premium-globe-ic" onclick="openLangSheet()" title="Choose language" role="button" tabindex="0"><i class="ri-translate-2"></i></div>
         <div class="hdr-action" onclick="openPanel('panel-edit-profile')" title="Edit profile"><i class="ri-edit-line"></i></div>
       </div>
     </div>
@@ -763,12 +635,12 @@
     </div>
     <div class="sec-h">Language</div>
     <div class="info-card" style="padding:0;overflow:hidden;">
-      <div class="info-row as-lang-touch" onclick="openLangSheet()" role="button" tabindex="0">
+      <div class="info-row as-lang-touch" onclick="openLangPicker()" role="button" tabindex="0">
         <div class="ir-ic premium-globe-ic"><i class="ri-global-line"></i></div>
         <div class="ir-body" style="flex:1;min-width:0;">
-          <div class="ir-label">Language</div>
+          <div class="ir-label">App language</div>
           <div class="ir-val" id="as-lang-summary">English</div>
-          <div class="ir-label" style="margin-top:6px;">Choose your preferred language</div>
+          <div class="ir-label" style="margin-top:6px;">Tap to choose — changes apply after you save</div>
         </div>
         <i class="ri-arrow-right-s-line" style="color:var(--dim);font-size:18px;"></i>
       </div>
@@ -1233,49 +1105,6 @@
 
 
   <!-- ════════════════════════════════════════
-       PANEL: CHOOSE LANGUAGE (last among panels = always topmost stack)
-  ════════════════════════════════════════ -->
-  <div id="panel-choose-language" class="panel panel-choose-lang">
-    <div class="lang-page-top">
-      <button type="button" class="lang-page-back hdr-back" onclick="closeLangSheet()" aria-label="Back">
-        <i class="ri-arrow-left-line"></i>
-      </button>
-      <button type="button" class="lang-page-x" onclick="closeLangSheet()" aria-label="Close">
-        <i class="ri-close-line"></i>
-      </button>
-    </div>
-    <div class="lang-page-hero">
-      <div class="lang-globe-wrap lang-globe-hero" aria-hidden="true">
-        <span class="lang-orbit-dot" style="--d:0deg;"></span>
-        <span class="lang-orbit-dot" style="--d:120deg;"></span>
-        <span class="lang-orbit-dot" style="--d:240deg;"></span>
-        <div class="lang-bubble lang-bubble-a">A</div>
-        <div class="lang-bubble lang-bubble-wen">文</div>
-        <div class="lang-globe"><i class="ri-earth-line"></i></div>
-      </div>
-      <h2 class="lang-page-title" id="lang-page-title">Choose Language</h2>
-      <p class="lang-page-sub">Customize your farming experience in your preferred language.</p>
-    </div>
-    <div class="lang-search-shell lang-page-search">
-      <i class="ri-search-line"></i>
-      <input type="search" id="as-lang-search" placeholder="Search language..." autocomplete="off" enterkeyhint="search" aria-label="Search languages" spellcheck="false">
-      <button type="button" class="lang-filter-btn" onclick="showSnack('Language filters — coming soon.')" aria-label="Filter or sort">
-        <i class="ri-filter-3-line"></i>
-      </button>
-    </div>
-    <div class="lang-list lang-page-list" id="as-lang-list" role="listbox" aria-labelledby="lang-page-title"></div>
-    <div class="lang-trust lang-trust-premium">
-      <div class="lang-trust-left">
-        <i class="ri-shield-check-line" aria-hidden="true"></i>
-        <span class="lang-trust-txt">Language will be applied instantly across the app.</span>
-      </div>
-      <div class="lang-trust-glow-a" aria-hidden="true"><span>A</span><i class="ri-sparkling-fill lang-sparkle"></i></div>
-    </div>
-    <div style="height:12px;"></div>
-  </div><!-- /panel-choose-language -->
-
-
-  <!-- ════════════════════════════════════════
        LOGOUT CONFIRM SHEET
   ════════════════════════════════════════ -->
   <div id="logout-sheet-backdrop" style="
@@ -1323,6 +1152,31 @@
 
 </div><!-- /shell -->
 
+<!-- Language picker: fixed overlay (does not participate in .panel stack) -->
+<div id="lang-picker-overlay" class="lang-picker-overlay" aria-hidden="true">
+  <div class="lang-picker-backdrop" onclick="cancelLangPicker()" aria-hidden="true"></div>
+  <div class="lang-picker-sheet" role="dialog" aria-modal="true" aria-labelledby="lang-picker-title" onclick="event.stopPropagation()">
+    <div class="lang-picker-head">
+      <div class="lang-picker-title-wrap">
+        <div class="lang-picker-title" id="lang-picker-title">Display language</div>
+        <p class="lang-picker-sub">Select a language below, then tap <strong>Save</strong> to use it across the app.</p>
+      </div>
+      <button type="button" class="lang-picker-close" onclick="cancelLangPicker()" aria-label="Close"><i class="ri-close-line"></i></button>
+    </div>
+    <div class="lang-picker-body">
+      <div class="lang-search-shell">
+        <i class="ri-search-line"></i>
+        <input type="search" id="as-lang-search" placeholder="Search languages…" autocomplete="off" enterkeyhint="search" aria-label="Search languages" spellcheck="false">
+      </div>
+      <div class="lang-picker-list lang-list" id="as-lang-list" role="listbox" aria-labelledby="lang-picker-title"></div>
+    </div>
+    <div class="lang-picker-actions">
+      <button type="button" class="btn-secondary" id="lang-picker-cancel" onclick="cancelLangPicker()">Cancel</button>
+      <button type="button" class="btn-lang-save" id="lang-picker-save" disabled>Save</button>
+    </div>
+  </div>
+</div>
+
 <div id="snackbar" style="
   position:fixed;bottom:96px;left:50%;transform:translateX(-50%) translateY(24px);
   background:#1A2E3A;border:1px solid rgba(16,185,129,.35);border-radius:14px;
@@ -1346,24 +1200,6 @@
     var el = document.getElementById(id);
     if (el) el.classList.remove('active');
   }
-  /** Remove .active without transform transition (avoids Licenses/legal panels sliding out when opening language). */
-  function deactivatePanelInstant(id) {
-    var el = document.getElementById(id);
-    if (!el || !el.classList.contains('active')) return;
-    var prev = el.style.transition;
-    el.style.transition = 'none';
-    el.classList.remove('active');
-    void el.offsetHeight;
-    el.style.transition = prev || '';
-  }
-  function closeAllPanelsExcept(keepIds) {
-    var keep = {};
-    (keepIds || []).forEach(function (id) { keep[id] = true; });
-    Array.prototype.forEach.call(document.querySelectorAll('.panel'), function (p) {
-      if (!p.id || keep[p.id]) return;
-      deactivatePanelInstant(p.id);
-    });
-  }
   /* ── snackbar ── */
   var _snackTimer;
   function showSnack(msg, isError) {
@@ -1383,30 +1219,41 @@
   }
   window.showSnack = showSnack;
 
-  /* ── Choose Language panel (Account Settings) ── */
-  function openLangSheet() {
-    /* Close every other slide panel instantly so stale Licenses/About/etc. do not animate over the picker */
-    closeAllPanelsExcept(['panel-account-settings']);
-    openPanel('panel-choose-language');
+  /* ── Language modal (Account Settings) ── */
+  function openLangPicker() {
+    var o = document.getElementById('lang-picker-overlay');
+    if (!o) return;
+    o.classList.add('active');
+    o.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
+    if (typeof window.__langPickerOnOpen === 'function') window.__langPickerOnOpen();
     requestAnimationFrame(function () {
       var inp = document.getElementById('as-lang-search');
       if (inp) { inp.focus(); try { inp.select(); } catch (e) {} }
     });
   }
-  function closeLangSheet() {
-    closePanel('panel-choose-language');
+  function closeLangPicker() {
+    var o = document.getElementById('lang-picker-overlay');
+    if (o) {
+      o.classList.remove('active');
+      o.setAttribute('aria-hidden', 'true');
+    }
     document.body.style.overflow = '';
   }
-  window.openLangSheet = openLangSheet;
-  window.closeLangSheet = closeLangSheet;
+  function cancelLangPicker() {
+    if (typeof window.__langPickerCancel === 'function') window.__langPickerCancel();
+    closeLangPicker();
+  }
+  window.openLangPicker = openLangPicker;
+  window.closeLangPicker = closeLangPicker;
+  window.cancelLangPicker = cancelLangPicker;
 
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
-    var lang = document.getElementById('panel-choose-language');
-    if (lang && lang.classList.contains('active')) {
+    var o = document.getElementById('lang-picker-overlay');
+    if (o && o.classList.contains('active')) {
       e.preventDefault();
-      closeLangSheet();
+      cancelLangPicker();
     }
   });
 
@@ -1473,6 +1320,6 @@
     }, {passive:true});
   })();
 </script>
-<script type="module" src="js/profile.js?v=37"></script>
+<script type="module" src="js/profile.js?v=38"></script>
 </body>
 </html>

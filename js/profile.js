@@ -228,9 +228,10 @@ function wireStatic() {
       .then(r => { if (r.isConfirmed && r.value) snack("Thank you! Your feedback was received."); })
   );
 
-  /* account settings — premium language sheet + instant apply */
+  /* account settings — language modal: pick then Save */
   const langSearch = el("as-lang-search");
   const langList = el("as-lang-list");
+  let pendingLangCode = getLang();
 
   function langMatchesFilter(L, rawQ) {
     const q = (rawQ || "").trim().toLowerCase();
@@ -243,6 +244,12 @@ function wireStatic() {
     const cur = LANGUAGES.find((x) => x.code === getLang());
     const name = cur ? cur.name : getLang().toUpperCase();
     setText("as-lang-summary", cur ? `${cur.native} — ${name}` : name);
+  }
+
+  function updateLangSaveButton() {
+    const btn = el("lang-picker-save");
+    if (!btn) return;
+    btn.disabled = pendingLangCode === getLang();
   }
 
   async function persistLangPreference(code) {
@@ -267,9 +274,9 @@ function wireStatic() {
       langList.innerHTML = `<div style="padding:22px 16px;text-align:center;color:var(--dim);font-size:13px;">No languages match “${String(q).replace(/</g, "")}”.<br><span style="font-size:11px;opacity:.85;">Try English, हिन्दी, বাংলা…</span></div>`;
       return;
     }
-    const active = getLang();
+    const picked = pendingLangCode;
     langList.innerHTML = items.map((L) => {
-      const sel = L.code === active;
+      const sel = L.code === picked;
       const flag = L.flag || "🌐";
       const reg = L.region ? `<span class="lang-row-region">${L.region}</span>` : "";
       return `<button type="button" class="lang-row rw ${sel ? "selected" : ""}" role="option" data-code="${L.code}" aria-selected="${sel ? "true" : "false"}">
@@ -279,26 +286,53 @@ function wireStatic() {
       </button>`;
     }).join("");
     langList.querySelectorAll(".lang-row").forEach((row) => {
-      row.addEventListener("click", async () => {
+      row.addEventListener("click", () => {
         const code = row.getAttribute("data-code");
-        if (!code || code === getLang()) return;
-        setLanguage(code);
+        if (!code) return;
+        pendingLangCode = code;
         renderLangPickerRows();
-        syncLangSummaryLabels();
-        snack("Language updated — applied everywhere on this device.");
-        await persistLangPreference(code);
+        updateLangSaveButton();
       });
     });
   }
 
+  async function commitLanguageChoice() {
+    if (pendingLangCode === getLang()) {
+      window.closeLangPicker?.();
+      return;
+    }
+    setLanguage(pendingLangCode);
+    syncLangSummaryLabels();
+    updateLangSaveButton();
+    snack("Language saved. Applied across the app.");
+    await persistLangPreference(pendingLangCode);
+    window.closeLangPicker?.();
+  }
+
+  window.__langPickerOnOpen = () => {
+    pendingLangCode = getLang();
+    if (langSearch) langSearch.value = "";
+    renderLangPickerRows();
+    updateLangSaveButton();
+  };
+
+  window.__langPickerCancel = () => {
+    pendingLangCode = getLang();
+    if (langSearch) langSearch.value = "";
+    renderLangPickerRows();
+    updateLangSaveButton();
+  };
+
   if (langSearch && langList) {
     syncLangSummaryLabels();
-    renderLangPickerRows();
     langSearch.addEventListener("input", () => renderLangPickerRows());
     langSearch.addEventListener("search", () => renderLangPickerRows());
+    el("lang-picker-save")?.addEventListener("click", () => commitLanguageChoice());
     document.addEventListener("langchange", () => {
-      renderLangPickerRows();
+      pendingLangCode = getLang();
       syncLangSummaryLabels();
+      renderLangPickerRows();
+      updateLangSaveButton();
     });
   }
 }

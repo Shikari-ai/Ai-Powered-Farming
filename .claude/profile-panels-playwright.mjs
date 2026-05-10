@@ -129,33 +129,19 @@ await page.waitForSelector("#main-settings-btn", { state: "visible", timeout: 20
 await page.click("#main-settings-btn");
 await page.waitForSelector("#panel-account-settings.active", { timeout: 10000 });
 
-await page.evaluate(() => {
-  window.openPanel("panel-about");
-  window.openPanel("panel-licenses");
-});
-await page.waitForSelector("#panel-licenses.active", { timeout: 5000 });
-
-await page.evaluate(() => window.openLangSheet());
-await page.waitForSelector("#panel-choose-language.active", { timeout: 10000 });
+await page.evaluate(() => window.openLangPicker());
+await page.waitForSelector("#lang-picker-overlay.active", { timeout: 10000 });
 
 const state = await page.evaluate(() => ({
-  licenses: document.getElementById("panel-licenses")?.classList.contains("active"),
-  lang: document.getElementById("panel-choose-language")?.classList.contains("active"),
+  overlay: document.getElementById("lang-picker-overlay")?.classList.contains("active"),
   account: document.getElementById("panel-account-settings")?.classList.contains("active"),
-  about: document.getElementById("panel-about")?.classList.contains("active"),
 }));
 
-if (state.licenses) {
-  throw new Error("panel-licenses still active after openLangSheet (regression)");
-}
-if (state.about) {
-  throw new Error("panel-about still active after openLangSheet");
-}
-if (!state.lang) {
-  throw new Error("panel-choose-language not active");
+if (!state.overlay) {
+  throw new Error("lang-picker-overlay not active");
 }
 if (!state.account) {
-  throw new Error("panel-account-settings should stay active under language picker");
+  throw new Error("account settings should stay open behind overlay");
 }
 
 await browser.close();
