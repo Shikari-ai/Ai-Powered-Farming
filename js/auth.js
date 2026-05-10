@@ -54,16 +54,6 @@ enableIndexedDbPersistence(db).catch((err) => {
     console.warn("Firestore persistence unavailable:", err?.code || err);
 });
 
-/**
- * Call immediately before navigating to the app after a successful sign-in.
- * Lets auth-session show the welcome gate once; routine page loads stay silent.
- */
-export function markPostLoginAuthShell() {
-    try {
-        sessionStorage.setItem("agri_post_login_gate_v1", "1");
-    } catch (_) {}
-}
-
 /** Keys kept when clearing storage (non-secret UX preferences). */
 const LOCAL_STORAGE_ALLOWLIST = new Set(["agri_lang"]);
 
@@ -97,7 +87,6 @@ export const loginWithGoogle = async () => {
 
         // Sync with local app logic
         localStorage.setItem('agri_user', JSON.stringify({name: user.displayName || "Farmer", email: user.email}));
-        markPostLoginAuthShell();
         window.location.replace("index.html");
     } catch (error) {
         alert("Google Login Error: " + error.message);
@@ -120,7 +109,6 @@ export const loginWithApple = async () => {
             name: user.displayName || "Farmer",
             email: user.email || "",
         }));
-        markPostLoginAuthShell();
         window.location.replace("index.html");
     } catch (error) {
         alert("Apple Sign-In Error: " + error.message);
@@ -149,7 +137,6 @@ export const signUpWithEmail = async (email, password, name) => {
 
         // Sync with local app logic
         localStorage.setItem('agri_user', JSON.stringify({name: name, email: email}));
-        markPostLoginAuthShell();
         window.location.replace("index.html");
     } catch (error) {
         alert("Sign Up Error: " + error.message);
@@ -162,7 +149,6 @@ export const loginWithEmailPwd = async (email, password) => {
     try {
         const user = (await signInWithEmailAndPassword(auth, email, password)).user;
         localStorage.setItem('agri_user', JSON.stringify({name: user.displayName || email.split('@')[0], email: user.email}));
-        markPostLoginAuthShell();
         window.location.replace("index.html");
     } catch (error) {
         alert("Login Error: " + error.message);
@@ -204,7 +190,6 @@ export const verifyOTP = async (code) => {
         }, { merge: true });
 
         localStorage.setItem('agri_user', JSON.stringify({name: "Farmer", phone: user.phoneNumber}));
-        markPostLoginAuthShell();
         window.location.replace("index.html");
     } catch (error) {
         alert("Invalid OTP code");

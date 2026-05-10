@@ -30,20 +30,6 @@ function getCurrentPageName() {
   return name.toLowerCase();
 }
 
-/**
- * One-shot flag set by auth.js right after successful sign-in (same tab, before redirect).
- * Routine navigations (profile ↔ fields ↔ home) do not set this — no full-screen gate.
- */
-function consumePostLoginGate() {
-  try {
-    if (sessionStorage.getItem("agri_post_login_gate_v1") === "1") {
-      sessionStorage.removeItem("agri_post_login_gate_v1");
-      return true;
-    }
-  } catch (_) {}
-  return false;
-}
-
 export function isPublicRoute() {
   return PUBLIC_PAGES.has(getCurrentPageName());
 }
@@ -276,39 +262,19 @@ async function runProtectedGate() {
     return;
   }
 
-  const showFullScreenGate = consumePostLoginGate();
-
-  if (showFullScreenGate) {
-    lockChrome();
-    ensureAuthShell("Verifying your secure session…");
-  }
-
   try {
     await validateIdToken(user, false);
   } catch (e) {
     const off = typeof navigator !== "undefined" && navigator.onLine === false;
     if (off) {
-      if (showFullScreenGate) {
-        setShellStatus("No network. Connect, then we’ll verify your session.");
-      }
       window.addEventListener("online", () => location.reload(), { once: true });
       return;
-    }
-    if (showFullScreenGate) {
-      setShellStatus("Your session could not be verified. Signing you out…");
     }
     await forceSessionEnd("invalid-token");
     return;
   }
 
-  if (showFullScreenGate) {
-    setShellStatus("Welcome back — loading your farm…");
-  }
   attachRealtimeGuards();
-
-  if (showFullScreenGate) {
-    await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 80)));
-  }
   removeAuthShell();
 }
 
@@ -320,21 +286,15 @@ async function runPublicGate() {
   const user = auth.currentUser;
   if (!user) return;
 
-  lockChrome();
-  ensureAuthShell("Restoring your session…");
-
   try {
     await validateIdToken(user, false);
   } catch (_) {
-    removeAuthShell();
     try {
       await signOut(auth);
     } catch (_) {}
     return;
   }
 
-  setShellStatus("Opening Fields…");
-  await new Promise((r) => setTimeout(r, 160));
   try {
     location.replace(new URL("index.html", location.href).href);
   } catch (_) {
