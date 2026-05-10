@@ -1,9 +1,9 @@
 /**
  * HTTPS Gemini endpoint compatible with js/ai/llm-proxy.js (POST JSON body).
  *
- * Deploy:
- *   firebase functions:secrets:set GEMINI_API_KEY
- *   firebase deploy --only functions:agriGeminiChat
+ * Deploy from repo root (PowerShell, key NOT stored in git):
+ *   $env:GEMINI_API_KEY = "<Google AI Studio key>"
+ *   .\\scripts\\deploy-gemini.ps1
  */
 
 const { onRequest } = require("firebase-functions/v2/https");
