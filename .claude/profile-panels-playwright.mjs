@@ -1,7 +1,14 @@
 /**
  * Browser test: Account → Language clears stale Licenses/About without wrong panel motion.
+ *
+ * Default URL: https://agritech-4d1ba.web.app (set AGRI_TEST_BASE_URL to override).
+ * Hosted runs need a real Firebase session. Either:
+ *   - Save storage once: npx playwright open https://agritech-4d1ba.web.app/login.html
+ *     then in app: await context.storageState({ path: 'playwright-auth.json' })
+ *     or use codegen --save-storage; then AGRI_PLAYWRIGHT_STORAGE=playwright-auth.json
+ *   - Or use offline harness: AGRI_TEST_LOCAL=1 (npm run test:profile-panels:ci)
+ *
  * Requires: npm install playwright (repo root)
- * Run: node .claude/profile-panels-playwright.mjs
  */
 import http from "http";
 import fs from "fs";
@@ -19,7 +26,12 @@ try {
 
 const root = path.join(__dirname, "..");
 const port = 9789;
-const base = `http://127.0.0.1:${port}`;
+const USE_LOCAL = /^1|true$/i.test(process.env.AGRI_TEST_LOCAL || "");
+const HOSTED_BASE = (process.env.AGRI_TEST_BASE_URL || "https://agritech-4d1ba.web.app").replace(
+  /\/$/,
+  ""
+);
+const STORAGE = process.env.AGRI_PLAYWRIGHT_STORAGE || "";
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -70,15 +82,50 @@ function startStaticServer(rootDir, listenPort) {
   });
 }
 
-const server = await startStaticServer(root, port);
+let server = null;
+let profileUrl;
+
+if (USE_LOCAL) {
+  server = await startStaticServer(root, port);
+  profileUrl = `http://127.0.0.1:${port}/profile.html?e2e_panels=1`;
+  console.log("profile-panels: local server + ?e2e_panels=1");
+} else {
+  profileUrl = `${HOSTED_BASE}/profile.html`;
+  console.log("profile-panels: hosted", profileUrl);
+}
+
 const browser = await chromium.launch({ headless: true });
-const page = await browser.newPage();
+const ctxOpts = {};
+if (!USE_LOCAL && STORAGE && fs.existsSync(STORAGE)) {
+  ctxOpts.storageState = STORAGE;
+  console.log("profile-panels: using storageState", STORAGE);
+} else if (!USE_LOCAL && STORAGE) {
+  console.warn("profile-panels: AGRI_PLAYWRIGHT_STORAGE not found, continuing without saved session");
+}
+
+const context = await browser.newContext(ctxOpts);
+const page = await context.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 
-await page.goto(`${base}/profile.html?e2e_panels=1`, { waitUntil: "load", timeout: 90000 });
+await page.goto(profileUrl, { waitUntil: "load", timeout: 90000 });
 
-await page.waitForSelector("#main-settings-btn", { state: "visible", timeout: 15000 });
+if (!USE_LOCAL) {
+  const u = page.url();
+  if (/login/i.test(u) || /signup/i.test(u)) {
+    await browser.close();
+    if (server) await new Promise((res, rej) => server.close((e) => (e ? rej(e) : res())));
+    console.error(`
+profile-panels: opened ${profileUrl} but was redirected (no Firebase session in this browser).
+Options:
+  • Save cookies to a file and re-run with AGRI_PLAYWRIGHT_STORAGE=/path/to/state.json, or
+  • Run offline harness: npm run test:profile-panels:ci
+`);
+    process.exit(1);
+  }
+}
+
+await page.waitForSelector("#main-settings-btn", { state: "visible", timeout: 20000 });
 await page.click("#main-settings-btn");
 await page.waitForSelector("#panel-account-settings.active", { timeout: 10000 });
 
@@ -88,7 +135,6 @@ await page.evaluate(() => {
 });
 await page.waitForSelector("#panel-licenses.active", { timeout: 5000 });
 
-/* Row is under Licenses — real entry is same function as header translate icon */
 await page.evaluate(() => window.openLangSheet());
 await page.waitForSelector("#panel-choose-language.active", { timeout: 10000 });
 
@@ -113,7 +159,7 @@ if (!state.account) {
 }
 
 await browser.close();
-await new Promise((res, rej) => server.close((e) => (e ? rej(e) : res())));
+if (server) await new Promise((res, rej) => server.close((e) => (e ? rej(e) : res())));
 
 if (errors.length) console.warn("page errors:", errors);
 console.log("profile-panels-playwright: OK");
