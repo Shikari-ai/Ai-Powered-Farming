@@ -18,8 +18,8 @@ import {
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { runAgriOrchestrator } from "./ai/orchestrator.js?v=41";
-import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=41";
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=42";
+import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=42";
 import { getAiConfig } from "./ai/config.js?v=34";
 import {
   buildProactiveDigest,
@@ -30,8 +30,10 @@ import {
 import { fetchRegionalBriefing } from "./network/regional-briefing.js";
 import {
   buildCasualAssistantReply,
+  buildVagueSymptomReply,
   classifyAssistantRouting,
-} from "./ai/assistant-intent-router.js?v=41";
+} from "./ai/assistant-intent-router.js?v=42";
+import { detectConversationMood, polishFarmReportProse } from "./ai/conversation-naturals.js?v=42";
 
 function el(id) {
   return document.getElementById(id);
@@ -49,11 +51,13 @@ function formatTime(ms) {
   return new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-function renderMessages(container, msgs) {
+function renderMessages(container, msgs, opts = {}) {
   if (!container) return;
-  container.innerHTML = msgs
-    .slice()
-    .sort((a, b) => tsToMs(a.createdAt) - tsToMs(b.createdAt))
+  const awaitingId = opts.awaitingUserMsgId || null;
+  const showTyping =
+    !!awaitingId && msgs.some((m) => m.id === awaitingId && m.role === "user");
+  const sorted = msgs.slice().sort((a, b) => tsToMs(a.createdAt) - tsToMs(b.createdAt));
+  const partsHtml = sorted
     .map((m) => {
       const role = m.role === "user" ? "user" : "assistant";
       const who = role === "user" ? "You" : "Assistant";
@@ -67,8 +71,15 @@ function renderMessages(container, msgs) {
       `;
     })
     .join("");
-  // keep latest visible
-  container.scrollIntoView({ block: "end" });
+  const typingHtml = showTyping
+    ? `
+    <div class="msg assistant typing" aria-live="polite" aria-busy="true">
+      <div class="meta"><span>Assistant</span><span>…</span></div>
+      <div class="typing-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+    </div>`
+    : "";
+  container.innerHTML = partsHtml + typingHtml;
+  container.scrollTop = container.scrollHeight;
 }
 
 function buildAssistantReply({ question, fields, scans, recs, weatherLogs }) {
@@ -189,6 +200,9 @@ onAuthStateChanged(auth, (user) => {
   let pendingImageBlob = null;
   let companionProfile = defaultCompanionProfile(user.uid);
   let lastMsgCount = 0;
+  let chatMessages = [];
+  /** While set, UI shows a typing row after this user message (until assistant reply is saved). */
+  let awaitingAssistantAfterUserId = null;
   /** Cached anonymized regional briefing; `fetchRegionalBriefing` also rate-limits reads. */
   let regionalBriefingText = null;
   /** Latest `learning_profiles/{uid}` (may be absent until first aggregation). */
@@ -213,6 +227,12 @@ onAuthStateChanged(auth, (user) => {
     const full = text + regHint;
     hintEl.textContent = full;
     hintEl.classList.toggle("hidden", !full.trim());
+  }
+
+  function paintChat() {
+    if (emptyEl) emptyEl.classList.toggle("hidden", chatMessages.length > 0);
+    renderMessages(listEl, chatMessages, { awaitingUserMsgId: awaitingAssistantAfterUserId });
+    updateCompanionEmptyHint();
   }
 
   onSnapshot(doc(db, "companion_profiles", user.uid), (snap) => {
@@ -253,9 +273,8 @@ onAuthStateChanged(auth, (user) => {
     const msgs = [];
     snap.forEach((d) => msgs.push({ id: d.id, ...d.data() }));
     lastMsgCount = msgs.length;
-    if (emptyEl) emptyEl.classList.toggle("hidden", msgs.length > 0);
-    renderMessages(listEl, msgs);
-    updateCompanionEmptyHint();
+    chatMessages = msgs;
+    paintChat();
   });
 
   onSnapshot(query(collection(db, "fields"), where("userId", "==", user.uid), limit(200)), (snap) => {
@@ -351,6 +370,21 @@ onAuthStateChanged(auth, (user) => {
         schemaVersion: 2,
       });
 
+      const optimisticUser = {
+        id: userMsgRef.id,
+        userId: user.uid,
+        role: "user",
+        text: text || (imageBlob ? "(Image attached)" : ""),
+        hasAttachment: !!imageBlob,
+        createdAt: { toMillis: () => Date.now() },
+        schemaVersion: 2,
+      };
+      if (!chatMessages.some((m) => m.id === userMsgRef.id)) {
+        chatMessages = [...chatMessages, optimisticUser].sort((a, b) => tsToMs(a.createdAt) - tsToMs(b.createdAt));
+      }
+      awaitingAssistantAfterUserId = userMsgRef.id;
+      paintChat();
+
       const routing = classifyAssistantRouting(text, { hasImage: !!imageBlob });
 
       let snapshot = null;
@@ -359,6 +393,8 @@ onAuthStateChanged(auth, (user) => {
 
       if (routing.mode === "casual") {
         reply = buildCasualAssistantReply(text, { fieldCount: fields.length, scanCount: scans.length });
+      } else if (routing.mode === "clarify") {
+        reply = buildVagueSymptomReply(text, { fieldCount: fields.length, scanCount: scans.length });
       } else {
         if (routing.mode !== "weather_quick" && !regionalBriefingText) {
           try {
@@ -399,13 +435,16 @@ onAuthStateChanged(auth, (user) => {
         }
       }
 
+      const mood = detectConversationMood(text);
+      reply = polishFarmReportProse(reply, { mood, routingMode: routing.mode });
+
       try {
         const orchForMemory =
           orch ||
           ({
             intents: {},
             results: {},
-            enginePackVersion: "casual-turn",
+            enginePackVersion: routing.mode === "clarify" ? "clarify-turn" : "casual-turn",
           });
         const nextProfile = mergeCompanionAfterTurn(companionProfile, {
           userText: text,
@@ -424,7 +463,7 @@ onAuthStateChanged(auth, (user) => {
         console.warn("[assistant] companion memory:", memErr?.message || memErr);
       }
 
-      if (routing.mode !== "casual") {
+      if (routing.mode !== "casual" && routing.mode !== "clarify") {
         await addDoc(collection(db, "ai_engine_runs"), {
           userId: user.uid,
           createdAt: serverTimestamp(),
@@ -444,7 +483,8 @@ onAuthStateChanged(auth, (user) => {
         text: reply,
         createdAt: serverTimestamp(),
         replyTo: userMsgRef.id,
-        enginePackVersion: orch?.enginePackVersion || (routing.mode === "casual" ? "casual-turn" : ""),
+        enginePackVersion:
+          orch?.enginePackVersion || (routing.mode === "clarify" ? "clarify-turn" : routing.mode === "casual" ? "casual-turn" : ""),
         enginePreview: orch?.persistedPreview || null,
         routingMode: routing.mode,
         schemaVersion: 2,
@@ -453,6 +493,8 @@ onAuthStateChanged(auth, (user) => {
       console.error(e);
       alert(`Failed to send: ${e.message}`);
     } finally {
+      awaitingAssistantAfterUserId = null;
+      paintChat();
       if (sendBtn) sendBtn.disabled = false;
       inputEl?.focus();
     }
