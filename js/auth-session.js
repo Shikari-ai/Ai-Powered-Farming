@@ -30,6 +30,23 @@ function getCurrentPageName() {
   return name.toLowerCase();
 }
 
+/** After one successful gate this browser tab session, skip full-screen shell on subsequent navigations. */
+const SESSION_GATE_KEY = "agri_session_gate_v1";
+
+function hasSessionGateOk() {
+  try {
+    return sessionStorage.getItem(SESSION_GATE_KEY) === "1";
+  } catch (_) {
+    return false;
+  }
+}
+
+function setSessionGateOk() {
+  try {
+    sessionStorage.setItem(SESSION_GATE_KEY, "1");
+  } catch (_) {}
+}
+
 export function isPublicRoute() {
   return PUBLIC_PAGES.has(getCurrentPageName());
 }
@@ -119,10 +136,10 @@ function setShellStatus(msg) {
 
 function removeAuthShell() {
   const sh = document.getElementById("agri-auth-shell");
-  if (!sh) return;
-  sh.classList.add("agri-auth-shell--out");
   document.documentElement.classList.remove("agri-auth-locked");
   document.body?.classList.remove("agri-auth-locked");
+  if (!sh) return;
+  sh.classList.add("agri-auth-shell--out");
   setTimeout(() => {
     try {
       sh.remove();
@@ -227,7 +244,13 @@ function attachRealtimeGuards() {
           window.addEventListener("online", () => location.reload(), { once: true });
           return;
         }
-        await forceSessionEnd("invalid-token");
+        // Returning from a background tab can race network/token refresh; retry once before sign-out UI.
+        try {
+          await new Promise((r) => setTimeout(r, 400));
+          await validateIdToken(user, true);
+        } catch (_) {
+          await forceSessionEnd("invalid-token");
+        }
       } finally {
         idTokenValidationLock = false;
       }
@@ -245,8 +268,6 @@ function attachRealtimeGuards() {
 
 async function runProtectedGate() {
   injectStylesheet();
-  lockChrome();
-  ensureAuthShell("Verifying your secure session…");
 
   try {
     await auth.authStateReady();
@@ -258,24 +279,40 @@ async function runProtectedGate() {
     return;
   }
 
+  const skipFullScreenGate = hasSessionGateOk();
+
+  if (!skipFullScreenGate) {
+    lockChrome();
+    ensureAuthShell("Verifying your secure session…");
+  }
+
   try {
     await validateIdToken(user, false);
   } catch (e) {
     const off = typeof navigator !== "undefined" && navigator.onLine === false;
     if (off) {
-      setShellStatus("No network. Connect, then we’ll verify your session.");
+      if (!skipFullScreenGate) {
+        setShellStatus("No network. Connect, then we’ll verify your session.");
+      }
       window.addEventListener("online", () => location.reload(), { once: true });
       return;
     }
-    setShellStatus("Your session could not be verified. Signing you out…");
+    if (!skipFullScreenGate) {
+      setShellStatus("Your session could not be verified. Signing you out…");
+    }
     await forceSessionEnd("invalid-token");
     return;
   }
 
-  setShellStatus("Welcome back — loading your farm…");
+  if (!skipFullScreenGate) {
+    setShellStatus("Welcome back — loading your farm…");
+  }
   attachRealtimeGuards();
+  setSessionGateOk();
 
-  await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 80)));
+  await new Promise((r) =>
+    skipFullScreenGate ? requestAnimationFrame(r) : requestAnimationFrame(() => setTimeout(r, 80)),
+  );
   removeAuthShell();
 }
 
@@ -302,6 +339,7 @@ async function runPublicGate() {
 
   setShellStatus("Opening Fields…");
   await new Promise((r) => setTimeout(r, 160));
+  setSessionGateOk();
   try {
     location.replace(new URL("index.html", location.href).href);
   } catch (_) {
