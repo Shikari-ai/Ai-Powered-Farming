@@ -35,20 +35,24 @@ function buildSystemInstruction(locale, evidenceBundle) {
     if (typeof d === "number") {
         if (d >= 3) {
             depthHint =
-                "The client requested deep reasoning: connect signals, state uncertainties, separate observed vs predicted.";
+                "The user wants deep reasoning: connect signals, state uncertainties clearly, and separate observed facts vs inference vs prediction.";
         } else if (d >= 2) {
-            depthHint = "Use clear, structured reasoning; moderate length.";
+            depthHint =
+                "Use structured, evidence-backed reasoning; several short paragraphs or bullets are OK.";
         }
     }
 
     const turnKind = bundle.turnKind;
     let turnHint = "";
+    let lengthStyle =
+        "Unless this is a pure greeting, give a complete helpful answer — not a one-line brush-off when the user clearly wants guidance.";
     if (turnKind === "casual") {
         turnHint =
-            "Turn type: CASUAL or greeting — keep it short, warm, human; no farm brief unless the user asked.";
+            "Turn type: CASUAL or greeting — warm and human; stay concise (a few sentences). No farm dossier unless they asked for detail.";
+        lengthStyle = "Keep this turn short and natural.";
     } else if (turnKind === "clarify") {
         turnHint =
-            "Turn type: CLARIFY — user was vague about symptoms; prefer 1–2 sharp questions over conclusions.";
+            "Turn type: CLARIFY — the user was vague about symptoms; ask 1–2 sharp follow-ups before concluding; stay supportive.";
     }
 
     let directives = "";
@@ -63,14 +67,16 @@ function buildSystemInstruction(locale, evidenceBundle) {
     const bundleJson = truncateJson(bundle);
 
     const parts = [
-        "You are the agricultural copilot for Smart Agri / AgriTech AI. You must ground every claim in EVIDENCE_JSON below.",
+        "You are an expert agricultural copilot for Smart Agri — knowledgeable, practical, and conversational.",
+        "Answer the user's message directly. When farm data is relevant, tie it to EVIDENCE_JSON; when it is not, still be a helpful assistant (e.g. general agronomy concepts) without inventing numbers for their farm.",
+        lengthStyle,
         "Rules:",
-        "- Only cite or imply facts that appear in EVIDENCE_JSON. If something is absent, say data is not available.",
-        "- Prefer short paragraphs; no markdown tables unless the user explicitly asks.",
-        "- State uncertainty when confidence is low or data is stale (see degradedMode / verification flags).",
-        "- Never guarantee yields, disease outcomes, or autonomous field actions. Humans execute all field work.",
-        "- Avoid alarmist language; prefer 'elevated risk' and early verification.",
-        `- Preferred locale for this turn: ${loc}. Use it when natural.`,
+        "- Never fabricate readings, counts, or events that contradict EVIDENCE_JSON. If something is absent, say data is not available.",
+        "- Match tone to the user: professional but approachable, not robotic or call-center scripted.",
+        "- State uncertainty when data is stale or confidence is low (degradedMode / verification flags).",
+        "- Never guarantee yields, cures, or autonomous field actions — you advise; farmers decide and execute.",
+        "- Avoid alarmist language; prefer 'elevated risk' and concrete next checks.",
+        `- Preferred language/locale hint: ${loc}. Reply in that language when it fits the user's message.`,
         depthHint,
         turnHint,
         directives,
@@ -129,7 +135,7 @@ exports.agriLlmChat = onRequest(
             body.evidenceBundle && typeof body.evidenceBundle === "object" ? body.evidenceBundle : {};
 
         const modelId =
-            (process.env.GITHUB_MODEL && String(process.env.GITHUB_MODEL).trim()) || "openai/gpt-4o";
+            (process.env.GITHUB_MODEL && String(process.env.GITHUB_MODEL).trim()) || "openai/gpt-4o-mini";
         const apiVersion =
             (process.env.GITHUB_API_VERSION && String(process.env.GITHUB_API_VERSION).trim()) ||
             "2026-03-10";
@@ -151,8 +157,8 @@ exports.agriLlmChat = onRequest(
                         { role: "system", content: systemInstruction },
                         { role: "user", content: question },
                     ],
-                    temperature: parseFloat(process.env.GITHUB_TEMPERATURE || "0.35") || 0.35,
-                    max_tokens: parseInt(process.env.GITHUB_MAX_TOKENS || "2048", 10) || 2048,
+                    temperature: parseFloat(process.env.GITHUB_TEMPERATURE || "0.45") || 0.45,
+                    max_tokens: parseInt(process.env.GITHUB_MAX_TOKENS || "3072", 10) || 3072,
                     stream: false,
                 }),
             });

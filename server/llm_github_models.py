@@ -40,13 +40,13 @@ def grounded_farm_reply(
             "Set GITHUB_TOKEN (or GITHUB_MODELS_TOKEN) with models:read for GitHub Models inference."
         )
 
-    model = (os.environ.get("GITHUB_MODEL") or "openai/gpt-4o").strip() or "openai/gpt-4o"
+    model = (os.environ.get("GITHUB_MODEL") or "openai/gpt-4o-mini").strip() or "openai/gpt-4o-mini"
     q = (question or "").strip() or "Summarize the farm evidence briefly."
     loc = (locale or "en").strip() or "en"
     system = build_grounded_system_prompt(locale=loc, evidence_bundle=evidence_bundle or {})
 
-    temperature = float(os.environ.get("GITHUB_TEMPERATURE", "0.35"))
-    max_tokens = int(os.environ.get("GITHUB_MAX_TOKENS", "2048"))
+    temperature = float(os.environ.get("GITHUB_TEMPERATURE", "0.45"))
+    max_tokens = int(os.environ.get("GITHUB_MAX_TOKENS", "3072"))
 
     payload = {
         "model": model,

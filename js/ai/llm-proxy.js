@@ -3,7 +3,7 @@
  * Body: { question, locale, evidenceBundle }
  */
 
-import { getAiConfig, resolveLlmProxyHttpUrl } from "./config.js?v=65";
+import { getAiConfig, resolveLlmProxyHttpUrl } from "./config.js?v=66";
 
 export function resolveLlmChatUrl() {
     return resolveLlmProxyHttpUrl(getAiConfig().llmProxyUrl);

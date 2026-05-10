@@ -244,9 +244,8 @@
             <div class="empty" id="assistant-empty">
                 <i class="ri-sparkling-line"></i>
                 <p>
-                    Chat uses a <strong>backend LLM</strong> (configure <code>agri-llm-proxy</code> or default Cloud Function).
-                    For model access, configure the backend with <code>GITHUB_TOKEN</code> (see GitHub Models).
-                    Vision still uses <code>agri-ai-base</code> when set.
+                    Chat uses <strong>GitHub Models</strong> (free tier / your quota) — create a PAT with model access, set <code>GITHUB_TOKEN</code> on the API or Cloud Function, optional <code>GITHUB_MODEL</code> (default <code>openai/gpt-4o-mini</code>).
+                    Point this app at your backend via <code>agri-llm-proxy</code> or the default hosting function.
                 </p>
                 <div class="cta-row">
                     <button class="cta" onclick="window.location.href='scanner.html'">Start a scan</button>
@@ -290,7 +289,7 @@
         </a>
     </nav>
 
-    <script type="module" src="js/assistant.js?v=66"></script>
+    <script type="module" src="js/assistant.js?v=67"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>

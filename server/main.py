@@ -60,7 +60,7 @@ def health() -> dict[str, Any]:
             or ""
         ).strip()
     )
-    _ghmodel = (os.environ.get("GITHUB_MODEL") or "openai/gpt-4o").strip()
+    _ghmodel = (os.environ.get("GITHUB_MODEL") or "openai/gpt-4o-mini").strip()
     return {
         "ok": True,
         "service": APP_NAME,

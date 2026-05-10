@@ -1,4 +1,4 @@
-import { getAiConfig, isLlmProxyConfigured } from "./config.js?v=65";
+import { getAiConfig, isLlmProxyConfigured } from "./config.js?v=66";
 import { detectIntents } from "./detect-intents.js";
 import { buildFarmerContext, tsToMs } from "./farmer-context.js";
 import { runWeatherIntelligence } from "./engines/weather-intelligence.js";
@@ -267,16 +267,16 @@ export async function runAgriOrchestrator(question, snapshot, media = {}, opts =
     const regionalCap = stages.regionalBriefMaxChars || 0;
     const narrCap =
         cognitivePlan.llmTier === "rich"
-            ? 900
+            ? 1100
             : routingMode === "weather_quick"
-              ? 380
+              ? 520
               : cognitivePlan.llmTier === "standard"
-                ? 520
-                : 450;
+                ? 680
+                : 600;
 
     if (isLlmProxyConfigured()) {
         try {
-            const { callLlmProxy } = await import("./llm-proxy.js?v=65");
+            const { callLlmProxy } = await import("./llm-proxy.js?v=66");
             const companionBlock = snapshot.companion
                 ? {
                       memory: compactMemoryForBundle(snapshot.companion),
@@ -287,12 +287,12 @@ export async function runAgriOrchestrator(question, snapshot, media = {}, opts =
             const opsHeavy = cognitivePlan.llmTier === "rich";
             const cognitiveDirective =
                 routingMode === "weather_quick"
-                    ? "Brief, premium-toned answer from evidence only — weather and farm context, calm and practical; avoid generic support-bot voice."
+                    ? "Weather-focused turn: give a clear, friendly forecast-style readout from the evidence — practical next steps if relevant. Sound like a person, not a ticket bot."
                     : cognitivePlan.llmTier === "rich"
-                      ? "User turn fits a deep reasoning plan: connect signals, state uncertainties, and separate observed vs predicted."
+                      ? "Deep-dive turn: connect signals, name uncertainties, separate observed vs inferred vs predicted. Thorough but readable."
                       : cognitivePlan.llmTier === "standard"
-                        ? "User turn fits a medium-depth plan: prioritize clarity and evidence-backed bullets; avoid long essays."
-                        : "Practical farm answer from evidence — warm, specific, and useful; skip boilerplate unless the user was only checking in.";
+                        ? "Balanced turn: clear actionable guidance with evidence-backed bullets or short sections when helpful."
+                        : "Practical farm answer: warm, specific, and useful — answer first, evidence second.";
 
             llmIntel = await callLlmProxy({
                 question,

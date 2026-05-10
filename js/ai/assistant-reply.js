@@ -1,5 +1,5 @@
 import { tsToMs } from "./farmer-context.js?v=34";
-import { isLlmProxyConfigured } from "./config.js?v=65";
+import { isLlmProxyConfigured } from "./config.js?v=66";
 import { softenOverclaimProse } from "./reliability/core.js";
 import { summarizeOperationsAnalytics } from "../ops/effectiveness.js";
 import { INTERVENTION_LABELS } from "../ops/types.js";

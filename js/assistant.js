@@ -18,9 +18,9 @@ import {
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { runAgriOrchestrator } from "./ai/orchestrator.js?v=65";
-import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=65";
-import { getAiConfig, isLlmProxyConfigured } from "./ai/config.js?v=65";
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=66";
+import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=66";
+import { getAiConfig, isLlmProxyConfigured } from "./ai/config.js?v=66";
 import {
   buildProactiveDigest,
   compactMemoryForBundle,
@@ -485,7 +485,7 @@ onAuthStateChanged(auth, (user) => {
 
       if (useLlm && (routing.mode === "casual" || routing.mode === "clarify")) {
         const locale = getLang() || "en";
-        const { callLlmProxy } = await import("./ai/llm-proxy.js?v=65");
+        const { callLlmProxy } = await import("./ai/llm-proxy.js?v=66");
         const companionBlock = companionProfile
           ? {
               memory: compactMemoryForBundle(companionProfile),
@@ -494,8 +494,8 @@ onAuthStateChanged(auth, (user) => {
           : null;
         const cognitiveDirective =
           routing.mode === "clarify"
-            ? "Vague symptom / something looks off. Ask 1–2 focused clarifying questions (where on the plant, pace of spread, crop). Calm and supportive; suggest a photo or saved scan when helpful. Do not invent measurements or diagnoses."
-            : "Casual greeting or light check-in. Short warm reply; one optional gentle next step. Avoid generic call-center tone. Only use fieldCount and scanCount from EVIDENCE_JSON — never fabricate farm data.";
+            ? "The user described something vague or worrying on the farm. Ask 1–2 focused clarifying questions (crop, location on plant, timing). Be calm and human; suggest a photo or saved scan when helpful. Never invent field measurements."
+            : "Casual check-in or greeting: respond warmly and naturally, like a knowledgeable farm advisor. One optional light next step is fine. Use only fieldCount and scanCount from EVIDENCE_JSON — never make up farm data.";
         const bundle = {
           turnKind: routing.mode,
           reasoningDepth: 0,

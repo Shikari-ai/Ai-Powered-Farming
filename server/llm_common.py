@@ -21,28 +21,36 @@ def build_grounded_system_prompt(*, locale: str, evidence_bundle: dict[str, Any]
     bundle = evidence_bundle if isinstance(evidence_bundle, dict) else {}
     bundle_json = truncate_json(bundle)
 
-    cognitive_depth = bundle.get("reasoningDepth") if isinstance(bundle.get("reasoningDepth"), (int, float)) else None
+    cognitive_depth = bundle.get("reasoningDepth")
+    if not isinstance(cognitive_depth, (int, float)):
+        cognitive_depth = None
+
     depth_hint = ""
     if isinstance(cognitive_depth, (int, float)):
         if cognitive_depth >= 3:
             depth_hint = (
-                "The client requested deep reasoning: connect signals, state uncertainties, "
-                "separate observed vs predicted."
+                "The user wants deep reasoning: connect signals, state uncertainties clearly, "
+                "and separate observed facts vs inference vs prediction."
             )
         elif cognitive_depth >= 2:
-            depth_hint = "Use clear, structured reasoning; moderate length."
+            depth_hint = "Use structured, evidence-backed reasoning; several short paragraphs or bullets are OK."
 
     turn_kind = bundle.get("turnKind")
     turn_hint = ""
+    length_style = (
+        "Unless this is a pure greeting, give a complete helpful answer — not a one-line brush-off "
+        "when the user clearly wants guidance."
+    )
     if turn_kind == "casual":
         turn_hint = (
-            "Turn type: CASUAL or greeting — keep it short, warm, human; "
-            "no farm brief unless the user asked."
+            "Turn type: CASUAL or greeting — warm and human; stay concise (a few sentences). "
+            "No farm dossier unless they asked for detail."
         )
+        length_style = "Keep this turn short and natural."
     elif turn_kind == "clarify":
         turn_hint = (
-            "Turn type: CLARIFY — user was vague about symptoms; "
-            "prefer 1–2 sharp questions over conclusions."
+            "Turn type: CLARIFY — the user was vague about symptoms; ask 1–2 sharp follow-ups "
+            "before concluding; stay supportive."
         )
 
     directives = ""
@@ -56,14 +64,17 @@ def build_grounded_system_prompt(*, locale: str, evidence_bundle: dict[str, Any]
             )
 
     system_parts = [
-        "You are the agricultural copilot for Smart Agri. You must ground every claim in EVIDENCE_JSON below.",
+        "You are an expert agricultural copilot for Smart Agri — knowledgeable, practical, and conversational.",
+        "Answer the user's message directly. When farm data is relevant, tie it to EVIDENCE_JSON; when it is not, "
+        "still be a helpful assistant (e.g. general agronomy concepts) without inventing numbers for *their* farm.",
+        length_style,
         "Rules:",
-        "- Only cite or imply facts that appear in EVIDENCE_JSON. If something is absent, say data is not available.",
-        "- Prefer short paragraphs; no markdown tables unless the user explicitly asks.",
-        "- State uncertainty when confidence is low or data is stale (see degradedMode / verification flags).",
-        "- Never guarantee yields, disease outcomes, or autonomous field actions. Humans execute all field work.",
-        "- Avoid alarmist language; prefer 'elevated risk' and early verification.",
-        f"- Preferred locale for this turn: {loc}. Use it when natural.",
+        "- Never fabricate readings, counts, or events that contradict EVIDENCE_JSON. If something is absent, say data is not available.",
+        "- Match tone to the user: professional but approachable, not robotic or call-center scripted.",
+        "- State uncertainty when data is stale or confidence is low (degradedMode / verification flags).",
+        "- Never guarantee yields, cures, or autonomous field actions — you advise; farmers decide and execute.",
+        "- Avoid alarmist language; prefer 'elevated risk' and concrete next checks.",
+        f"- Preferred language/locale hint: {loc}. Reply in that language when it fits the user's message.",
         depth_hint,
         turn_hint,
         directives,
