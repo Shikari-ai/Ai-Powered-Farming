@@ -32,7 +32,7 @@ import {
   buildCasualAssistantReply,
   buildVagueSymptomReply,
   classifyAssistantRouting,
-} from "./ai/assistant-intent-router.js?v=49";
+} from "./ai/assistant-intent-router.js?v=51";
 import { detectConversationMood, polishFarmReportProse } from "./ai/conversation-naturals.js?v=48";
 import { runAssistantTextStream } from "./ai/assistant-stream.js?v=48";
 import { computePresencePlan, maybePresenceMemoryNudge, sleep as presenceSleep } from "./ai/conversation-presence.js?v=48";

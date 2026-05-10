@@ -6,7 +6,7 @@ import { detectIntents } from "./detect-intents.js";
 import { pickRotated } from "./conversation-naturals.js?v=48";
 
 const AGRI_TOKEN =
-    /\b(field|fields|crop|crops|scans?|pest|pests|disease|diseases|fungal|blight|rust|mildew|rot|aphid|thrips|nematode|irrigation|irrigat|spray|fungicide|pesticide|herbicide|rain|humidity|weather|soil|moisture|yield|harvest|acre|hectare|nitrogen|fertil|deficien|tomato|potato|wheat|rice|corn|maize|cotton|soy|canopy|ndvi|scouting)\b/i;
+    /\b(field|fields|farm|farms|crop|crops|scans?|pest|pests|disease|diseases|fungal|blight|rust|mildew|rot|aphid|thrips|nematode|irrigation|irrigat|spray|fungicide|pesticide|herbicide|rain|humidity|weather|soil|moisture|yield|harvest|acre|hectare|nitrogen|fertil|deficien|tomato|potato|wheat|rice|corn|maize|cotton|soy|canopy|ndvi|scouting)\b/i;
 
 const DEEP_PIPELINE =
     /\b(simulat|simulation|digital\s*twin|\btwin\b|forecast|outbreak|epidemic|regional\s*network|\bgeo\b|geo-?intel|stress\s*map|learning\s*engine|calibration|deep\s*dive|full\s*analysis|risk\s*report|audit\s*trail|compare\s*scenarios|what\s*if)\b/i;
