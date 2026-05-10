@@ -21,6 +21,7 @@
     })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Connect your FastAPI host: <meta name="agri-inference-url" content="https://api.example.com"> -->
     <script>
     (function () {
       try {
@@ -47,6 +48,7 @@
         <div class="camera-feed" id="camera-feed">
             <div class="camera-preview-stack">
                 <video id="videoElement" autoplay playsinline muted></video>
+                <canvas id="vision-overlay" class="vision-overlay-canvas" aria-hidden="true"></canvas>
                 <div class="cam-shutter-flash" id="cam-shutter-flash" aria-hidden="true"></div>
                 <div class="cam-focus-hud" aria-hidden="true">
                     <div class="cam-roi" id="cam-roi"></div>
@@ -60,14 +62,17 @@
         </div>
 
         <!-- Scanner UI Overlay -->
-        <header class="scanner-header glass-panel">
+        <header class="scanner-header glass-panel scanner-header-row">
             <a href="fields.html" class="icon-btn"><i class="ri-arrow-left-line"></i></a>
-            <h2>AI Vision Scanner</h2>
-            <button class="icon-btn" id="flip-camera"><i class="ri-camera-switch-line"></i></button>
+            <h2 class="scanner-title">AI Vision Scanner</h2>
+            <div class="scanner-actions">
+            <button type="button" class="icon-btn" id="live-vision-toggle" title="Live disease scan" aria-label="Live disease scan" aria-pressed="false"><i class="ri-radar-line"></i></button>
+            <button type="button" class="icon-btn" id="flip-camera" title="Flip camera"><i class="ri-camera-switch-line"></i></button>
+            </div>
         </header>
 
         <div class="scanner-instructions">
-            <p>Point camera at the affected crop leaves...</p>
+            <p>Point camera at leaves — enable <strong>Live scan</strong> if your vision API is configured.</p>
         </div>
 
         <!-- Analysis Results Bottom Sheet -->
@@ -97,6 +102,11 @@
                         <h3 style="margin-bottom:4px;">Scan details</h3>
                         <p style="opacity:0.8;">Tell us what you’re seeing. We’ll generate recommendations from your inputs and saved history.</p>
                     </div>
+                </div>
+
+                <div id="vision-result-panel" class="vision-result-panel hidden">
+                    <div class="vrp-head"><i class="ri-eye-2-line"></i> Vision model</div>
+                    <p id="vision-result-text" class="vrp-text"></p>
                 </div>
 
                 <div style="display:flex; flex-direction:column; gap:10px;">
@@ -177,7 +187,7 @@
     </nav>
 
     <script src="js/app.js"></script>
-    <script type="module" src="js/scanner-db.js?v=31"></script>
+    <script type="module" src="js/scanner-db.js?v=33"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>

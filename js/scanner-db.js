@@ -19,6 +19,9 @@ import {
     uploadBytesResumable,
     getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+import { getAiConfig } from "./ai/config.js?v=33";
+import { startLiveDiseaseScan } from "./scanner-live-vision.js?v=33";
+import { runVisionJob } from "./inference-jobs.js?v=33";
 
 const SYMPTOMS = [
     { id: "leaf_spots", label: "Leaf spots", weight: 14, tags: ["fungal", "bacterial"] },
@@ -241,6 +244,100 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentBlob = null;
     let currentPreviewUrl = null;
     let computed = null;
+    let liveHandle = null;
+
+    const visionPanel = qs("vision-result-panel");
+    const visionText = qs("vision-result-text");
+    const liveToggle = qs("live-vision-toggle");
+    const visionCanvas = qs("vision-overlay");
+
+    const resetVisionPanel = () => {
+        if (visionPanel) visionPanel.classList.add("hidden");
+        if (visionText) visionText.textContent = "";
+    };
+
+    const showVisionLoading = () => {
+        if (!visionPanel || !visionText) return;
+        visionPanel.classList.remove("hidden");
+        visionText.textContent = "Running server vision model…";
+    };
+
+    const showVisionJobResult = (r) => {
+        if (!visionPanel || !visionText) return;
+        visionPanel.classList.remove("hidden");
+        if (!r || r.skipped) {
+            visionText.textContent =
+                "Vision API not configured. Add <meta name=\"agri-inference-url\" content=\"https://your-api\"> or window.__AGRI_INFERENCE_URL__.";
+            return;
+        }
+        if (r.ok) {
+            const dets = r.detections || [];
+            const lines = [];
+            if (r.topHypothesis) {
+                lines.push(`${r.topHypothesis} — ${Math.round((r.confidence || 0) * 100)}% confidence (server)`);
+            }
+            if (dets.length) lines.push(`Regions: ${dets.length}`);
+            for (const d of dets.slice(0, 5)) {
+                lines.push(`• ${d.label} (${Math.round((d.confidence || 0) * 100)}%)`);
+            }
+            if (r.explanation) lines.push(r.explanation);
+            if (r.environmentalReasoning && r.environmentalReasoning.length) {
+                lines.push(`Context: ${r.environmentalReasoning.join(" ")}`);
+            }
+            visionText.textContent = lines.join("\n");
+        } else {
+            visionText.textContent = r.message || "Vision model unavailable.";
+        }
+    };
+
+    const startBackgroundVision = (blob) => {
+        if (!currentUserId || !blob) return;
+        const cfg = getAiConfig();
+        if (!cfg.inferenceBaseUrl) {
+            resetVisionPanel();
+            return;
+        }
+        showVisionLoading();
+        runVisionJob(db, currentUserId, blob, { source: "scanner", fieldId: fieldSel ? fieldSel.value : null })
+            .then(showVisionJobResult)
+            .catch((e) => {
+                if (visionText) visionText.textContent = `Vision error: ${e.message || e}`;
+            });
+    };
+
+    const stopLiveVision = () => {
+        if (liveHandle && typeof liveHandle.stop === "function") liveHandle.stop();
+        liveHandle = null;
+        if (liveToggle) {
+            liveToggle.setAttribute("aria-pressed", "false");
+            liveToggle.classList.remove("live-active");
+        }
+    };
+
+    if (liveToggle && visionCanvas) {
+        liveToggle.addEventListener("click", () => {
+            const cfg = getAiConfig();
+            if (!cfg.inferenceBaseUrl) {
+                window.alert(
+                    "Configure your FastAPI vision host (meta agri-inference-url or __AGRI_INFERENCE_URL__) to enable live scanning."
+                );
+                return;
+            }
+            if (liveHandle) {
+                stopLiveVision();
+                return;
+            }
+            const v = qs("videoElement");
+            if (!v) return;
+            liveHandle = startLiveDiseaseScan({
+                videoEl: v,
+                canvasEl: visionCanvas,
+                tuning: { confThreshold: 0.68 },
+            });
+            liveToggle.setAttribute("aria-pressed", "true");
+            liveToggle.classList.add("live-active");
+        });
+    }
 
     const updateSymptomCount = () => {
         if (!symptomsWrap || !symptomCount) return;
@@ -260,11 +357,13 @@ document.addEventListener("DOMContentLoaded", () => {
         setHidden(analyzeState, true);
         setHidden(resultState, true);
         setHidden(readyState, false);
+        stopLiveVision();
         computed = null;
         currentBlob = null;
         if (currentPreviewUrl) URL.revokeObjectURL(currentPreviewUrl);
         currentPreviewUrl = null;
         if (preview) preview.removeAttribute("src");
+        resetVisionPanel();
         if (cropSel) cropSel.value = "";
         if (symptomsWrap) {
             for (const b of symptomsWrap.querySelectorAll("button.active")) b.click();
@@ -357,6 +456,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 currentPreviewUrl = URL.createObjectURL(blob);
                 if (preview) preview.src = currentPreviewUrl;
                 toAnalyzeState();
+                startBackgroundVision(blob);
             } catch (e) {
                 console.error(e);
                 alert("Could not capture from camera. Try Upload instead.");
@@ -375,6 +475,7 @@ document.addEventListener("DOMContentLoaded", () => {
             currentPreviewUrl = URL.createObjectURL(file);
             if (preview) preview.src = currentPreviewUrl;
             toAnalyzeState();
+            startBackgroundVision(file);
         });
     }
 

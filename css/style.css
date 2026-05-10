@@ -292,9 +292,51 @@ body.dark-theme {
     display: flex; justify-content: space-between; align-items: center;
     padding: 10px 16px; z-index: 10;
 }
-.scanner-header h2 { font-size: 16px; font-weight: 500; }
-
-.scanner-instructions {
+.scanner-header-row { gap: 8px; }
+.scanner-title {
+    flex: 1;
+    text-align: center;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 500;
+}
+.scanner-actions .icon-btn.live-active {
+    border-color: rgba(16, 185, 129, 0.65);
+    box-shadow: 0 0 18px rgba(16, 185, 129, 0.25);
+    color: var(--accent-green);
+}
+.vision-overlay-canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    width: 100%;
+    height: 100%;
+}
+.vision-result-panel {
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.28);
+    margin-bottom: 12px;
+}
+.vision-result-panel .vrp-head {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent-green);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.vision-result-panel .vrp-text {
+    font-size: 12px;
+    line-height: 1.45;
+    color: rgba(255,255,255,0.88);
+    white-space: pre-wrap;
+}
     position: absolute; top: 100px; width: 100%; text-align: center;
     z-index: 10;
 }

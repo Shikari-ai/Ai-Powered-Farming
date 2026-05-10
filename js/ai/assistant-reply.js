@@ -45,6 +45,14 @@ export function composeAssistantReply(question, orch, { locale: _locale = "en" }
                 : "";
         lines.push(`Vision model top hypothesis: ${r.diseaseVision.topHypothesis}${c}.`);
         if (r.diseaseVision.explanation) lines.push(r.diseaseVision.explanation);
+        const dets = r.diseaseVision.detections;
+        if (Array.isArray(dets) && dets.length) {
+            lines.push(`Bounding-box regions (${dets.length}):`);
+            for (const d of dets.slice(0, 6)) {
+                const pct = typeof d.confidence === "number" ? `${Math.round(d.confidence * 100)}%` : "—";
+                lines.push(`  - ${d.label}: ${pct}`);
+            }
+        }
         lines.push("");
     } else if (r.diseaseVision?.status === "unconfigured") {
         lines.push(`${r.diseaseVision.message}`);
