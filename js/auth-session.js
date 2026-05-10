@@ -30,11 +30,29 @@ function getCurrentPageName() {
   return name.toLowerCase();
 }
 
+/**
+ * Local-only QA: load profile.html?e2e_panels=1 without Firebase sign-in.
+ * Treated as a public route so runPublicGate no-ops when logged out.
+ * Never matches production hostnames.
+ */
+export function isProfilePanelE2ELocal() {
+  try {
+    if (getCurrentPageName() !== "profile.html") return false;
+    const qs = new URLSearchParams(location.search);
+    if (qs.get("e2e_panels") !== "1") return false;
+    const h = (location.hostname || "").toLowerCase();
+    return h === "localhost" || h === "127.0.0.1" || h === "[::1]";
+  } catch (_) {
+    return false;
+  }
+}
+
 export function isPublicRoute() {
   return PUBLIC_PAGES.has(getCurrentPageName());
 }
 
 export function isProtectedRoute() {
+  if (isProfilePanelE2ELocal()) return false;
   return !isPublicRoute();
 }
 

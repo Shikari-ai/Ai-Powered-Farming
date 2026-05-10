@@ -1,4 +1,4 @@
-import "./auth-session.js?v=33";
+import { isProfilePanelE2ELocal } from "./auth-session.js?v=34";
 import { auth, db, storage, logoutUser } from "./auth.js?v=31";
 import { LANGUAGES, setLanguage, getLang } from "./i18n.js";
 import { onAuthStateChanged, updateProfile, sendPasswordResetEmail }
@@ -494,6 +494,7 @@ if (document.readyState === "loading") {
 onAuthStateChanged(auth, user => {
   if (teardown) { teardown(); teardown = null; }
   if (!user) {
+    if (isProfilePanelE2ELocal()) return;
     if (!location.pathname.includes("login.html")) location.href = "login.html";
     return;
   }
