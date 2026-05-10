@@ -247,10 +247,10 @@
             <div class="empty" id="assistant-empty">
                 <i class="ri-sparkling-line"></i>
                 <p>
-                    Chat is powered by <strong>Google Gemini</strong> when you set
-                    <code>agri-ai-base</code> or <code>agri-llm-proxy</code> to your HTTPS API that exposes
-                    <code>POST /v1/chat/grounded</code> (API key stays on the server only).
-                    Open‑Meteo and your Firestore data are still passed in as grounding context.
+                    Chat uses <strong>Google Gemini</strong> by default via this project’s Cloud Function
+                    (<code>agriGeminiChat</code>). Set the secret <code>GEMINI_API_KEY</code> on deploy; override with
+                    <code>agri-llm-proxy</code> / <code>agri-ai-base</code> if you use your own API. Open‑Meteo and
+                    Firestore data are still passed in as grounding context when you ask farm questions.
                     No fabricated analytics — empty states stay honest.
                 </p>
                 <div class="cta-row">
@@ -295,7 +295,7 @@
         </a>
     </nav>
 
-    <script type="module" src="js/assistant.js?v=53"></script>
+    <script type="module" src="js/assistant.js?v=54"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>
