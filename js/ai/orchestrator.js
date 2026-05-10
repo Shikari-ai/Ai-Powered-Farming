@@ -11,7 +11,7 @@ import {
     FALLBACK_LOC,
     extractNamedPlaceHint,
     geocodePlaceName,
-} from "../weather-location.js";
+} from "../weather-location.js?v=60";
 import { buildRichVisionContextBundle } from "./vision-context.js?v=34";
 import { compactMemoryForBundle, buildCompanionDirectives } from "./companion-memory.js?v=48";
 import { buildVisionReliability } from "./reliability/core.js";
