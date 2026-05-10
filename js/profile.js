@@ -1,6 +1,6 @@
 import { isProfilePanelE2ELocal } from "./auth-session.js?v=34";
 import { auth, db, storage, logoutUser } from "./auth.js?v=31";
-import { LANGUAGES, setLanguage, getLang } from "./i18n.js";
+import { LANGUAGES, setLanguage, getLang } from "./i18n.js?v=6";
 import { getDiagnosticsLines } from "./ai/system-health.js";
 import { onAuthStateChanged, updateProfile, sendPasswordResetEmail }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";

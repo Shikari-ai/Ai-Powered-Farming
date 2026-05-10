@@ -103,7 +103,7 @@ function modalityPreamble(profile) {
     return "";
 }
 
-function composeMinimalAgriReply(question, orch, profile) {
+function composeMinimalAgriReply(question, orch, profile, extra = {}) {
     const q = String(question || "").trim();
     const lines = [];
     const r = orch.results || {};
@@ -124,6 +124,11 @@ function composeMinimalAgriReply(question, orch, profile) {
         const city = orch.geo?.city || "your area";
         const t = rd.temperatureC != null ? `${Math.round(rd.temperatureC)}°C` : "—";
         const h = rd.humidityPct != null ? `${Math.round(rd.humidityPct)}% RH` : "—";
+        if (extra.routingReason === "named_place_weather_needs_full_context") {
+            lines.push(
+                "You named a specific place — the quick readout follows your **saved farm weather anchor**, not an auto city lookup.",
+            );
+        }
         let one = `Quick weather (${city}): ~${t}, ${h}.`;
         if (w.fungalDiseasePressure?.label) {
             one += ` Fungal pressure: ${w.fungalDiseasePressure.label}.`;
@@ -148,10 +153,14 @@ function composeMinimalAgriReply(question, orch, profile) {
 /**
  * Grounded narrative from orchestrator results (deterministic prose + optional LLM preface).
  */
-export function composeAssistantReply(question, orch, { locale: _locale = "en", companionProfile = null, replyVerbosity = "full" } = {}) {
+export function composeAssistantReply(
+    question,
+    orch,
+    { locale: _locale = "en", companionProfile = null, replyVerbosity = "full", routingReason = "" } = {},
+) {
     if (!orch) return "";
     if (replyVerbosity === "minimal") {
-        return composeMinimalAgriReply(question, orch, companionProfile);
+        return composeMinimalAgriReply(question, orch, companionProfile, { routingReason });
     }
     const compact = replyVerbosity === "compact";
     const profile = companionProfile;
@@ -213,10 +222,10 @@ export function composeAssistantReply(question, orch, { locale: _locale = "en", 
                 ? ` — ${Math.round(r.diseaseVision.confidence * 100) / 100} confidence (server model)`
                 : "";
         lines.push(`Vision model top hypothesis: ${r.diseaseVision.topHypothesis}${c}.`);
-        const rel = r.diseaseVision.reliability;
-        if (rel?.confidenceLabel) {
+        const visionRel = r.diseaseVision.reliability;
+        if (visionRel?.confidenceLabel) {
             lines.push(
-                `Reliability (calibrated): ${rel.confidenceLabel}. (${rel.primaryEpistemic || "inferred"} signal.)`,
+                `Reliability (calibrated): ${visionRel.confidenceLabel}. (${visionRel.primaryEpistemic || "inferred"} signal.)`,
             );
         }
         if (r.diseaseVision.explanation && !compact) lines.push(r.diseaseVision.explanation);
@@ -296,6 +305,11 @@ export function composeAssistantReply(question, orch, { locale: _locale = "en", 
     if (r.weatherIntelligence && !r.weatherIntelligence.error) {
         const w = r.weatherIntelligence;
         lines.push("Weather intelligence:");
+        if (routingReason === "named_place_weather_needs_full_context" && !compact) {
+            lines.push(
+                "You asked about a named location — these readings follow your **farm’s saved weather anchor** (Open‑Meteo), not an automatic geocode of that city name.",
+            );
+        }
         const rd = w.readings || {};
         lines.push(
             `Live bundle @ ${orch.geo?.city || "location"}: ` +

@@ -3,7 +3,7 @@
  * Gates full agricultural orchestration so greetings stay human and cheap.
  */
 import { detectIntents } from "./detect-intents.js";
-import { pickRotated } from "./conversation-naturals.js?v=47";
+import { pickRotated } from "./conversation-naturals.js?v=48";
 
 const AGRI_TOKEN =
     /\b(field|fields|crop|crops|scans?|pest|pests|disease|diseases|fungal|blight|rust|mildew|rot|aphid|thrips|nematode|irrigation|irrigat|spray|fungicide|pesticide|herbicide|rain|humidity|soil|moisture|yield|harvest|acre|hectare|nitrogen|fertil|deficien|tomato|potato|wheat|rice|corn|maize|cotton|soy|canopy|ndvi|scouting)\b/i;
@@ -23,6 +23,13 @@ const OUTCOME_AFFIRM =
     /\b(that\s+)?(actually\s+)?worked|it\s+worked|that\s+did\s+it|that\s+helped|fixed(\s+it)?|sorted|resolved|all\s+good(\s+now)?|made\s+a\s+difference|good\s+call|paid\s+off\b/i;
 
 const VAGUE_WORRY = /\b(weird|off|wrong|looks?\s+bad|not\s+right|something['’]s?\s+off|strange|funny\s+(looking)?)\b/i;
+
+/** “Weather in Mumbai” needs full orchestration; weather_quick is farm-anchor only and felt like a broken reply. */
+function isNamedPlaceWeatherQuery(text) {
+    const t = String(text || "");
+    if (!/\bweather\b/i.test(t)) return false;
+    return /\b(in|at|near|for)\s+[A-Za-z\u00C0-\u024f][A-Za-z\u00C0-\u024f\s.-]{2,40}\b/.test(t);
+}
 
 const SPECIFIC_SYMPTOM =
     /\b(yellow|chloros|spot|spots|mold|mildew|rust|blight|wilt|hole|chew|aphid|thrips|mite|bug|larvae|worm|rot|canker|curl|necrosis|stunt|stem\s+bore)\b/i;
@@ -80,6 +87,10 @@ export function classifyAssistantRouting(rawText, opts = {}) {
 
     if (DEEP_PIPELINE.test(text) || SUBSTANTIVE.test(text)) {
         return { mode: "full", reason: "deep_or_substantive" };
+    }
+
+    if (isNamedPlaceWeatherQuery(text)) {
+        return { mode: "full", reason: "named_place_weather_needs_full_context" };
     }
 
     if (isOutcomeAffirmMicro(text)) {

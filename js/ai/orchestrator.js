@@ -8,12 +8,12 @@ import { runYieldOutlook } from "./engines/yield-outlook.js";
 import { runEnvironmentalIntelligence } from "./engines/environmental-intelligence.js";
 import { resolveWeatherLocation, FALLBACK_LOC } from "../weather-location.js";
 import { buildRichVisionContextBundle } from "./vision-context.js?v=34";
-import { compactMemoryForBundle, buildCompanionDirectives } from "./companion-memory.js?v=47";
+import { compactMemoryForBundle, buildCompanionDirectives } from "./companion-memory.js?v=48";
 import { buildVisionReliability } from "./reliability/core.js";
 import { getDegradedState } from "./system-health.js";
 import { shallowTwinForBundle } from "../twin/assistant-twin-brief.js";
-import { buildCognitivePlan, planForWeatherQuick, summarizeCognitivePlan } from "./cognitive-plan.js?v=47";
-import { buildReflectiveVerification } from "./cognitive-verify.js?v=47";
+import { buildCognitivePlan, planForWeatherQuick, summarizeCognitivePlan } from "./cognitive-plan.js?v=48";
+import { buildReflectiveVerification } from "./cognitive-verify.js?v=48";
 
 async function resolveGeoForAI(ctx) {
     const w = ctx.latestWeatherLog;

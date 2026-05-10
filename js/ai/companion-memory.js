@@ -5,7 +5,7 @@
  */
 
 import { tsToMs } from "./farmer-context.js?v=34";
-import { computeFlowHintsForProfile, getFlowSnapshot } from "./conversation-flow.js?v=47";
+import { computeFlowHintsForProfile, getFlowSnapshot } from "./conversation-flow.js?v=48";
 
 const MAX_ROLLING = 520;
 const MAX_TOPIC_KEYS = 18;

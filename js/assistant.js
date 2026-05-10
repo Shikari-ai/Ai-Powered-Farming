@@ -1,7 +1,7 @@
 import "./auth-session.js?v=31";
-import "./i18n.js?v=5";
+import "./i18n.js?v=6";
 import { auth, db } from "./auth.js?v=31";
-import { getLang } from "./i18n.js?v=5";
+import { getLang } from "./i18n.js?v=6";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
   addDoc,
@@ -18,25 +18,25 @@ import {
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { runAgriOrchestrator } from "./ai/orchestrator.js?v=47";
-import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=47";
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=48";
+import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=48";
 import { getAiConfig } from "./ai/config.js?v=34";
 import {
   buildProactiveDigest,
   defaultCompanionProfile,
   mergeCompanionAfterTurn,
   normalizeCompanionProfile,
-} from "./ai/companion-memory.js?v=47";
+} from "./ai/companion-memory.js?v=48";
 import { fetchRegionalBriefing } from "./network/regional-briefing.js";
 import {
   buildCasualAssistantReply,
   buildVagueSymptomReply,
   classifyAssistantRouting,
-} from "./ai/assistant-intent-router.js?v=47";
-import { detectConversationMood, polishFarmReportProse } from "./ai/conversation-naturals.js?v=47";
-import { runAssistantTextStream } from "./ai/assistant-stream.js?v=47";
-import { computePresencePlan, maybePresenceMemoryNudge, sleep as presenceSleep } from "./ai/conversation-presence.js?v=47";
-import { getFlowSnapshot, recordFlowUserTurn, resolveReplyVerbosity, streamRhythmPreference } from "./ai/conversation-flow.js?v=47";
+} from "./ai/assistant-intent-router.js?v=48";
+import { detectConversationMood, polishFarmReportProse } from "./ai/conversation-naturals.js?v=48";
+import { runAssistantTextStream } from "./ai/assistant-stream.js?v=48";
+import { computePresencePlan, maybePresenceMemoryNudge, sleep as presenceSleep } from "./ai/conversation-presence.js?v=48";
+import { getFlowSnapshot, recordFlowUserTurn, resolveReplyVerbosity, streamRhythmPreference } from "./ai/conversation-flow.js?v=48";
 
 function el(id) {
   return document.getElementById(id);
@@ -520,6 +520,7 @@ onAuthStateChanged(auth, (user) => {
           locale: snapshot.locale,
           companionProfile,
           replyVerbosity,
+          routingReason: routing.reason,
         });
 
         if (!reply) {
