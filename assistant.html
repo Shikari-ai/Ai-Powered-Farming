@@ -112,6 +112,45 @@
             0% { background-position: 100% 0; opacity: 0.35; }
             100% { background-position: -100% 0; opacity: 0.75; }
         }
+        .msg.streaming-reply.stream-speaking {
+            animation: none;
+            box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.1), 0 0 18px rgba(16, 185, 129, 0.06);
+            transition: box-shadow 0.5s ease;
+        }
+        .msg .text.stream-text-host.is-streaming {
+            white-space: pre-wrap;
+            contain: layout;
+            min-height: 3rem;
+        }
+        .msg .text.stream-text-host .stream-plain {
+            opacity: 0.88;
+            transition: opacity 0.4s ease;
+        }
+        .msg .text.stream-text-host .stream-plain.stream-plain-visible {
+            opacity: 1;
+        }
+        .msg .text.stream-text-host .stream-caret {
+            display: inline-block;
+            width: 2px;
+            height: 1.05em;
+            margin-left: 3px;
+            vertical-align: -0.14em;
+            border-radius: 1px;
+            background: linear-gradient(180deg, rgba(16, 185, 129, 0.45), rgba(148, 163, 184, 0.85));
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.22);
+            animation: agriCaretPulse 1.15s ease-in-out infinite;
+        }
+        .msg .text.stream-text-host .stream-caret.stream-caret-out {
+            opacity: 0;
+            transform: scaleY(0.25);
+            animation: none;
+            transition: opacity 0.35s ease, transform 0.35s ease;
+        }
+        @keyframes agriCaretPulse {
+            0%, 100% { opacity: 0.55; filter: brightness(0.95); }
+            50% { opacity: 1; filter: brightness(1.05); }
+        }
+
         .msg .text.is-rich { white-space: normal; }
         .msg .text.is-rich .assist-pre {
             margin: 8px 0;
@@ -229,7 +268,7 @@
         </a>
     </nav>
 
-    <script type="module" src="js/assistant.js?v=43"></script>
+    <script type="module" src="js/assistant.js?v=44"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>

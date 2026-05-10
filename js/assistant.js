@@ -18,8 +18,8 @@ import {
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { runAgriOrchestrator } from "./ai/orchestrator.js?v=43";
-import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=43";
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=44";
+import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=44";
 import { getAiConfig } from "./ai/config.js?v=34";
 import {
   buildProactiveDigest,
@@ -32,9 +32,9 @@ import {
   buildCasualAssistantReply,
   buildVagueSymptomReply,
   classifyAssistantRouting,
-} from "./ai/assistant-intent-router.js?v=43";
-import { detectConversationMood, polishFarmReportProse } from "./ai/conversation-naturals.js?v=43";
-import { runAssistantTextStream } from "./ai/assistant-stream.js?v=43";
+} from "./ai/assistant-intent-router.js?v=44";
+import { detectConversationMood, polishFarmReportProse } from "./ai/conversation-naturals.js?v=44";
+import { runAssistantTextStream } from "./ai/assistant-stream.js?v=44";
 
 function el(id) {
   return document.getElementById(id);
@@ -94,7 +94,7 @@ function renderMessages(container, msgs, opts = {}) {
     <div class="msg assistant streaming-reply thinking" data-stream-shell="1" aria-live="polite" aria-busy="true">
       <div class="meta"><span>Assistant</span><span>…</span></div>
       <div class="stream-thinking-glow" aria-hidden="true"></div>
-      <div class="text" data-stream-text="1"></div>
+      <div class="text stream-text-host is-streaming" data-stream-text="1"><span class="stream-plain"></span><span class="stream-caret" aria-hidden="true"></span></div>
     </div>`
     : "";
 
@@ -237,6 +237,8 @@ onAuthStateChanged(auth, (user) => {
   /** Per-send generation; new send aborts previous stream via signal + generation check. */
   let sendGeneration = 0;
   let streamAbort = new AbortController();
+  /** @type {{ promise: Promise<string>, fastForward: () => void } | null} */
+  let activeStreamCtrl = null;
   /** User scrolled up → stop following; near bottom again → resume follow. */
   let followPinnedBottom = true;
   const SCROLL_NEAR_BOTTOM_PX = 110;
@@ -258,6 +260,10 @@ onAuthStateChanged(auth, (user) => {
     },
     { passive: true },
   );
+
+  inputEl?.addEventListener("input", () => {
+    if (streamInFlight && activeStreamCtrl) activeStreamCtrl.fastForward();
+  });
 
   function updateCompanionEmptyHint() {
     const hintEl = el("assistant-companion-hint");
@@ -562,25 +568,33 @@ onAuthStateChanged(auth, (user) => {
       if (!textEl || myGen !== sendGeneration) {
         streamInFlight = false;
         streamingAssistant = null;
+        activeStreamCtrl = null;
         paintChat();
         return;
       }
 
       if (sendBtn) sendBtn.disabled = false;
 
-      const streamResult = await runAssistantTextStream({
-        textEl,
+      activeStreamCtrl = runAssistantTextStream({
+        textHost: textEl,
         fullText: reply,
         streamProfile: routing.mode,
         signal: streamAbort.signal,
         shouldFollowScroll: () => followPinnedBottom,
         getScrollRoot: getAssistantScrollRoot,
-        onFirstChar: () => streamShell?.classList.remove("thinking"),
+        onFirstChar: () => {
+          streamShell?.classList.remove("thinking");
+          streamShell?.classList.add("stream-speaking");
+        },
       });
+
+      const streamResult = await activeStreamCtrl.promise;
+      activeStreamCtrl = null;
 
       if (myGen !== sendGeneration || streamResult === "aborted") {
         streamInFlight = false;
         streamingAssistant = null;
+        activeStreamCtrl = null;
         paintChat();
         return;
       }
@@ -606,6 +620,7 @@ onAuthStateChanged(auth, (user) => {
       awaitingAssistantAfterUserId = null;
       streamInFlight = false;
       streamingAssistant = null;
+      activeStreamCtrl = null;
       paintChat();
       if (sendBtn && myGen === sendGeneration) sendBtn.disabled = false;
       inputEl?.focus();
@@ -625,6 +640,7 @@ onAuthStateChanged(auth, (user) => {
     streamAbort = new AbortController();
     streamInFlight = false;
     streamingAssistant = null;
+    activeStreamCtrl = null;
     try {
       const runsQ = query(collection(db, "ai_engine_runs"), where("userId", "==", user.uid), limit(500));
       const [msgSnap, runSnap] = await Promise.all([getDocs(msgsQ), getDocs(runsQ)]);
