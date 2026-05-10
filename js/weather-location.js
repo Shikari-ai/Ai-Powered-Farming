@@ -2,7 +2,7 @@
  * Weather location: device GPS + reverse geocode, or fallback when permission/denied.
  * Uses NavIC (ISRO) automatically on compatible Android devices via enableHighAccuracy.
  */
-import { NAVIC_GPS_WEATHER, detectGNSSSource } from "./navic.js";
+import { NAVIC_GPS_WEATHER, detectGNSSSource } from "./navic.js?v=20260510b";
 
 export const FALLBACK_LOC = {
   city: "Bhopal",

@@ -1,5 +1,5 @@
-import { auth, db, storage } from './auth.js';
-import { initI18n, startI18nObserver, t } from './i18n.js';
+import { auth, db, storage } from './auth.js?v=20260510b';
+import { initI18n, startI18nObserver, t } from './i18n.js?v=20260510b';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
     collection,

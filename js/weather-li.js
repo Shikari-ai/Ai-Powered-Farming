@@ -3,10 +3,10 @@
  * Runs after auth, shows nearby places + NavIC accuracy at the bottom of
  * the Weather Intelligence page.
  */
-import { auth } from "./auth.js";
+import { auth } from "./auth.js?v=20260510b";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { runLocationIntelligence, CATEGORIES } from "./location-intelligence.js";
-import { navicBadgeHTML } from "./navic.js";
+import { runLocationIntelligence, CATEGORIES } from "./location-intelligence.js?v=20260510b";
+import { navicBadgeHTML } from "./navic.js?v=20260510b";
 
 const qs = (id) => document.getElementById(id);
 

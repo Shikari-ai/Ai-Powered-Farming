@@ -1,5 +1,5 @@
-import { auth, db, storage, logoutUser } from "./auth.js";
-import { t, setLanguage, getCurrentLang, getSupportedLangs, initI18n, startI18nObserver } from "./i18n.js";
+import { auth, db, storage, logoutUser } from "./auth.js?v=20260510b";
+import { t, setLanguage, getCurrentLang, getSupportedLangs, initI18n, startI18nObserver } from "./i18n.js?v=20260510b";
 import { onAuthStateChanged, updateProfile, sendPasswordResetEmail }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {

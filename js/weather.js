@@ -1,8 +1,8 @@
-import { auth, db } from "./auth.js";
-import { initI18n, startI18nObserver } from "./i18n.js";
+import { auth, db } from "./auth.js?v=20260510b";
+import { initI18n, startI18nObserver } from "./i18n.js?v=20260510b";
 import { doc, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { openDeviceMaps } from "./maps-link.js";
-import { resolveWeatherLocation, resolveLocationApprox } from "./weather-location.js";
+import { openDeviceMaps } from "./maps-link.js?v=20260510b";
+import { resolveWeatherLocation, resolveLocationApprox } from "./weather-location.js?v=20260510b";
 
 const STORAGE_IMD_KEY = "agri_imd_api_key";
 const STORAGE_IMD_PROXY = "agri_imd_proxy";

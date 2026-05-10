@@ -3,7 +3,7 @@
  * Fully connected to Firebase Auth, Firestore realtime listeners,
  * Weather API, i18n, and all backend subsystems.
  */
-import { auth, db, authPersistenceReady, cacheAgriUserProfile, getCachedAgriUserProfile } from "./auth.js";
+import { auth, db, authPersistenceReady, cacheAgriUserProfile, getCachedAgriUserProfile } from "./auth.js?v=20260510b";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
     collection,
@@ -13,7 +13,7 @@ import {
     query,
     where,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { t, initI18n, startI18nObserver } from "./i18n.js";
+import { t, initI18n, startI18nObserver } from "./i18n.js?v=20260510b";
 
 function getGreeting() {
     const hr = new Date().getHours();
