@@ -18,9 +18,9 @@ import {
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { runAgriOrchestrator } from "./ai/orchestrator.js?v=48";
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=49";
 import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=48";
-import { getAiConfig } from "./ai/config.js?v=34";
+import { getAiConfig } from "./ai/config.js?v=49";
 import {
   buildProactiveDigest,
   defaultCompanionProfile,
@@ -32,7 +32,7 @@ import {
   buildCasualAssistantReply,
   buildVagueSymptomReply,
   classifyAssistantRouting,
-} from "./ai/assistant-intent-router.js?v=48";
+} from "./ai/assistant-intent-router.js?v=49";
 import { detectConversationMood, polishFarmReportProse } from "./ai/conversation-naturals.js?v=48";
 import { runAssistantTextStream } from "./ai/assistant-stream.js?v=48";
 import { computePresencePlan, maybePresenceMemoryNudge, sleep as presenceSleep } from "./ai/conversation-presence.js?v=48";

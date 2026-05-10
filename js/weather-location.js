@@ -4,6 +4,82 @@
  */
 import { NAVIC_GPS_WEATHER, detectGNSSSource } from "./navic.js";
 
+/**
+ * Pull "in Raipur", "near Mumbai" style hints for geocoding (excludes "for …" to avoid "for kharif wheat").
+ * @param {string} text
+ * @returns {string|null}
+ */
+export function extractNamedPlaceHint(text) {
+  const t = String(text || "");
+  const clean = (s) => {
+    const place = String(s || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/[.,;:!?]+$/, "");
+    return place.length >= 3 ? place : null;
+  };
+  let m = t.match(/\b(?:in|at|near)\s+([A-Za-z\u00C0-\u024f][A-Za-z\u00C0-\u024f\s,.'-]{2,52})/);
+  if (m) return clean(m[1]);
+  m = t.match(/\bweather\s+for\s+([A-Za-z\u00C0-\u024f][A-Za-z\u00C0-\u024f\s,.'-]{2,48})/i);
+  if (m) return clean(m[1]);
+  return null;
+}
+
+function isPlaceHintBlocked(place) {
+  const p = String(place || "").trim().toLowerCase();
+  if (p.length < 3) return true;
+  if (/^(home|here|there|farm|local|my\s+farm|the\s+farm|our\s+farm)$/i.test(p)) return true;
+  if (/^(the\s+)?(field|fields|plot|farm)$/i.test(p)) return true;
+  return false;
+}
+
+/**
+ * Forward-geocode a place label (Nominatim). Prefer explicit user mentions over GPS fallback.
+ * @param {string} placeLabel
+ * @returns {Promise<{ lat: number, lon: number, city: string, source: string } | null>}
+ */
+export async function geocodePlaceName(placeLabel) {
+  const raw = String(placeLabel || "").trim();
+  if (!raw || isPlaceHintBlocked(raw)) return null;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 7500);
+  try {
+    const queries = [`${raw}, India`, raw];
+    for (const q of queries) {
+      const url = `https://nominatim.openstreetmap.org/search?${new URLSearchParams({
+        format: "json",
+        limit: "1",
+        q,
+      })}`;
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "SmartAgriAssistant/1.0 (https://agritech-4d1ba.web.app)",
+        },
+      });
+      if (!res.ok) continue;
+      const arr = await res.json();
+      if (!Array.isArray(arr) || !arr.length) continue;
+      const hit = arr[0];
+      const lat = parseFloat(hit.lat);
+      const lon = parseFloat(hit.lon);
+      if (Number.isNaN(lat) || Number.isNaN(lon)) continue;
+      let city = raw;
+      if (typeof hit.name === "string" && hit.name.length > 1 && hit.name.length < 56) {
+        city = hit.name;
+      } else if (typeof hit.display_name === "string") {
+        city = hit.display_name.split(",")[0].trim() || city;
+      }
+      return { lat, lon, city, source: "geocode" };
+    }
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export const FALLBACK_LOC = {
   city: "Bhopal",
   district: "Bhopal",

@@ -6,7 +6,12 @@ import { runPestPrediction } from "./engines/pest-prediction.js";
 import { runRecommendationEngine } from "./engines/recommendation-engine.js";
 import { runYieldOutlook } from "./engines/yield-outlook.js";
 import { runEnvironmentalIntelligence } from "./engines/environmental-intelligence.js";
-import { resolveWeatherLocation, FALLBACK_LOC } from "../weather-location.js";
+import {
+    resolveWeatherLocation,
+    FALLBACK_LOC,
+    extractNamedPlaceHint,
+    geocodePlaceName,
+} from "../weather-location.js";
 import { buildRichVisionContextBundle } from "./vision-context.js?v=34";
 import { compactMemoryForBundle, buildCompanionDirectives } from "./companion-memory.js?v=48";
 import { buildVisionReliability } from "./reliability/core.js";
@@ -15,7 +20,29 @@ import { shallowTwinForBundle } from "../twin/assistant-twin-brief.js";
 import { buildCognitivePlan, planForWeatherQuick, summarizeCognitivePlan } from "./cognitive-plan.js?v=48";
 import { buildReflectiveVerification } from "./cognitive-verify.js?v=48";
 
-async function resolveGeoForAI(ctx) {
+async function resolveGeoForAI(ctx, question = "") {
+    const q = String(question || "");
+    const place = extractNamedPlaceHint(q);
+    const intents = detectIntents(q);
+    const wantsNamedGeo =
+        place &&
+        (intents.weather ||
+            intents.disease ||
+            intents.pest ||
+            /\bweather\b/i.test(q) ||
+            /\b(briefing|forecast|regional)\b/i.test(q));
+
+    if (wantsNamedGeo) {
+        try {
+            const g = await geocodePlaceName(place);
+            if (g && typeof g.lat === "number" && typeof g.lon === "number") {
+                return { lat: g.lat, lon: g.lon, city: g.city || "" };
+            }
+        } catch {
+            /* fall through */
+        }
+    }
+
     const w = ctx.latestWeatherLog;
     if (w && typeof w.lat === "number" && typeof w.lon === "number") {
         return { lat: w.lat, lon: w.lon, city: w.city || "" };
@@ -71,7 +98,7 @@ export async function runAgriOrchestrator(question, snapshot, media = {}, opts =
     const twinBrief =
         routingMode === "weather_quick" || !stages.twinBrief ? null : shallowTwinForBundle(snapshot);
 
-    const geo = await resolveGeoForAI(ctx);
+    const geo = await resolveGeoForAI(ctx, question);
 
     let weatherIntel = null;
     let visionIntel = null;

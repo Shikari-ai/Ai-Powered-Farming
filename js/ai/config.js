@@ -11,9 +11,12 @@ function readMeta(name) {
 /** @returns {{ inferenceBaseUrl: string, llmProxyUrl: string, imdApiBaseUrl: string, enginePackVersion: string }} */
 export function getAiConfig() {
     const g = typeof globalThis !== "undefined" ? globalThis : {};
+    const aiBase = String(g.__AGRI_AI_BASE__ || readMeta("agri-ai-base") || "").replace(/\/$/, "");
+    const inferExplicit = String(g.__AGRI_INFERENCE_URL__ || readMeta("agri-inference-url") || "").replace(/\/$/, "");
+    const llmExplicit = String(g.__AGRI_LLM_PROXY__ || readMeta("agri-llm-proxy") || "").replace(/\/$/, "");
     return {
-        inferenceBaseUrl: String(g.__AGRI_INFERENCE_URL__ || readMeta("agri-inference-url") || "").replace(/\/$/, ""),
-        llmProxyUrl: String(g.__AGRI_LLM_PROXY__ || readMeta("agri-llm-proxy") || "").replace(/\/$/, ""),
+        inferenceBaseUrl: inferExplicit || aiBase,
+        llmProxyUrl: llmExplicit || aiBase,
         imdApiBaseUrl: String(g.__AGRI_IMD_API__ || readMeta("agri-imd-api") || "").replace(/\/$/, ""),
         enginePackVersion: "ecosystem-2026-05-reliability-v1",
     };

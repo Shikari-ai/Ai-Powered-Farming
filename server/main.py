@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from inference.yolo_engine import YOLOVisionEngine
+from llm_gemini import grounded_farm_reply
 from ml_metadata import load_vision_metadata
 
 APP_NAME = "smart-agri-ai"
@@ -46,6 +47,8 @@ app.add_middleware(
 def health() -> dict[str, Any]:
     eng: YOLOVisionEngine = app.state.vision_engine
     w = os.environ.get("AGRI_YOLO_WEIGHTS", "")
+    _gk = (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or "").strip()
+    _gm = (os.environ.get("GEMINI_MODEL", "gemini-1.5-flash") or "gemini-1.5-flash").strip()
     return {
         "ok": True,
         "service": APP_NAME,
@@ -53,6 +56,11 @@ def health() -> dict[str, Any]:
         "weights_configured": bool(w),
         "load_error": eng.load_error,
         "imgsz": eng.imgsz if eng.ok else int(os.environ.get("AGRI_YOLO_IMGSZ", "640")),
+        "llm": {
+            "provider": "gemini",
+            "configured": bool(_gk),
+            "model": _gm,
+        },
     }
 
 
@@ -133,11 +141,32 @@ class GroundedChatBody(BaseModel):
     locale: str = "en"
     evidenceBundle: dict[str, Any] = Field(default_factory=dict)
 
+
 @app.post("/v1/chat/grounded")
 async def chat_grounded(body: GroundedChatBody) -> dict[str, Any]:
-    # When implementing an LLM provider, inject body.evidenceBundle.get("companion")
-    # (especially \"directives\") into system instructions alongside the bundle.
-    raise HTTPException(
-        status_code=501,
-        detail="LLM not configured. Implement provider call with server-side API keys.",
-    )
+    """
+    Grounded agricultural Q&A via Gemini (system prompt + evidenceBundle JSON).
+    Set GEMINI_API_KEY on the server. Companion directives are read in llm_gemini.
+    """
+
+    def _run() -> dict[str, Any]:
+        return grounded_farm_reply(
+            question=body.question,
+            locale=body.locale,
+            evidence_bundle=dict(body.evidenceBundle or {}),
+        )
+
+    try:
+        return await run_in_threadpool(_run)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=str(e),
+        ) from e
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"LLM request failed: {e}",
+        ) from e
