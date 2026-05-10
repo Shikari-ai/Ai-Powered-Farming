@@ -1,4 +1,4 @@
-import "./auth-session.js?v=31";
+import "./auth-session.js?v=33";
 import { auth, db, storage, logoutUser } from "./auth.js?v=31";
 import { LANGUAGES, setLanguage, getLang } from "./i18n.js";
 import { onAuthStateChanged, updateProfile, sendPasswordResetEmail }
@@ -142,8 +142,8 @@ window._profileLogout = () => logoutUser();
 
 /* ─── static UI wiring ────────────────── */
 function wireStatic() {
-  /* main settings → account settings */
-  el("main-settings-btn")?.addEventListener("click", () => openPanel("panel-account-settings"));
+  /* main settings → preferences hub (App Preferences + language) */
+  el("main-settings-btn")?.addEventListener("click", () => openPanel("panel-preferences"));
 
   /* logout buttons are wired to showLogoutSheet() in the inline script */
 
@@ -228,17 +228,36 @@ function wireStatic() {
       .then(r => { if (r.isConfirmed && r.value) snack("Thank you! Your feedback was received."); })
   );
 
-  /* account settings — premium language list + search + save */
+  /* account settings — premium language sheet + instant apply */
   const langSearch = el("as-lang-search");
   const langList = el("as-lang-list");
-  const langSave = el("as-lang-save");
-  let pendingLang = getLang();
 
   function langMatchesFilter(L, rawQ) {
     const q = (rawQ || "").trim().toLowerCase();
     if (!q) return true;
-    const blob = `${L.name} ${L.native} ${L.code}`.toLowerCase();
+    const blob = `${L.name} ${L.native} ${L.code} ${L.region || ""}`.toLowerCase();
     return blob.includes(q);
+  }
+
+  function syncLangSummaryLabels() {
+    const cur = LANGUAGES.find((x) => x.code === getLang());
+    const name = cur ? cur.name : getLang().toUpperCase();
+    setText("pref-lang-current", name);
+    setText("as-lang-summary", cur ? `${cur.native} — ${name}` : name);
+  }
+
+  async function persistLangPreference(code) {
+    const u = auth.currentUser;
+    if (!u) return;
+    try {
+      await setDoc(
+        doc(db, "users", u.uid),
+        { langPreference: code, updatedAt: serverTimestamp() },
+        { merge: true }
+      );
+    } catch (e) {
+      console.warn("langPreference save:", e);
+    }
   }
 
   function renderLangPickerRows() {
@@ -246,61 +265,41 @@ function wireStatic() {
     const q = langSearch?.value ?? "";
     const items = LANGUAGES.filter((L) => langMatchesFilter(L, q));
     if (!items.length) {
-      langList.innerHTML = `<div style="padding:22px 16px;text-align:center;color:var(--dim);font-size:13px;">No languages match “${q.replace(/</g, "")}”.<br><span style="font-size:11px;opacity:.85;">Try English, Hindi, बंगाली…</span></div>`;
+      langList.innerHTML = `<div style="padding:22px 16px;text-align:center;color:var(--dim);font-size:13px;">No languages match “${String(q).replace(/</g, "")}”.<br><span style="font-size:11px;opacity:.85;">Try English, हिन्दी, বাংলা…</span></div>`;
       return;
     }
+    const active = getLang();
     langList.innerHTML = items.map((L) => {
-      const sel = L.code === pendingLang;
+      const sel = L.code === active;
       const flag = L.flag || "🌐";
-      return `<button type="button" class="lang-row rw ${sel ? "selected" : ""}" role="option" data-code="${L.code}" aria-selected="${sel}">
+      const reg = L.region ? `<span class="lang-row-region">${L.region}</span>` : "";
+      return `<button type="button" class="lang-row rw ${sel ? "selected" : ""}" role="option" data-code="${L.code}" aria-selected="${sel ? "true" : "false"}">
         <span class="lang-row-flag" aria-hidden="true">${flag}</span>
-        <span class="lang-row-meta"><strong>${L.native}</strong><span>${L.name} · ${L.code.toUpperCase()}</span></span>
+        <span class="lang-row-meta"><strong>${L.name}</strong><span class="lang-row-sub">${L.native}</span>${reg}</span>
         <span class="lang-row-check" aria-hidden="true"><i class="ri-check-line"></i></span>
       </button>`;
     }).join("");
     langList.querySelectorAll(".lang-row").forEach((row) => {
-      row.addEventListener("click", () => {
-        pendingLang = row.getAttribute("data-code");
+      row.addEventListener("click", async () => {
+        const code = row.getAttribute("data-code");
+        if (!code || code === getLang()) return;
+        setLanguage(code);
         renderLangPickerRows();
-        syncLangSaveState();
+        syncLangSummaryLabels();
+        snack("Language updated — applied everywhere on this device.");
+        await persistLangPreference(code);
       });
     });
   }
 
-  function syncLangSaveState() {
-    if (!langSave) return;
-    langSave.disabled = pendingLang === getLang();
-  }
-
-  if (langSearch && langList && langSave) {
-    pendingLang = getLang();
+  if (langSearch && langList) {
+    syncLangSummaryLabels();
     renderLangPickerRows();
-    syncLangSaveState();
     langSearch.addEventListener("input", () => renderLangPickerRows());
     langSearch.addEventListener("search", () => renderLangPickerRows());
     document.addEventListener("langchange", () => {
-      pendingLang = getLang();
       renderLangPickerRows();
-      syncLangSaveState();
-    });
-
-    langSave.addEventListener("click", async () => {
-      if (!LANGUAGES.some((x) => x.code === pendingLang)) return;
-      setLanguage(pendingLang);
-      snack("Language saved — applied everywhere on this browser.");
-      const u = auth.currentUser;
-      if (u) {
-        try {
-          await setDoc(
-            doc(db, "users", u.uid),
-            { langPreference: pendingLang, updatedAt: serverTimestamp() },
-            { merge: true }
-          );
-        } catch (e) {
-          console.warn("langPreference save:", e);
-        }
-      }
-      syncLangSaveState();
+      syncLangSummaryLabels();
     });
   }
 }

@@ -67,13 +67,12 @@ page.on("pageerror", (e) => errors.push(e.message));
 await page.goto(`${base}/test-fixtures/lang-ui-smoke.html`, { waitUntil: "load", timeout: 60000 });
 
 const allRows = await page.evaluate(() => window.__langSmoke.rowCount());
-if (allRows < 8) throw new Error(`expected ≥8 language rows, got ${allRows}`);
+if (allRows < 13) throw new Error(`expected ≥13 language rows, got ${allRows}`);
 
 const telRows = await page.evaluate(() => window.__langSmoke.filter("tel"));
 if (telRows !== 1) throw new Error(`search "tel" should yield 1 row, got ${telRows}`);
 
 await page.evaluate(() => window.__langSmoke.selectCode("hi"));
-await page.click("#as-lang-save");
 
 const stored = await page.evaluate(() => localStorage.getItem("agri_lang"));
 const docLang = await page.evaluate(() => document.documentElement.lang);

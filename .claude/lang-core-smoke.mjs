@@ -55,7 +55,7 @@ function assert(cond, msg) {
   if (!cond) throw new Error(msg || "assertion failed");
 }
 
-assert(LANGUAGES.length >= 8, `LANGUAGES should list all locales (got ${LANGUAGES.length})`);
+assert(LANGUAGES.length >= 13, `LANGUAGES should list all locales (got ${LANGUAGES.length})`);
 
 for (const L of LANGUAGES) {
   setLanguage(L.code, { broadcast: false });
@@ -68,6 +68,9 @@ assert(t("goodMorning") === "Good morning", "en goodMorning");
 setLanguage("hi", { broadcast: false });
 assert(t("goodMorning").includes("सु"), "hi goodMorning looks Hindi");
 
+setLanguage("gu", { broadcast: false });
+assert(/[\u0A80-\u0AFF]/.test(t("goodMorning")), "gu goodMorning uses Gujarati script");
+
 const before = getLang();
 setLanguage("not-a-locale", { broadcast: false });
 assert(getLang() === before, "invalid code should not change lang");
@@ -75,7 +78,7 @@ assert(getLang() === before, "invalid code should not change lang");
 assert(localStorage.getItem("agri_lang") === before, "localStorage agri_lang");
 
 const html = readFileSync(join(repoRoot, "profile.html"), "utf8");
-for (const id of ["as-lang-search", "as-lang-list", "as-lang-save", "as-lang-hint"]) {
+for (const id of ["as-lang-search", "as-lang-list", "panel-choose-language"]) {
   assert(html.includes(`id="${id}"`) || html.includes(`id='${id}'`), `profile.html missing #${id}`);
 }
 
