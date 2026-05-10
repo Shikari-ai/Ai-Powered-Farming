@@ -17,7 +17,7 @@ import {
     setDoc,
     where,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getGreeting, t, applyTranslations } from "./i18n.js";
+import { getGreeting, t, applyTranslations } from "./i18n.js?v=5";
 import { buildRegionalPulse, contributeRegionalPulse } from "./network/regional-pulse.js";
 import { fetchRegionalBriefing, getRegionalOptIn } from "./network/regional-briefing.js";
 import { buildTwinBriefForAssistant } from "./twin/assistant-twin-brief.js";

@@ -1,7 +1,7 @@
 import "./auth-session.js?v=31";
-import "./i18n.js";
+import "./i18n.js?v=5";
 import { auth, db } from "./auth.js?v=31";
-import { getLang } from "./i18n.js";
+import { getLang } from "./i18n.js?v=5";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
   addDoc,
@@ -19,8 +19,8 @@ import {
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { runAgriOrchestrator } from "./ai/orchestrator.js?v=38";
-import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=38";
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=39";
+import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=39";
 import { getAiConfig } from "./ai/config.js?v=34";
 import {
   buildProactiveDigest,

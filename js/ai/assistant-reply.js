@@ -187,8 +187,8 @@ export function composeAssistantReply(question, orch, { locale: _locale = "en", 
                 lines.push(`Field timeline cues: ${ci.field_memory_snippets.slice(0, 3).join(" ")}`);
             }
         }
-        const rel = r.diseaseVision.predictionReliability;
-        if (rel && rel.field_memory_used) {
+        const predRel = r.diseaseVision.predictionReliability;
+        if (predRel && predRel.field_memory_used) {
             lines.push("(Field memory was supplied to the vision service for this answer.)");
         }
         lines.push("");
