@@ -3,6 +3,8 @@
  * MapLibre GL + Firestore fields + GPS + Overpass nearby + Weather
  */
 
+import "./auth-session.js";
+import "./i18n.js";
 import { auth, db } from "./auth.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {

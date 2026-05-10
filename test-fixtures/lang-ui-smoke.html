@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Lang UI smoke</title>
+  <style>
+    body { font-family: system-ui; padding: 16px; }
+    .lang-row { display: flex; gap: 8px; margin: 4px 0; }
+    .lang-row.selected { outline: 2px solid #10b981; }
+  </style>
+</head>
+<body>
+  <input type="search" id="as-lang-search" placeholder="Search" />
+  <div id="as-lang-list"></div>
+  <button type="button" id="as-lang-save" disabled>Save</button>
+  <p id="smoke-status"></p>
+  <script type="module" src="./lang-ui-smoke-runner.mjs"></script>
+</body>
+</html>

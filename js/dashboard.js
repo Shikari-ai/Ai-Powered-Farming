@@ -3,6 +3,7 @@
  * Fully connected to Firebase Auth, Firestore realtime listeners,
  * Weather API, i18n, and all backend subsystems.
  */
+import { registerAuthCleanup } from "./auth-session.js";
 import { auth, db } from "./auth.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
@@ -65,12 +66,15 @@ function setHealthRing(score) {
     const clamped = clamp(Number(score) || 0, 0, 100);
     const offset = CIRCUMFERENCE - (clamped / 100) * CIRCUMFERENCE;
     fg.style.strokeDashoffset = offset;
-    // Dynamic ring color
     if (clamped >= 75) fg.style.stroke = "#10B981";
     else if (clamped >= 50) fg.style.stroke = "#F59E0B";
     else if (clamped >= 25) fg.style.stroke = "#F97316";
     else fg.style.stroke = "#EF4444";
-    fg.style.filter = `drop-shadow(0 0 5px ${fg.style.stroke}80)`;
+    if (document.documentElement.dataset.agriPerf === "low") {
+        fg.style.filter = "none";
+    } else {
+        fg.style.filter = `drop-shadow(0 0 5px ${fg.style.stroke}80)`;
+    }
 }
 
 function healthLabel(score) {
@@ -130,15 +134,16 @@ function renderNotifPanel(items) {
     }
     body.innerHTML = "";
     items.slice(0, 30).forEach((n) => {
-        const type = n.type || "info";
         const icoMap = {
             scan: { icon: "ri-leaf-line", color: "#10B981", bg: "rgba(16,185,129,0.12)" },
             weather: { icon: "ri-cloud-line", color: "#38BDF8", bg: "rgba(56,189,248,0.12)" },
             pest: { icon: "ri-bug-line", color: "#F59E0B", bg: "rgba(245,158,11,0.12)" },
             alert: { icon: "ri-error-warning-line", color: "#EF4444", bg: "rgba(239,68,68,0.12)" },
         };
-        const style = Object.keys(icoMap).find(k => type.includes(k))
-            ? icoMap[Object.keys(icoMap).find(k => type.includes(k))]
+        const type = (n.type && String(n.type)) || "info";
+        const typeKey = Object.keys(icoMap).find((k) => type.includes(k));
+        const style = typeKey
+            ? icoMap[typeKey]
             : { icon: "ri-notification-3-line", color: "#A78BFA", bg: "rgba(167,139,250,0.12)" };
         const row = document.createElement("div");
         row.className = `np-item${!n.readAt ? " unread" : ""}`;
@@ -162,6 +167,7 @@ function renderHomeFields(snap) {
     const empty = el("dash-fields-empty");
     if (!scroll) return;
 
+    try {
     const fields = [];
     snap.forEach((d) => fields.push({ id: d.id, ...d.data() }));
 
@@ -192,7 +198,7 @@ function renderHomeFields(snap) {
         const dotColor = c.color;
 
         const card = document.createElement("a");
-        card.href = `field-detail.html?id=${f.id}`;
+        card.href = `field-detail.html?f=${encodeURIComponent(f.id)}`;
         card.className = "dash-field-card";
         card.innerHTML = `
           <div class="dfc-top">
@@ -215,6 +221,9 @@ function renderHomeFields(snap) {
     addCard.className = "mf-add-card";
     addCard.innerHTML = `<i class="ri-add-circle-line"></i><span>Add</span>`;
     scroll.appendChild(addCard);
+    } catch (e) {
+        console.warn("[dashboard] renderHomeFields:", e);
+    }
 }
 
 // ─── At a Glance updaters ────────────────────────────────────────────────────
@@ -258,6 +267,36 @@ function updateFarmStatus(fieldsCount, scansCount) {
 // ─── DOMContentLoaded bootstrap ──────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", () => {
+    const DASH_FAILSAFE_MS = 8000;
+    let dashFailsafeTimer = null;
+    const armDashFailsafe = () => {
+        dashFailsafeTimer = window.setTimeout(() => {
+            try {
+                document.body.classList.add("dashboard-wait-failsafe");
+                document.body.classList.remove("dashboard-wait");
+            } catch (_) {}
+        }, DASH_FAILSAFE_MS);
+    };
+    const disarmDashFailsafe = () => {
+        if (dashFailsafeTimer) {
+            clearTimeout(dashFailsafeTimer);
+            dashFailsafeTimer = null;
+        }
+        try {
+            document.body.classList.remove("dashboard-wait-failsafe");
+        } catch (_) {}
+    };
+
+    armDashFailsafe();
+
+    window.addEventListener("error", (ev) => {
+        console.warn("[app] error:", ev.error?.message || ev.message || ev);
+    });
+    window.addEventListener("unhandledrejection", (ev) => {
+        console.warn("[app] unhandledrejection:", ev.reason);
+        ev.preventDefault();
+    });
+
     // Apply i18n immediately
     applyTranslations();
 
@@ -287,259 +326,299 @@ document.addEventListener("DOMContentLoaded", () => {
 
     /** Unsubscribe all home listeners (prevents duplicate snapshots if auth re-fires). */
     let homeUnsubs = [];
+    registerAuthCleanup(() => {
+        homeUnsubs.forEach((u) => {
+            try {
+                u();
+            } catch (_) {}
+        });
+        homeUnsubs = [];
+    });
     const sub = (qOrRef, onNext, label) => {
         const u = onSnapshot(
             qOrRef,
-            onNext,
+            (snap) => {
+                try {
+                    onNext(snap);
+                } catch (err) {
+                    console.warn(`[dashboard] ${label} handler:`, err);
+                }
+            },
             (err) => console.warn(`[dashboard] ${label}:`, err?.code || err?.message || err)
         );
         homeUnsubs.push(u);
     };
 
+    const schedule = (delayMs, fn) => {
+        window.setTimeout(() => {
+            try {
+                fn();
+            } catch (e) {
+                console.warn("[dashboard] scheduled task:", e);
+            }
+        }, delayMs);
+    };
+
     const mountHome = (user) => {
-        let totalFields = 0;
-        let totalScans = 0;
+        try {
+            let sched = 0;
+            const STEP = 48;
+            const nextT = () => {
+                const t = sched;
+                sched += STEP;
+                return t;
+            };
 
-        // ── 1) User profile ───────────────────────────────────────────────────
-        const userRef = doc(db, "users", user.uid);
-        sub(userRef, (snap) => {
-            const data = snap.exists() ? snap.data() : {};
-            const fullName = data?.name || user.displayName
-                || (user.email ? user.email.split("@")[0] : "Farmer");
-            const firstName = String(fullName).split(" ")[0] || "Farmer";
+            let totalFields = 0;
+            let totalScans = 0;
 
-            // Cache for instant load next visit
-            try { localStorage.setItem("agri_user", JSON.stringify({ name: fullName })); } catch (_) {}
+            const userRef = doc(db, "users", user.uid);
+            schedule(nextT(), () => {
+                sub(userRef, (snap) => {
+                    const data = snap.exists() ? snap.data() : {};
+                    const fullName = data?.name || user.displayName
+                        || (user.email ? user.email.split("@")[0] : "Farmer");
+                    const firstName = String(fullName).split(" ")[0] || "Farmer";
 
-            const greetEl = el("hdr-greet");
-            const nameSpan = el("hdr-name"); // <span id="hdr-name"> inside <h2 class="hdr-name">
-            if (greetEl) greetEl.textContent = getGreeting() + ",";
-            if (nameSpan) nameSpan.textContent = firstName;
+                    try {
+                        localStorage.setItem("agri_user", JSON.stringify({ name: fullName }));
+                    } catch (_) {}
 
-            // Avatar
-            const avatar = el("hdr-avatar-img");
-            if (avatar) {
-                avatar.src = user.photoURL
-                    ? user.photoURL
-                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=10B981&color=fff&size=80`;
-            }
+                    const greetEl = el("hdr-greet");
+                    const nameSpan = el("hdr-name");
+                    if (greetEl) greetEl.textContent = getGreeting() + ",";
+                    if (nameSpan) nameSpan.textContent = firstName;
 
-            // Lang preference from Firestore
-            if (data?.langPreference && window.i18n) {
-                window.i18n.setLanguage(data.langPreference);
-            }
-        }, "users profile");
-
-        // ── 2) Fields ─────────────────────────────────────────────────────────
-        sub(
-            query(collection(db, "fields"), where("userId", "==", user.uid), limit(200)),
-            (snap) => {
-                totalFields = snap.size;
-                updateGlanceFields(totalFields);
-
-                // Count unique crops
-                const cropSet = new Set();
-                snap.forEach((d) => {
-                    const crop = d.data()?.crop;
-                    if (crop) cropSet.add(crop.trim().toLowerCase());
-                });
-                updateGlanceCrops(cropSet.size);
-
-                renderHomeFields(snap);
-                updateFarmStatus(totalFields, totalScans);
-            },
-            "fields"
-        );
-
-        // ── 3) Notifications ─────────────────────────────────────────────────
-        sub(
-            query(collection(db, "notifications"), where("userId", "==", user.uid), limit(50)),
-            (snap) => {
-                const items = [];
-                let unread = 0;
-                snap.forEach((d) => {
-                    const v = d.data();
-                    items.push({ id: d.id, ...v });
-                    if (!v.readAt) unread++;
-                });
-                items.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
-                setNotifBadge(unread);
-                renderNotifPanel(items);
-            },
-            "notifications"
-        );
-
-        // ── 4) Crop scans → Health Ring + Pest Prediction ─────────────────────
-        sub(
-            query(collection(db, "crop_scans"), where("userId", "==", user.uid), limit(200)),
-            (snap) => {
-                const scans = [];
-                snap.forEach((d) => scans.push({ id: d.id, ...d.data() }));
-                scans.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
-                totalScans = scans.length;
-                updateFarmStatus(totalFields, totalScans);
-
-                // ─ Health Ring ────────────────────────────────────────────────
-                const ringPctEl = el("ring-pct");
-                const ringTagEl = el("ring-tag");
-                const hiStatusEl = el("hi-status");
-                const hiDescEl = el("hi-desc");
-                const hiImgEl = el("health-img");
-
-                if (scans.length === 0) {
-                    setHealthRing(0);
-                    if (ringPctEl) ringPctEl.textContent = "--";
-                    if (ringTagEl) ringTagEl.textContent = "--";
-                    if (hiStatusEl) {
-                        hiStatusEl.textContent = "--";
-                        hiStatusEl.style.color = "rgba(255,255,255,0.35)";
+                    const avatar = el("hdr-avatar-img");
+                    if (avatar) {
+                        avatar.src = user.photoURL
+                            ? user.photoURL
+                            : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=10B981&color=fff&size=80`;
                     }
-                    if (hiDescEl) hiDescEl.textContent = t("noScansYet");
-                    resetPestCard();
-                    return;
-                }
 
-                const recent10 = scans.slice(0, 10);
-                const scores = recent10
-                    .map((s) => (typeof s.healthScore === "number" ? s.healthScore : null))
-                    .filter((v) => v !== null);
-                const avg = scores.length
-                    ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
-                    : 0;
-
-                setHealthRing(avg);
-                if (ringPctEl) ringPctEl.textContent = `${avg}%`;
-                if (ringTagEl) {
-                    ringTagEl.textContent = avg >= 60 ? t("healthy") : t("needsAttention");
-                    ringTagEl.style.color = avg >= 60 ? "#10B981" : "#F59E0B";
-                }
-                if (hiStatusEl) {
-                    hiStatusEl.textContent = healthLabel(avg);
-                    hiStatusEl.style.color = healthColor(avg);
-                }
-                if (hiDescEl) {
-                    const latest = scans[0];
-                    const disease = latest?.diagnosis?.name || latest?.disease || null;
-                    if (disease && avg < 70) {
-                        hiDescEl.textContent = `${disease} detected. Monitor closely and consider treatment.`;
-                    } else if (avg >= 80) {
-                        hiDescEl.textContent = "Your crops are in great condition. Keep up the good work!";
-                    } else if (avg >= 60) {
-                        hiDescEl.textContent = "Crops look good. Keep monitoring for early disease signs.";
-                    } else {
-                        hiDescEl.textContent = "Crop health needs attention. Review scan history for details.";
+                    if (data?.langPreference && window.i18n) {
+                        window.i18n.setLanguage(data.langPreference);
                     }
-                }
-                if (hiImgEl) hiImgEl.src = healthImg(avg, scans[0]?.crop);
+                }, "users profile");
+            });
 
-                // ─ Pest Engine (signal-based, no fabrication) ─────────────────
-                const recent14d = scans.filter(
-                    (s) => Date.now() - tsToMs(s.createdAt) <= 14 * 86400000
+            schedule(nextT(), () => {
+                sub(
+                    query(collection(db, "fields"), where("userId", "==", user.uid), limit(100)),
+                    (snap) => {
+                        totalFields = snap.size;
+                        updateGlanceFields(totalFields);
+
+                        const cropSet = new Set();
+                        snap.forEach((d) => {
+                            const crop = d.data()?.crop;
+                            if (crop && typeof crop === "string") {
+                                cropSet.add(crop.trim().toLowerCase());
+                            }
+                        });
+                        updateGlanceCrops(cropSet.size);
+
+                        renderHomeFields(snap);
+                        updateFarmStatus(totalFields, totalScans);
+                    },
+                    "fields"
                 );
-                const pestSig = recent14d.filter(
-                    (s) => s?.diagnosis?.code === "pest_damage"
-                ).length;
-                const fungalSig = recent14d.filter(
-                    (s) => s?.diagnosis?.code === "fungal_risk"
-                ).length;
-                const critSig = recent14d.filter(
-                    (s) => s?.severity?.level === "critical"
-                ).length;
-                const total = recent14d.length;
+            });
 
-                const pestRiskEl = el("pest-risk");
-                const pestDescEl = el("pest-desc");
-                const pestImgEl = el("pest-img");
+            schedule(nextT(), () => {
+                sub(
+                    query(collection(db, "notifications"), where("userId", "==", user.uid), limit(35)),
+                    (snap) => {
+                        const items = [];
+                        let unread = 0;
+                        snap.forEach((d) => {
+                            const v = d.data() || {};
+                            items.push({ id: d.id, ...v });
+                            if (!v.readAt) unread++;
+                        });
+                        items.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
+                        setNotifBadge(unread);
+                        renderNotifPanel(items);
+                    },
+                    "notifications"
+                );
+            });
 
-                if (total < 3) {
-                    resetPestCard();
-                    return;
-                }
+            schedule(nextT(), () => {
+                sub(
+                    query(collection(db, "crop_scans"), where("userId", "==", user.uid), limit(100)),
+                    (snap) => {
+                        const scans = [];
+                        snap.forEach((d) => scans.push({ id: d.id, ...d.data() }));
+                        scans.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
+                        totalScans = scans.length;
+                        updateFarmStatus(totalFields, totalScans);
 
-                const raw = pestSig * 22 + fungalSig * 14 + critSig * 18;
-                const prob = clamp(Math.round((raw / Math.max(1, total)) * 2.2), 0, 95);
-                /** English key for logic — UI uses t() */
-                const riskLevel = prob >= 70 ? "high" : prob >= 35 ? "medium" : "low";
-                const riskLabel = riskLevel === "high" ? t("high") : riskLevel === "medium" ? t("medium") : t("low");
+                        const ringPctEl = el("ring-pct");
+                        const ringTagEl = el("ring-tag");
+                        const hiStatusEl = el("hi-status");
+                        const hiDescEl = el("hi-desc");
+                        const hiImgEl = el("health-img");
 
-                if (pestRiskEl) {
-                    pestRiskEl.textContent = riskLabel;
-                    pestRiskEl.style.color = pestRiskColor(riskLevel);
-                }
-                if (pestDescEl) {
-                    if (riskLevel === "high") {
-                        pestDescEl.textContent = "High pest activity detected in recent scans. Immediate attention required.";
-                    } else if (riskLevel === "medium") {
-                        pestDescEl.textContent = `${riskLabel} pest pressure based on scan patterns. Monitor closely.`;
-                    } else {
-                        pestDescEl.textContent = "Pest risk is low based on recent scan analysis. Continue monitoring.";
-                    }
-                }
-                if (pestImgEl) pestImgEl.src = pestRiskImg(riskLevel);
+                        if (scans.length === 0) {
+                            setHealthRing(0);
+                            if (ringPctEl) ringPctEl.textContent = "--";
+                            if (ringTagEl) ringTagEl.textContent = "--";
+                            if (hiStatusEl) {
+                                hiStatusEl.textContent = "--";
+                                hiStatusEl.style.color = "rgba(255,255,255,0.35)";
+                            }
+                            if (hiDescEl) hiDescEl.textContent = t("noScansYet");
+                            resetPestCard();
+                            return;
+                        }
 
-                // Animate blip position based on risk
-                const blip = el("radar-blip");
-                if (blip) {
-                    const positions = { high: { top: "25%", left: "65%" }, medium: { top: "35%", left: "60%" }, low: { top: "30%", left: "55%" } };
-                    const pos = positions[riskLevel] || positions.low;
-                    blip.style.top = pos.top;
-                    blip.style.left = pos.left;
-                    blip.style.background = pestRiskColor(riskLevel);
-                    blip.style.boxShadow = `0 0 8px ${pestRiskColor(riskLevel)}`;
-                }
-            },
-            "crop_scans"
-        );
+                        const recent10 = scans.slice(0, 10);
+                        const scores = recent10
+                            .map((s) => (typeof s.healthScore === "number" ? s.healthScore : null))
+                            .filter((v) => v !== null);
+                        const avg = scores.length
+                            ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+                            : 0;
 
-        // ── 5) Weather logs → Soil moisture + Irrigation glance ───────────────
-        // (No orderBy: avoids needing a composite index; sort client-side)
-        sub(
-            query(collection(db, "weather_logs"), where("userId", "==", user.uid), limit(80)),
-            (snap) => {
-                let bestDoc = null;
-                let bestMs = 0;
-                snap.forEach((d) => {
-                    const ms = tsToMs(d.data()?.fetchedAt);
-                    if (ms >= bestMs) {
-                        bestMs = ms;
-                        bestDoc = d;
-                    }
-                });
-                if (!bestDoc) {
-                    updateGlanceSoil(null);
-                    updateGlanceIrrig(null);
-                    return;
-                }
-                const data = bestDoc.data();
-                const soilEst = data?.derived?.soilMoistureEstimate ?? null;
-                updateGlanceSoil(soilEst);
-                if (soilEst !== null) {
-                    const irrigEff = clamp(Math.round(85 - (soilEst - 50) * 0.3), 40, 98);
-                    updateGlanceIrrig(irrigEff);
-                } else {
-                    updateGlanceIrrig(null);
-                }
-            },
-            "weather_logs"
-        );
+                        setHealthRing(avg);
+                        if (ringPctEl) ringPctEl.textContent = `${avg}%`;
+                        if (ringTagEl) {
+                            ringTagEl.textContent = avg >= 60 ? t("healthy") : t("needsAttention");
+                            ringTagEl.style.color = avg >= 60 ? "#10B981" : "#F59E0B";
+                        }
+                        if (hiStatusEl) {
+                            hiStatusEl.textContent = healthLabel(avg);
+                            hiStatusEl.style.color = healthColor(avg);
+                        }
+                        if (hiDescEl) {
+                            const latest = scans[0];
+                            const disease = latest?.diagnosis?.name || latest?.disease || null;
+                            if (disease && avg < 70) {
+                                hiDescEl.textContent = `${disease} detected. Monitor closely and consider treatment.`;
+                            } else if (avg >= 80) {
+                                hiDescEl.textContent = "Your crops are in great condition. Keep up the good work!";
+                            } else if (avg >= 60) {
+                                hiDescEl.textContent = "Crops look good. Keep monitoring for early disease signs.";
+                            } else {
+                                hiDescEl.textContent = "Crop health needs attention. Review scan history for details.";
+                            }
+                        }
+                        if (hiImgEl) hiImgEl.src = healthImg(avg, scans[0]?.crop);
 
-        // ── 6) AI Recommendations → Insights (shown in notif panel) ───────────
-        sub(
-            query(
-                collection(db, "ai_recommendations"),
-                where("userId", "==", user.uid),
-                limit(5)
-            ),
-            (snap) => {
-                if (snap.empty) return;
-                // AI insights can be merged into notification panel or shown separately
-                // Currently kept available for other pages (assistant.html)
-            },
-            "ai_recommendations"
-        );
+                        const recent14d = scans.filter(
+                            (s) => Date.now() - tsToMs(s.createdAt) <= 14 * 86400000
+                        );
+                        const pestSig = recent14d.filter(
+                            (s) => s?.diagnosis?.code === "pest_damage"
+                        ).length;
+                        const fungalSig = recent14d.filter(
+                            (s) => s?.diagnosis?.code === "fungal_risk"
+                        ).length;
+                        const critSig = recent14d.filter(
+                            (s) => s?.severity?.level === "critical"
+                        ).length;
+                        const total = recent14d.length;
+
+                        const pestRiskEl = el("pest-risk");
+                        const pestDescEl = el("pest-desc");
+                        const pestImgEl = el("pest-img");
+
+                        if (total < 3) {
+                            resetPestCard();
+                            return;
+                        }
+
+                        const raw = pestSig * 22 + fungalSig * 14 + critSig * 18;
+                        const prob = clamp(Math.round((raw / Math.max(1, total)) * 2.2), 0, 95);
+                        const riskLevel = prob >= 70 ? "high" : prob >= 35 ? "medium" : "low";
+                        const riskLabel = riskLevel === "high" ? t("high") : riskLevel === "medium" ? t("medium") : t("low");
+
+                        if (pestRiskEl) {
+                            pestRiskEl.textContent = riskLabel;
+                            pestRiskEl.style.color = pestRiskColor(riskLevel);
+                        }
+                        if (pestDescEl) {
+                            if (riskLevel === "high") {
+                                pestDescEl.textContent = "High pest activity detected in recent scans. Immediate attention required.";
+                            } else if (riskLevel === "medium") {
+                                pestDescEl.textContent = `${riskLabel} pest pressure based on scan patterns. Monitor closely.`;
+                            } else {
+                                pestDescEl.textContent = "Pest risk is low based on recent scan analysis. Continue monitoring.";
+                            }
+                        }
+                        if (pestImgEl) pestImgEl.src = pestRiskImg(riskLevel);
+
+                        const blip = el("radar-blip");
+                        if (blip) {
+                            const positions = {
+                                high: { top: "25%", left: "65%" },
+                                medium: { top: "35%", left: "60%" },
+                                low: { top: "30%", left: "55%" },
+                            };
+                            const pos = positions[riskLevel] || positions.low;
+                            blip.style.top = pos.top;
+                            blip.style.left = pos.left;
+                            blip.style.background = pestRiskColor(riskLevel);
+                            blip.style.boxShadow = `0 0 8px ${pestRiskColor(riskLevel)}`;
+                        }
+                    },
+                    "crop_scans"
+                );
+            });
+
+            schedule(nextT(), () => {
+                sub(
+                    query(collection(db, "weather_logs"), where("userId", "==", user.uid), limit(40)),
+                    (snap) => {
+                        let bestDoc = null;
+                        let bestMs = 0;
+                        snap.forEach((d) => {
+                            const ms = tsToMs(d.data()?.fetchedAt);
+                            if (ms >= bestMs) {
+                                bestMs = ms;
+                                bestDoc = d;
+                            }
+                        });
+                        if (!bestDoc) {
+                            updateGlanceSoil(null);
+                            updateGlanceIrrig(null);
+                            return;
+                        }
+                        const wdata = bestDoc.data();
+                        const soilEst = wdata?.derived?.soilMoistureEstimate ?? null;
+                        updateGlanceSoil(soilEst);
+                        if (soilEst !== null) {
+                            const irrigEff = clamp(Math.round(85 - (soilEst - 50) * 0.3), 40, 98);
+                            updateGlanceIrrig(irrigEff);
+                        } else {
+                            updateGlanceIrrig(null);
+                        }
+                    },
+                    "weather_logs"
+                );
+            });
+
+            schedule(nextT(), () => {
+                sub(
+                    query(
+                        collection(db, "ai_recommendations"),
+                        where("userId", "==", user.uid),
+                        limit(5)
+                    ),
+                    (snap) => {
+                        if (snap.empty) return;
+                    },
+                    "ai_recommendations"
+                );
+            });
+        } catch (err) {
+            console.warn("[dashboard] mountHome:", err);
+        }
     };
 
     const revealDashboard = () => {
+        disarmDashFailsafe();
         document.body.classList.remove("dashboard-wait");
     };
 
@@ -553,13 +632,16 @@ document.addEventListener("DOMContentLoaded", () => {
             homeUnsubs = [];
 
             if (!user) {
-                revealDashboard();
                 window.location.replace("login.html");
                 return;
             }
 
             revealDashboard();
-            mountHome(user);
+            try {
+                mountHome(user);
+            } catch (err) {
+                console.warn("[dashboard] mountHome failed:", err);
+            }
         });
     })();
 });

@@ -1,3 +1,4 @@
+import "./auth-session.js";
 import { auth, db, storage, logoutUser } from "./auth.js";
 import { LANGUAGES, setLanguage, getLang } from "./i18n.js";
 import { onAuthStateChanged, updateProfile, sendPasswordResetEmail }
@@ -227,34 +228,79 @@ function wireStatic() {
       .then(r => { if (r.isConfirmed && r.value) snack("Thank you! Your feedback was received."); })
   );
 
-  /* account settings — app language */
-  const langSel = el("as-lang");
-  if (langSel) {
-    langSel.innerHTML = LANGUAGES.map(
-      (L) => `<option value="${L.code}">${L.native} — ${L.name}</option>`
-    ).join("");
-    const syncLangSelect = () => {
-      const cur = getLang();
-      if (LANGUAGES.some((L) => L.code === cur)) langSel.value = cur;
-    };
-    syncLangSelect();
-    document.addEventListener("langchange", syncLangSelect);
-    langSel.addEventListener("change", async () => {
-      const code = langSel.value;
-      setLanguage(code);
-      snack("Language updated");
+  /* account settings — premium language list + search + save */
+  const langSearch = el("as-lang-search");
+  const langList = el("as-lang-list");
+  const langSave = el("as-lang-save");
+  let pendingLang = getLang();
+
+  function langMatchesFilter(L, rawQ) {
+    const q = (rawQ || "").trim().toLowerCase();
+    if (!q) return true;
+    const blob = `${L.name} ${L.native} ${L.code}`.toLowerCase();
+    return blob.includes(q);
+  }
+
+  function renderLangPickerRows() {
+    if (!langList) return;
+    const q = langSearch?.value ?? "";
+    const items = LANGUAGES.filter((L) => langMatchesFilter(L, q));
+    if (!items.length) {
+      langList.innerHTML = `<div style="padding:22px 16px;text-align:center;color:var(--dim);font-size:13px;">No languages match “${q.replace(/</g, "")}”.<br><span style="font-size:11px;opacity:.85;">Try English, Hindi, बंगाली…</span></div>`;
+      return;
+    }
+    langList.innerHTML = items.map((L) => {
+      const sel = L.code === pendingLang;
+      const flag = L.flag || "🌐";
+      return `<button type="button" class="lang-row rw ${sel ? "selected" : ""}" role="option" data-code="${L.code}" aria-selected="${sel}">
+        <span class="lang-row-flag" aria-hidden="true">${flag}</span>
+        <span class="lang-row-meta"><strong>${L.native}</strong><span>${L.name} · ${L.code.toUpperCase()}</span></span>
+        <span class="lang-row-check" aria-hidden="true"><i class="ri-check-line"></i></span>
+      </button>`;
+    }).join("");
+    langList.querySelectorAll(".lang-row").forEach((row) => {
+      row.addEventListener("click", () => {
+        pendingLang = row.getAttribute("data-code");
+        renderLangPickerRows();
+        syncLangSaveState();
+      });
+    });
+  }
+
+  function syncLangSaveState() {
+    if (!langSave) return;
+    langSave.disabled = pendingLang === getLang();
+  }
+
+  if (langSearch && langList && langSave) {
+    pendingLang = getLang();
+    renderLangPickerRows();
+    syncLangSaveState();
+    langSearch.addEventListener("input", () => renderLangPickerRows());
+    langSearch.addEventListener("search", () => renderLangPickerRows());
+    document.addEventListener("langchange", () => {
+      pendingLang = getLang();
+      renderLangPickerRows();
+      syncLangSaveState();
+    });
+
+    langSave.addEventListener("click", async () => {
+      if (!LANGUAGES.some((x) => x.code === pendingLang)) return;
+      setLanguage(pendingLang);
+      snack("Language saved — applied everywhere on this browser.");
       const u = auth.currentUser;
       if (u) {
         try {
           await setDoc(
             doc(db, "users", u.uid),
-            { langPreference: code, updatedAt: serverTimestamp() },
+            { langPreference: pendingLang, updatedAt: serverTimestamp() },
             { merge: true }
           );
         } catch (e) {
           console.warn("langPreference save:", e);
         }
       }
+      syncLangSaveState();
     });
   }
 }
@@ -312,6 +358,11 @@ function attachUser(user) {
     setText("as-email",    user.email || "--");
     setText("as-phone",    d.phone || "Not set");
     setText("as-location", d.village || "Not set");
+
+    const lp = d.langPreference;
+    if (lp && LANGUAGES.some((x) => x.code === lp) && lp !== getLang()) {
+      setLanguage(lp);
+    }
 
     /* edit profile defaults */
     const epName = el("ep-name"); if (epName) epName.value = name;

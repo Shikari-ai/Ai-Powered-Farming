@@ -152,14 +152,71 @@
     .ir-btn{font-size:9.5px;color:var(--primary);background:rgba(16,185,129,.1);
       border:1px solid rgba(16,185,129,.3);border-radius:8px;padding:5px 10px;
       cursor:pointer;white-space:nowrap;}
-    select#as-lang{
-      width:100%;margin-top:2px;
-      background:var(--surface);border:1px solid var(--border);border-radius:12px;
-      padding:10px 12px;font-size:14px;color:var(--txt);outline:none;cursor:pointer;
-      transition:border-color .2s;
+
+    /* ── Premium language picker (account settings) ── */
+    .lang-premium-wrap{width:100%;margin-top:2px;}
+    .lang-search-shell{
+      display:flex;align-items:center;gap:10px;
+      background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(10,17,24,.92));
+      border:1px solid rgba(16,185,129,.28);border-radius:14px;
+      padding:10px 14px;margin-bottom:12px;
+      box-shadow:0 4px 28px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.07);
     }
-    select#as-lang:focus{border-color:var(--primary);}
-    select#as-lang option{background:var(--surface);color:var(--txt);}
+    .lang-search-shell>i{color:var(--primary);font-size:18px;opacity:.95;flex-shrink:0;}
+    .lang-search-shell input{
+      flex:1;min-width:0;background:transparent;border:none;outline:none;
+      font-size:14px;color:var(--txt);font-family:inherit;
+    }
+    .lang-search-shell input::placeholder{color:var(--dim);}
+    .lang-list{
+      max-height:min(48vh,340px);overflow-y:auto;border-radius:14px;
+      border:1px solid var(--border);
+      background:linear-gradient(180deg,rgba(10,17,24,.9),rgba(3,6,9,.75));
+      scrollbar-width:thin;
+    }
+    .lang-list::-webkit-scrollbar{width:5px;}
+    .lang-list::-webkit-scrollbar-thumb{background:rgba(16,185,129,.25);border-radius:4px;}
+    .lang-row{
+      display:flex;align-items:center;gap:12px;padding:12px 14px;
+      cursor:pointer;border-bottom:1px solid var(--border);
+      transition:background .15s;
+    }
+    .lang-row:last-child{border-bottom:none;}
+    .lang-row:active{background:rgba(255,255,255,.04);}
+    .lang-row.selected{
+      background:linear-gradient(90deg,rgba(16,185,129,.16),rgba(16,185,129,.02));
+      box-shadow:inset 3px 0 0 var(--primary);
+    }
+    .lang-row-flag{
+      width:40px;height:40px;border-radius:12px;
+      background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);
+      display:flex;align-items:center;justify-content:center;
+      font-size:20px;flex-shrink:0;line-height:1;
+    }
+    .lang-row-meta{flex:1;min-width:0;}
+    .lang-row-meta strong{display:block;font-size:14px;font-weight:600;}
+    .lang-row-meta span{font-size:11px;color:var(--dim);}
+    .lang-row-check{
+      width:22px;height:22px;border-radius:50%;
+      border:2px solid rgba(255,255,255,.22);flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;
+      font-size:13px;color:transparent;transition:.2s;
+    }
+    .lang-row.selected .lang-row-check{
+      background:var(--primary);border-color:var(--primary);color:#020617;
+    }
+    .lang-save-wrap{margin-top:14px;}
+    .lang-save-btn{
+      width:100%;border:none;border-radius:14px;padding:14px 16px;
+      font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;color:#020617;
+      background:linear-gradient(135deg,#6EE7B7 0%,#10B981 45%,#059669 100%);
+      box-shadow:0 8px 32px rgba(16,185,129,.38),inset 0 1px 0 rgba(255,255,255,.3);
+      transition:transform .12s,box-shadow .2s,opacity .2s;
+      display:flex;align-items:center;justify-content:center;gap:8px;
+    }
+    .lang-save-btn:active{transform:scale(.985);}
+    .lang-save-btn:disabled{opacity:.42;cursor:not-allowed;transform:none;box-shadow:none;}
+    .lang-hint{font-size:10px;color:var(--dim);margin-top:10px;line-height:1.45;}
 
     /* ── FORM INPUTS ── */
     .form-wrap{margin:0 16px;display:flex;flex-direction:column;gap:12px;}
@@ -506,12 +563,27 @@
       </div>
     </div>
     <div class="sec-h">Preferences</div>
-    <div class="info-card">
-      <div class="info-row" style="align-items:flex-start;">
-        <div class="ir-ic"><i class="ri-global-line"></i></div>
-        <div class="ir-body">
-          <div class="ir-label">App language</div>
-          <select id="as-lang" aria-label="App language"></select>
+    <div class="info-card" style="padding:0;overflow:visible;">
+      <div class="info-row" style="align-items:flex-start;flex-direction:column;gap:0;padding:16px;border-bottom:none;">
+        <div style="display:flex;align-items:center;gap:10px;width:100%;margin-bottom:4px;">
+          <div class="ir-ic"><i class="ri-translate-2"></i></div>
+          <div class="ir-body">
+            <div class="ir-label">App language</div>
+            <div class="ir-val" style="font-size:12px;font-weight:500;opacity:.95;">Applies across Home, Fields, AI, Profile and all open tabs.</div>
+          </div>
+        </div>
+        <div class="lang-premium-wrap">
+          <div class="lang-search-shell">
+            <i class="ri-search-line"></i>
+            <input type="search" id="as-lang-search" placeholder="Search languages…" autocomplete="off" enterkeyhint="search" aria-label="Search languages">
+          </div>
+          <div class="lang-list" id="as-lang-list" role="listbox" aria-label="Choose language"></div>
+          <div class="lang-save-wrap">
+            <button type="button" class="lang-save-btn" id="as-lang-save" disabled>
+              <i class="ri-check-double-line"></i> Save &amp; apply everywhere
+            </button>
+            <p class="lang-hint" id="as-lang-hint">Syncs this device, other tabs in this browser, and your account when you’re signed in.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -1013,11 +1085,11 @@
        BOTTOM NAV
   ════════════════════════════════════════ -->
   <nav class="bottom-nav">
-    <a href="index.html" class="b-nav-item"><i class="ri-home-5-line"></i><span>Home</span></a>
-    <a href="fields.html" class="b-nav-item"><i class="ri-leaf-line"></i><span>Fields</span></a>
+    <a href="index.html" class="b-nav-item"><i class="ri-home-5-line"></i><span data-i18n="navHome">Home</span></a>
+    <a href="fields.html" class="b-nav-item"><i class="ri-leaf-line"></i><span data-i18n="navFields">Fields</span></a>
     <a href="scanner.html" class="b-nav-scan"><i class="ri-leaf-fill"></i></a>
-    <a href="assistant.html" class="b-nav-item"><i class="ri-sparkling-line"></i><span>AI</span></a>
-    <a href="profile.html" class="b-nav-item active"><i class="ri-user-smile-fill"></i><span>Profile</span></a>
+    <a href="assistant.html" class="b-nav-item"><i class="ri-sparkling-line"></i><span data-i18n="navAi">AI</span></a>
+    <a href="profile.html" class="b-nav-item active"><i class="ri-user-smile-fill"></i><span data-i18n="navProfile">Profile</span></a>
   </nav>
 
 </div><!-- /shell -->

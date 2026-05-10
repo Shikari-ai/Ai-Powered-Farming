@@ -51,6 +51,10 @@ const LANG_DATA = {
     notEnoughData: "Not enough data yet.",
     healthy: "Healthy",
     needsAttention: "Needs Attention",
+    navHome: "Home",
+    navFields: "Fields",
+    navAi: "AI",
+    navProfile: "Profile",
   },
 
   hi: {
@@ -100,6 +104,10 @@ const LANG_DATA = {
     notEnoughData: "अभी पर्याप्त डेटा नहीं।",
     healthy: "स्वस्थ",
     needsAttention: "ध्यान चाहिए",
+    navHome: "होम",
+    navFields: "खेत",
+    navAi: "AI",
+    navProfile: "प्रोफाइल",
   },
 
   mr: {
@@ -149,6 +157,10 @@ const LANG_DATA = {
     notEnoughData: "अद्याप पुरेसा डेटा नाही.",
     healthy: "निरोगी",
     needsAttention: "लक्ष हवे",
+    navHome: "होम",
+    navFields: "शेत",
+    navAi: "AI",
+    navProfile: "प्रोफाइल",
   },
 
   ta: {
@@ -198,6 +210,10 @@ const LANG_DATA = {
     notEnoughData: "இன்னும் போதுமான தரவு இல்லை.",
     healthy: "ஆரோக்கியமான",
     needsAttention: "கவனம் தேவை",
+    navHome: "முகப்பு",
+    navFields: "வயல்கள்",
+    navAi: "AI",
+    navProfile: "சுயவிவரம்",
   },
 
   te: {
@@ -247,6 +263,10 @@ const LANG_DATA = {
     notEnoughData: "ఇంకా తగినంత డేటా లేదు.",
     healthy: "ఆరోగ్యకరమైన",
     needsAttention: "శ్రద్ధ అవసరం",
+    navHome: "హోమ్",
+    navFields: "పొలాలు",
+    navAi: "AI",
+    navProfile: "ప్రొఫైల్",
   },
 
   bn: {
@@ -296,6 +316,10 @@ const LANG_DATA = {
     notEnoughData: "এখনো যথেষ্ট ডেটা নেই।",
     healthy: "সুস্থ",
     needsAttention: "মনোযোগ প্রয়োজন",
+    navHome: "হোম",
+    navFields: "ক্ষেত",
+    navAi: "AI",
+    navProfile: "প্রোফাইল",
   },
 
   pa: {
@@ -345,6 +369,10 @@ const LANG_DATA = {
     notEnoughData: "ਅਜੇ ਕਾਫ਼ੀ ਡੇਟਾ ਨਹੀਂ।",
     healthy: "ਸਿਹਤਮੰਦ",
     needsAttention: "ਧਿਆਨ ਦੀ ਲੋੜ",
+    navHome: "ਹੋਮ",
+    navFields: "ਖੇਤ",
+    navAi: "AI",
+    navProfile: "ਪ੍ਰੋਫਾਈਲ",
   },
 
   cg: {
@@ -394,10 +422,29 @@ const LANG_DATA = {
     notEnoughData: "अभी पर्याप्त डेटा नइहे।",
     healthy: "स्वस्थ",
     needsAttention: "ध्यान चाही",
+    navHome: "होम",
+    navFields: "खेत",
+    navAi: "AI",
+    navProfile: "प्रोफाइल",
   },
 };
 
-let _lang = localStorage.getItem("agri_lang") || "en";
+const LANG_STORAGE_KEY = "agri_lang";
+
+let _lang = "en";
+try {
+  const s = localStorage.getItem(LANG_STORAGE_KEY);
+  if (s && LANG_DATA[s]) _lang = s;
+} catch (_) {}
+
+/** @type {BroadcastChannel | null} */
+let _langChannel = null;
+
+function setDocumentHtmlLang() {
+  try {
+    document.documentElement.lang = _lang || "en";
+  } catch (_) {}
+}
 
 /** Translate a key to the current language */
 export function t(key) {
@@ -416,14 +463,55 @@ export function getGreeting() {
   return t("goodNight");
 }
 
-/** Switch language and re-apply all translations */
-export function setLanguage(lang) {
+/**
+ * Switch language and re-apply all [data-i18n] strings.
+ * @param {string} lang
+ * @param {{ broadcast?: boolean }} [opts] broadcast=false skips BroadcastChannel (used when applying remote echo)
+ */
+export function setLanguage(lang, opts = {}) {
   if (!LANG_DATA[lang]) return;
+  const broadcast = opts.broadcast !== false;
   _lang = lang;
-  localStorage.setItem("agri_lang", lang);
+  try {
+    localStorage.setItem(LANG_STORAGE_KEY, lang);
+  } catch (_) {}
+  setDocumentHtmlLang();
   applyTranslations();
   document.dispatchEvent(new CustomEvent("langchange", { detail: { lang } }));
+  if (broadcast && _langChannel) {
+    try {
+      _langChannel.postMessage({ type: "set-lang", code: lang });
+    } catch (_) {}
+  }
 }
+
+function applyExternalLang(code) {
+  if (!LANG_DATA[code] || code === _lang) return;
+  _lang = code;
+  try {
+    localStorage.setItem(LANG_STORAGE_KEY, code);
+  } catch (_) {}
+  setDocumentHtmlLang();
+  applyTranslations();
+  document.dispatchEvent(new CustomEvent("langchange", { detail: { lang: code } }));
+}
+
+try {
+  if (typeof BroadcastChannel !== "undefined") {
+    _langChannel = new BroadcastChannel("agri-i18n");
+    _langChannel.onmessage = (ev) => {
+      if (ev?.data?.type !== "set-lang") return;
+      applyExternalLang(ev.data.code);
+    };
+  }
+} catch (_) {
+  _langChannel = null;
+}
+
+window.addEventListener("storage", (e) => {
+  if (e.storageArea !== localStorage || e.key !== LANG_STORAGE_KEY || !e.newValue) return;
+  applyExternalLang(e.newValue);
+});
 
 /** Apply translations to all [data-i18n] elements, preserving child icons */
 export function applyTranslations() {
@@ -452,17 +540,18 @@ export function applyTranslations() {
 /** Expose to global scope for non-module scripts */
 window.i18n = { t, getLang, setLanguage, getGreeting, applyTranslations };
 
-/** Available languages list for UI pickers */
+/** Available languages list for UI pickers (every code in {@link LANG_DATA}) */
 export const LANGUAGES = [
-  { code: "en", name: "English",       native: "English" },
-  { code: "hi", name: "Hindi",         native: "हिन्दी" },
-  { code: "mr", name: "Marathi",       native: "मराठी" },
-  { code: "ta", name: "Tamil",         native: "தமிழ்" },
-  { code: "te", name: "Telugu",        native: "తెలుగు" },
-  { code: "bn", name: "Bengali",       native: "বাংলা" },
-  { code: "pa", name: "Punjabi",       native: "ਪੰਜਾਬੀ" },
-  { code: "cg", name: "Chhattisgarhi", native: "छत्तीसगढ़ी" },
+  { code: "en", name: "English",       native: "English",       flag: "🇬🇧" },
+  { code: "hi", name: "Hindi",         native: "हिन्दी",          flag: "🇮🇳" },
+  { code: "mr", name: "Marathi",       native: "मराठी",           flag: "🇮🇳" },
+  { code: "ta", name: "Tamil",         native: "தமிழ்",          flag: "🇮🇳" },
+  { code: "te", name: "Telugu",        native: "తెలుగు",         flag: "🇮🇳" },
+  { code: "bn", name: "Bengali",       native: "বাংলা",          flag: "🇧🇩" },
+  { code: "pa", name: "Punjabi",       native: "ਪੰਜਾਬੀ",         flag: "🇮🇳" },
+  { code: "cg", name: "Chhattisgarhi", native: "छत्तीसगढ़ी",     flag: "🇮🇳" },
 ];
 
-// Auto-apply on load
+setDocumentHtmlLang();
+// Auto-apply on load (home [data-i18n], etc.)
 applyTranslations();

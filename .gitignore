@@ -8,3 +8,7 @@ firebase-ci-sa.json
 gha-creds-*.json
 # Never commit Firebase SA keys (Console downloads look like *-firebase-adminsdk-*.json)
 *firebase-adminsdk*.json
+# Local Playwright install for smoke tests (npm install --prefix .claude/smoke-deps)
+.claude/smoke-deps/
+.claude/worktrees/
+.claude/launch.json

@@ -1,3 +1,5 @@
+import "./auth-session.js";
+import "./i18n.js";
 import { auth, db, storage } from "./auth.js";
 import { FALLBACK_LOC } from "./weather-location.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";

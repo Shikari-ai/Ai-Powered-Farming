@@ -50,10 +50,21 @@ enableIndexedDbPersistence(db).catch((err) => {
     console.warn("Firestore persistence unavailable:", err?.code || err);
 });
 
-// Per-page scripts (profile.js, dashboard.js, etc.) each register their own
-// onAuthStateChanged and handle routing. No shared redirect listener here —
-// it caused post-logout bounce because Firebase's IndexedDB cache briefly
-// reports user as signed-in even after signOut.
+/** Keys kept when clearing storage (non-secret UX preferences). */
+const LOCAL_STORAGE_ALLOWLIST = new Set(["agri_lang"]);
+
+/** Clear cached app data (logout / session loss). Keeps language preference. */
+export function clearSensitiveLocalStorage() {
+    try {
+        const keys = Object.keys(localStorage);
+        for (const k of keys) {
+            if (!LOCAL_STORAGE_ALLOWLIST.has(k)) localStorage.removeItem(k);
+        }
+    } catch (_) {}
+    try {
+        sessionStorage.clear();
+    } catch (_) {}
+}
 
 // 1. Google Auth
 export const loginWithGoogle = async () => {
@@ -159,13 +170,19 @@ export const verifyOTP = async (code) => {
     }
 };
 
-// 5. Logout
+// 5. Logout — coordinated with js/auth-session.js (cleanups, multi-tab, storage)
 export const logoutUser = async () => {
     try {
-        localStorage.removeItem('agri_user');  // cleared BEFORE signOut so auth guard won't bounce back
+        globalThis.__agriRunAuthCleanups?.();
+    } catch (_) {}
+    clearSensitiveLocalStorage();
+    try {
+        localStorage.setItem("agri_force_logout_v1", String(Date.now()));
+    } catch (_) {}
+    try {
         await signOut(auth);
-        window.location.replace("login.html"); // replace() so back-button can't return to app
     } catch (error) {
-        alert("Logout Error: " + error.message);
+        console.warn("Logout signOut:", error?.message || error);
     }
+    window.location.replace("login.html");
 };

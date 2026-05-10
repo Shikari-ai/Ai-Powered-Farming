@@ -1,3 +1,5 @@
+import "./i18n.js";
+
 const STYLE_ID = "interaction-engine-style";
 
 function injectStyles() {
