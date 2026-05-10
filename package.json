@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "api": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-api.ps1",
     "deploy:gemini": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-gemini.ps1",
     "test": "node .claude/lang-core-smoke.mjs",
     "test:lang": "node .claude/lang-core-smoke.mjs",

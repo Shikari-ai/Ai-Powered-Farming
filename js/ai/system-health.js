@@ -160,7 +160,14 @@ export function getDiagnosticsLines() {
             ? "Vision API: URL configured"
             : "Vision API: not configured (meta / window hook)",
     );
-    lines.push(isLlmProxyConfigured() ? "LLM proxy: configured" : "LLM proxy: not configured");
+    const llmUrl = String(cfg.llmProxyUrl || "").toLowerCase();
+    lines.push(
+        isLlmProxyConfigured()
+            ? llmUrl === "direct"
+                ? "LLM: browser Gemini (direct; free tier path)"
+                : "LLM proxy: configured"
+            : "LLM proxy: not configured",
+    );
     if (d.avgInferenceMs != null) {
         lines.push(`Recent avg vision latency: ~${d.avgInferenceMs} ms`);
     }

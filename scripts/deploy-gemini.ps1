@@ -1,6 +1,7 @@
 # Deploy Cloud Function agriGeminiChat + Firebase Hosting so the assistant uses Gemini.
 #
 # Prerequisites: Node 20+, Firebase CLI (`npm i -g firebase-tools`), `firebase login` once.
+# Firebase project must be on the Blaze plan (Secret Manager is not available on Spark-only).
 #
 # Usage (use a NEW key if the old one was ever pasted in chat or Git):
 #   $env:GEMINI_API_KEY = "<your Google AI Studio API key>"

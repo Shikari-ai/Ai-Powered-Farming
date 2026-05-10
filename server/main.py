@@ -10,8 +10,10 @@ from __future__ import annotations
 import json
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -20,6 +22,9 @@ from starlette.concurrency import run_in_threadpool
 from inference.yolo_engine import YOLOVisionEngine
 from llm_gemini import grounded_farm_reply
 from ml_metadata import load_vision_metadata
+
+# Load server/.env (gitignored) so GEMINI_API_KEY never needs hardcoding in code.
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 APP_NAME = "smart-agri-ai"
 MAX_IMAGE_BYTES = int(os.environ.get("AGRI_MAX_IMAGE_MB", "12")) * 1024 * 1024

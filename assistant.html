@@ -21,10 +21,10 @@
     })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- Optional: one base for vision + grounded chat, or set URLs separately (never ship API keys in static HTML). -->
-    <!-- <meta name="agri-ai-base" content="https://your-api.example.com"> -->
+    <!-- Gemini + vision: run local API (server/.env with GEMINI_API_KEY). Default JS base is http://127.0.0.1:8000. -->
+    <!-- Hosted API or tunnel: <meta name="agri-ai-base" content="https://your-tunnel.example.com"> -->
     <!-- <meta name="agri-inference-url" content="https://your-api.example.com"> -->
-    <!-- <meta name="agri-llm-proxy" content="https://your-proxy.example.com"> -->
+    <!-- <meta name="agri-llm-proxy" content="https://your-api.example.com"> -->
     <title>AI Assistant - AgriTech AI</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
@@ -59,8 +59,6 @@
         .empty i { font-size: 28px; color: var(--text-dim); }
         .empty p { font-size: 12px; color: var(--text-dim); margin-top: 10px; line-height: 1.45; }
         .empty .cta-row { display:flex; gap:10px; margin-top: 14px; }
-        .cta { flex:1; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(16,185,129,0.4); background: rgba(16,185,129,0.12); color: var(--primary); font-size: 12px; cursor: pointer; }
-        .cta.secondary { border-color: rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.9); }
 
         .msg-list { display:flex; flex-direction:column; gap: 10px; padding-bottom: 140px; }
         .msg { max-width: 85%; padding: 12px 12px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); }
@@ -247,11 +245,11 @@
             <div class="empty" id="assistant-empty">
                 <i class="ri-sparkling-line"></i>
                 <p>
-                    Chat uses <strong>Google Gemini</strong> by default via this project’s Cloud Function
-                    (<code>agriGeminiChat</code>). Set the secret <code>GEMINI_API_KEY</code> on deploy; override with
-                    <code>agri-llm-proxy</code> / <code>agri-ai-base</code> if you use your own API. Open‑Meteo and
-                    Firestore data are still passed in as grounding context when you ask farm questions.
-                    No fabricated analytics — empty states stay honest.
+                    Chat uses <strong>Gemini</strong> through your <strong>local Python API</strong>
+                    (<code>server/main.py</code>): put <code>GEMINI_API_KEY</code> in <code>server/.env</code> (gitignored),
+                    run <code>npm run api</code> or <code>uvicorn main:app --port 8000</code>, then open this app on
+                    <code>http://127.0.0.1</code> (same machine). Override <code>agri-ai-base</code> in meta if the API
+                    runs elsewhere. Open‑Meteo and Firestore still ground farm answers.
                 </p>
                 <div class="cta-row">
                     <button class="cta" onclick="window.location.href='scanner.html'">Start a scan</button>
@@ -295,7 +293,7 @@
         </a>
     </nav>
 
-    <script type="module" src="js/assistant.js?v=54"></script>
+    <script type="module" src="js/assistant.js?v=57"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>
