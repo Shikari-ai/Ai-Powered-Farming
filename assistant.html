@@ -21,9 +21,9 @@
     })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- Gemini: shared key is in js/ai/config.js (AGRI_SHARED_GEMINI_KEY) for all visitors. Or override per page: -->
-    <!-- <meta name="agri-public-gemini-key" content="..."> -->
-    <!-- Optional HTTP LLM backend (overrides shared browser Gemini): <meta name="agri-llm-proxy" content="https://..."> -->
+    <!-- LLM: Gemini via HTTPS backend (default: Firebase agriGeminiChat). Override: -->
+    <!-- <meta name="agri-llm-proxy" content="https://us-central1-PROJECT.cloudfunctions.net/agriGeminiChat"> -->
+    <!-- Local FastAPI: <meta name="agri-ai-base" content="http://127.0.0.1:8000"> (uses /v1/chat/grounded) -->
     <title>AI Assistant - AgriTech AI</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
@@ -244,9 +244,9 @@
             <div class="empty" id="assistant-empty">
                 <i class="ri-sparkling-line"></i>
                 <p>
-                    Chat uses <strong>Gemini</strong> from a <strong>shared browser key</strong> (no setup per visitor).
-                    Vision and other APIs still use <code>agri-ai-base</code> / <code>http://127.0.0.1:8000</code> when you run
-                    the Python API. Open‑Meteo and Firestore ground answers when you’re signed in.
+                    Chat uses <strong>Gemini</strong> on our <strong>backend</strong> (API key stays on the server).
+                    Vision and other tools still use <code>agri-ai-base</code> / your Python API when configured.
+                    Open‑Meteo and Firestore ground answers when you’re signed in.
                 </p>
                 <div class="cta-row">
                     <button class="cta" onclick="window.location.href='scanner.html'">Start a scan</button>
@@ -290,7 +290,7 @@
         </a>
     </nav>
 
-    <script type="module" src="js/assistant.js?v=62"></script>
+    <script type="module" src="js/assistant.js?v=63"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>

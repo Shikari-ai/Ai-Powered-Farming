@@ -20,7 +20,7 @@ import {
 
 import { runAgriOrchestrator } from "./ai/orchestrator.js?v=60";
 import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=61";
-import { getAiConfig, isLlmProxyConfigured } from "./ai/config.js?v=59";
+import { getAiConfig, isLlmProxyConfigured } from "./ai/config.js?v=63";
 import {
   buildProactiveDigest,
   compactMemoryForBundle,
@@ -485,7 +485,7 @@ onAuthStateChanged(auth, (user) => {
 
       if (useGemini && (routing.mode === "casual" || routing.mode === "clarify")) {
         const locale = getLang() || "en";
-        const { callLlmProxy } = await import("./ai/llm-proxy.js?v=59");
+        const { callLlmProxy } = await import("./ai/llm-proxy.js?v=63");
         const companionBlock = companionProfile
           ? {
               memory: compactMemoryForBundle(companionProfile),
@@ -567,7 +567,7 @@ onAuthStateChanged(auth, (user) => {
 
       if (!reply && useGemini && routing.mode !== "casual" && routing.mode !== "clarify") {
         reply =
-          "Could not build a Gemini reply. Check agri-llm-proxy / agri-ai-base and that the API server exposes POST /v1/chat/grounded with GEMINI_API_KEY set.";
+          "Could not build a Gemini reply. Deploy agriGeminiChat with GEMINI_API_KEY secret, or set agri-llm-proxy / run FastAPI with POST /v1/chat/grounded.";
       }
 
       const mood = detectConversationMood(text);

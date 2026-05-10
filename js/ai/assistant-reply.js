@@ -1,5 +1,5 @@
 import { tsToMs } from "./farmer-context.js?v=34";
-import { isLlmProxyConfigured } from "./config.js?v=59";
+import { isLlmProxyConfigured } from "./config.js?v=63";
 import { softenOverclaimProse } from "./reliability/core.js";
 import { summarizeOperationsAnalytics } from "../ops/effectiveness.js";
 import { INTERVENTION_LABELS } from "../ops/types.js";
@@ -125,7 +125,7 @@ function composeMinimalAgriReply(question, orch, profile, extra = {}) {
     }
 
     if (isLlmProxyConfigured()) {
-        return "Could not get a reply from Gemini. Check agri-llm-proxy (or agri-ai-base), network access, and GEMINI_API_KEY on your API host.";
+        return "Could not get a reply from Gemini. Confirm the LLM backend is deployed (Cloud Function secret GEMINI_API_KEY, or FastAPI GEMINI_API_KEY) and reachable.";
     }
 
     if (r.weatherIntelligence && !r.weatherIntelligence.error) {
@@ -209,7 +209,7 @@ export function composeAssistantReply(
     }
 
     if (isLlmProxyConfigured()) {
-        return "Could not get a reply from Gemini. Check agri-llm-proxy (or agri-ai-base), network access, and GEMINI_API_KEY on your API host.";
+        return "Could not get a reply from Gemini. Confirm the LLM backend is deployed (Cloud Function secret GEMINI_API_KEY, or FastAPI GEMINI_API_KEY) and reachable.";
     }
 
     const epEarly = !compact && profile?.episodeArchive?.length ? profile.episodeArchive[profile.episodeArchive.length - 1] : null;

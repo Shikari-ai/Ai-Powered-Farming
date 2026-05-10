@@ -2,7 +2,7 @@
  * Lightweight client-side AI / data health — no PII, in-memory + sessionStorage.
  * Used for degraded-mode UX and diagnostics copy.
  */
-import { getAiConfig, isInferenceConfigured, isLlmProxyConfigured } from "./config.js?v=59";
+import { getAiConfig, isInferenceConfigured, isLlmProxyConfigured } from "./config.js?v=63";
 
 const STORAGE_KEY = "agri_ai_health_v1";
 const MAX_LAT_SAMPLES = 12;
@@ -119,7 +119,7 @@ export function getDegradedState() {
         hints.push("Vision server URL not configured — disease-from-photo uses fallback messaging.");
     }
     if (!isLlmProxyConfigured()) {
-        hints.push("LLM proxy not configured — answers use on-device engines only.");
+        hints.push("LLM backend not configured — answers use on-device engines only.");
     }
     const avgMs =
         state.inferenceSamplesMs.length > 0
@@ -160,13 +160,10 @@ export function getDiagnosticsLines() {
             ? "Vision API: URL configured"
             : "Vision API: not configured (meta / window hook)",
     );
-    const llmUrl = String(cfg.llmProxyUrl || "").toLowerCase();
     lines.push(
         isLlmProxyConfigured()
-            ? llmUrl === "direct"
-                ? "LLM: browser Gemini (direct; free tier path)"
-                : "LLM proxy: configured"
-            : "LLM proxy: not configured",
+            ? `LLM backend: ${String(cfg.llmProxyUrl || "").slice(0, 120)}`
+            : "LLM backend: not configured",
     );
     if (d.avgInferenceMs != null) {
         lines.push(`Recent avg vision latency: ~${d.avgInferenceMs} ms`);

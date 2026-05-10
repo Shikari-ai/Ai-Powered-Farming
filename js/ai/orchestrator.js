@@ -1,4 +1,4 @@
-import { getAiConfig, isLlmProxyConfigured } from "./config.js?v=59";
+import { getAiConfig, isLlmProxyConfigured } from "./config.js?v=63";
 import { detectIntents } from "./detect-intents.js";
 import { buildFarmerContext, tsToMs } from "./farmer-context.js";
 import { runWeatherIntelligence } from "./engines/weather-intelligence.js";
@@ -276,7 +276,7 @@ export async function runAgriOrchestrator(question, snapshot, media = {}, opts =
 
     if (isLlmProxyConfigured()) {
         try {
-            const { callLlmProxy } = await import("./llm-proxy.js?v=59");
+            const { callLlmProxy } = await import("./llm-proxy.js?v=63");
             const companionBlock = snapshot.companion
                 ? {
                       memory: compactMemoryForBundle(snapshot.companion),
