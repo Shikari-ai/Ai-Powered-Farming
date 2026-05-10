@@ -41,6 +41,8 @@
     }
     .screen::-webkit-scrollbar,.panel::-webkit-scrollbar{display:none;}
     .screen.active,.panel.active{transform:translateX(0);}
+    /* Stack language picker above later .panel siblings when multiple have .active */
+    #panel-choose-language.active{z-index:32;}
     #screen-main{transform:translateX(0);}
 
     /* ── HEADER ── */
@@ -131,14 +133,7 @@
       box-shadow:0 0 8px var(--primary-glow);
       flex-shrink:0;
     }
-    .premium-globe-ic{
-      box-shadow:0 0 16px rgba(16,185,129,.2);
-      transition:box-shadow .25s,transform .2s;
-    }
-    .menu-item:active .premium-globe-ic{
-      box-shadow:0 0 22px rgba(16,185,129,.4);
-      transform:scale(1.03);
-    }
+    .premium-globe-ic{box-shadow:0 0 14px rgba(16,185,129,.18);}
 
     /* ── BOTTOM NAV ── */
     /* nav styles → css/nav.css */
@@ -235,35 +230,6 @@
     }
     @keyframes rippleAnim{to{transform:scale(4);opacity:0;}}
 
-    /* ── Preferences hub rows ── */
-    .pref-lead{font-size:12px;color:var(--dim);padding:4px 16px 0;margin-top:-4px;line-height:1.35;}
-    .pref-row{
-      display:flex;align-items:center;gap:12px;padding:14px 16px;
-      border-bottom:1px solid var(--border);cursor:pointer;
-      transition:background .18s,box-shadow .22s;
-    }
-    .pref-row:last-child{border-bottom:none;}
-    .pref-row:active{background:rgba(255,255,255,.04);}
-    .pref-row-highlight{
-      box-shadow:inset 0 0 0 1px rgba(16,185,129,.45),0 0 24px rgba(16,185,129,.12);
-      background:linear-gradient(90deg,rgba(16,185,129,.08),transparent);
-    }
-    .pref-ic{
-      width:38px;height:38px;border-radius:12px;
-      background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
-      display:flex;align-items:center;justify-content:center;
-      font-size:18px;color:var(--primary);flex-shrink:0;
-      transition:box-shadow .25s,transform .2s;
-    }
-    .pref-row-highlight .pref-ic{
-      box-shadow:0 0 20px rgba(16,185,129,.35);
-    }
-    .pref-row:active .pref-ic{transform:scale(.96);}
-    .pref-body{flex:1;min-width:0;}
-    .pref-body h4{font-size:14px;font-weight:500;margin-bottom:2px;}
-    .pref-body p{font-size:10px;color:var(--dim);}
-    .pref-chev{color:var(--dim);font-size:18px;opacity:.7;}
-
     /* ── Shared language picker (globe, list labels) ── */
     .lang-globe-wrap{
       width:100px;height:100px;margin:8px auto 10px;
@@ -311,24 +277,30 @@
     .as-lang-touch:active{background:rgba(255,255,255,.03);}
 
     /* ── Choose Language full panel (matches premium mock) ── */
+    .panel-choose-lang{
+      background:linear-gradient(180deg,#0f172a 0%,#0c1222 35%,#0a1628 100%) !important;
+    }
     .panel-choose-lang .lang-page-top{
       display:flex;align-items:center;justify-content:space-between;
       padding:10px 16px 10px;
       position:sticky;top:0;z-index:60;
-      background:rgba(3,6,9,.94);backdrop-filter:blur(18px);
-      border-bottom:1px solid var(--border);
+      background:rgba(15,23,42,.97);
+      backdrop-filter:blur(18px);
+      border-bottom:1px solid rgba(148,163,184,.2);
     }
-    .lang-page-back{border:none;cursor:pointer;color:var(--txt);}
+    .lang-page-back{border:none;cursor:pointer;color:#F1F5F9;}
     .lang-page-x{
       width:38px;height:38px;border-radius:50%;
-      border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);
-      color:var(--txt);font-size:20px;display:flex;align-items:center;justify-content:center;
-      cursor:pointer;transition:background .2s,box-shadow .2s;
+      border:1px solid rgba(148,163,184,.35);background:rgba(30,41,59,.75);
+      color:#F1F5F9;font-size:20px;display:flex;align-items:center;justify-content:center;
+      cursor:pointer;transition:background .2s,box-shadow .2s,border-color .2s;
     }
-    .lang-page-x:active{background:rgba(16,185,129,.15);}
+    .lang-page-x:active{background:rgba(16,185,129,.22);border-color:rgba(52,211,153,.45);}
     .lang-page-hero{text-align:center;padding:4px 20px 14px;}
-    .lang-page-title{font-size:20px;font-weight:600;margin-bottom:8px;}
-    .lang-page-sub{font-size:12px;color:var(--dim);line-height:1.45;max-width:340px;margin:0 auto;}
+    .lang-page-title{font-size:20px;font-weight:600;margin-bottom:8px;color:#F8FAFC;}
+    .lang-page-sub{
+      font-size:12.5px;color:#CBD5E1;line-height:1.45;max-width:340px;margin:0 auto;
+    }
     .lang-globe-hero{
       width:118px;height:118px;margin:14px auto 12px;
       position:relative;display:flex;align-items:center;justify-content:center;
@@ -337,9 +309,9 @@
     .lang-bubble{
       position:absolute;z-index:3;
       padding:7px 11px;border-radius:14px;
-      background:rgba(10,17,24,.88);border:1px solid rgba(16,185,129,.4);
-      box-shadow:0 0 22px rgba(16,185,129,.25);
-      font-size:13px;font-weight:600;color:var(--txt);
+      background:rgba(30,41,59,.94);border:1px solid rgba(52,211,153,.45);
+      box-shadow:0 4px 20px rgba(16,185,129,.2),0 0 0 1px rgba(255,255,255,.06);
+      font-size:13px;font-weight:600;color:#F8FAFC;
       animation:langFloat 3.2s ease-in-out infinite;
     }
     .lang-bubble-a{left:-6px;top:14px;}
@@ -358,54 +330,76 @@
     }
     @keyframes orbitBlink{0%,100%{opacity:.35;}50%{opacity:1;}}
     .lang-page-search{margin:0 16px 12px;}
-    .lang-page-search .lang-search-shell{margin-bottom:0;}
+    .lang-page-search .lang-search-shell{
+      margin-bottom:0;
+      background:linear-gradient(135deg,rgba(30,41,59,.92),rgba(15,23,42,.96));
+      border:1px solid rgba(148,163,184,.3);
+      box-shadow:0 4px 24px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.06);
+    }
+    .lang-page-search .lang-search-shell>i{color:#34D399;}
+    .lang-page-search .lang-search-shell input{color:#F1F5F9;}
+    .lang-page-search .lang-search-shell input::placeholder{color:#94A3B8;}
     .lang-filter-btn{
       flex-shrink:0;width:42px;height:42px;border-radius:14px;
-      border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);
-      color:var(--primary);display:flex;align-items:center;justify-content:center;
-      cursor:pointer;font-size:18px;transition:background .2s,box-shadow .2s;
+      border:1px solid rgba(148,163,184,.28);background:rgba(30,41,59,.85);
+      color:#34D399;display:flex;align-items:center;justify-content:center;
+      cursor:pointer;font-size:18px;transition:background .2s,box-shadow .2s,border-color .2s;
     }
-    .lang-filter-btn:active{background:rgba(16,185,129,.12);}
+    .lang-filter-btn:active{background:rgba(16,185,129,.2);border-color:rgba(52,211,153,.4);}
     .panel-choose-lang .lang-page-list{
       margin:0 16px;
       max-height:none;min-height:120px;
-      border:none;background:transparent;
-      border-radius:0;
+      padding:4px 2px 8px;
+      border:none;background:rgba(15,23,42,.35);
+      border-radius:16px;
+      border:1px solid rgba(148,163,184,.12);
       -webkit-overflow-scrolling:touch;
     }
     .panel-choose-lang .lang-row{
       border-radius:16px;margin-bottom:10px;padding:14px 14px;
-      background:rgba(255,255,255,.03);
-      border:1px solid rgba(255,255,255,.08);
-      border-bottom:1px solid rgba(255,255,255,.08);
+      background:rgba(30,41,59,.88);
+      border:1px solid rgba(148,163,184,.28);
+      border-bottom:1px solid rgba(148,163,184,.22);
       transition:transform .2s,box-shadow .22s,border-color .22s,background .2s;
     }
-    .panel-choose-lang .lang-row:last-child{margin-bottom:0;}
+    .panel-choose-lang .lang-row:last-child{margin-bottom:4px;}
     .panel-choose-lang .lang-row:active{transform:scale(.987);}
     .panel-choose-lang .lang-row.selected{
-      border-color:rgba(16,185,129,.55);
-      background:linear-gradient(135deg,rgba(16,185,129,.14),rgba(10,17,24,.92));
-      box-shadow:0 8px 32px rgba(16,185,129,.2),0 0 0 1px rgba(16,185,129,.28);
+      border-color:rgba(52,211,153,.7);
+      background:linear-gradient(135deg,rgba(16,185,129,.28),rgba(30,41,59,.92));
+      box-shadow:0 8px 28px rgba(16,185,129,.25),0 0 0 1px rgba(52,211,153,.35);
     }
     .panel-choose-lang .lang-row.selected .lang-row-check{
       animation:langCheckPop .35s cubic-bezier(.34,1.56,.64,1);
     }
     .panel-choose-lang .lang-row-flag{
       width:44px;height:44px;border-radius:50%;
+      background:rgba(255,255,255,.14);
+      border:1px solid rgba(255,255,255,.22);
+      box-shadow:inset 0 1px 2px rgba(0,0,0,.15);
     }
-    .panel-choose-lang .lang-row-meta strong{font-size:15px;font-weight:600;}
-    .panel-choose-lang .lang-row-meta .lang-row-sub{font-size:12px;color:var(--dim);}
+    .panel-choose-lang .lang-row-meta strong{font-size:15px;font-weight:600;color:#F8FAFC;}
+    .panel-choose-lang .lang-row-meta .lang-row-sub{font-size:12.5px;color:#CBD5E1;}
+    .panel-choose-lang .lang-row-meta .lang-row-region{font-size:10.5px;color:rgba(148,163,184,.98);}
+    .panel-choose-lang .lang-row-check{
+      border-color:rgba(148,163,184,.45);
+    }
+    .panel-choose-lang .lang-row.selected .lang-row-check{
+      border-color:transparent;
+    }
     .lang-trust-premium{
       margin:14px 16px 0;
       padding:14px 16px;
       display:flex;align-items:center;justify-content:space-between;
       gap:12px;
-      background:rgba(16,185,129,.09);border:1px solid rgba(16,185,129,.24);
+      background:rgba(16,185,129,.16);
+      border:1px solid rgba(52,211,153,.38);
       border-radius:16px;
+      box-shadow:0 6px 20px rgba(0,0,0,.2);
     }
+    .lang-trust-txt{font-size:12.5px;color:#E2E8F0;line-height:1.4;}
     .lang-trust-left{display:flex;align-items:center;gap:12px;flex:1;min-width:0;}
-    .lang-trust-txt{font-size:12.5px;color:var(--txt);line-height:1.4;}
-    .lang-trust-premium .lang-trust-left>i{font-size:22px;color:var(--primary);flex-shrink:0;}
+    .lang-trust-premium .lang-trust-left>i{font-size:22px;color:#34D399;flex-shrink:0;}
     .lang-trust-glow-a{
       position:relative;
       width:38px;height:38px;border-radius:12px;
@@ -585,7 +579,7 @@
         <div class="hdr-back" onclick="window.location.href='fields.html'"><i class="ri-arrow-left-line"></i></div>
         <span class="hdr-title">Profile</span>
       </div>
-      <div class="hdr-action" id="main-settings-btn" title="Preferences &amp; settings"><i class="ri-settings-4-line"></i></div>
+      <div class="hdr-action" id="main-settings-btn" title="Account settings"><i class="ri-settings-4-line"></i></div>
     </div>
 
     <!-- hero -->
@@ -642,11 +636,6 @@
         <div class="mi-body"><h4>Account Settings</h4><p>Manage your personal info</p></div>
         <span class="mi-arr"></span>
       </div>
-      <div class="menu-item" onclick="openPanel('panel-preferences')">
-        <div class="mi-ic premium-globe-ic" style="color:var(--primary);"><i class="ri-global-line"></i></div>
-        <div class="mi-body"><h4>Preferences</h4><p>Notifications, appearance &amp; language</p></div>
-        <span class="mi-arr"></span>
-      </div>
       <div class="menu-item" onclick="openPanel('panel-my-farms')">
         <div class="mi-ic" style="color:#84CC16;"><i class="ri-layout-grid-line"></i></div>
         <div class="mi-body"><h4>My Farms</h4><p>View and manage your farms</p></div>
@@ -685,92 +674,6 @@
     </div>
     <div style="height:8px;"></div>
   </div><!-- /screen-main -->
-
-
-  <!-- ════════════════════════════════════════
-       PANEL: PREFERENCES (hub)
-  ════════════════════════════════════════ -->
-  <div id="panel-preferences" class="panel">
-    <div class="hdr">
-      <div style="display:flex;align-items:center;gap:12px;">
-        <div class="hdr-back" onclick="closePanel('panel-preferences')"><i class="ri-arrow-left-line"></i></div>
-        <span class="hdr-title">Preferences</span>
-      </div>
-      <div class="hdr-action" onclick="openLangSheet()" title="Language"><i class="ri-translate-2"></i></div>
-    </div>
-    <p class="pref-lead">Customize your app experience.</p>
-
-    <div class="sec-h">App Preferences</div>
-    <div class="info-card" style="padding:0;overflow:hidden;">
-      <div class="pref-row" onclick="closePanel('panel-preferences'); openPanel('panel-notifications');">
-        <div class="pref-ic"><i class="ri-notification-3-line"></i></div>
-        <div class="pref-body"><h4>Notifications</h4><p>Alerts, recommendations &amp; quiet hours</p></div>
-        <i class="ri-arrow-right-s-line pref-chev"></i>
-      </div>
-      <div class="pref-row" onclick="showSnack('Appearance themes — coming soon.')">
-        <div class="pref-ic"><i class="ri-palette-line"></i></div>
-        <div class="pref-body"><h4>Appearance</h4><p>Theme, density &amp; display</p></div>
-        <i class="ri-arrow-right-s-line pref-chev"></i>
-      </div>
-      <div class="pref-row pref-row-highlight" onclick="openLangSheet()" role="button" tabindex="0">
-        <div class="pref-ic"><i class="ri-global-line"></i></div>
-        <div class="pref-body">
-          <h4>Language</h4>
-          <p>Choose your preferred language · <span id="pref-lang-current">English</span></p>
-        </div>
-        <i class="ri-arrow-right-s-line pref-chev"></i>
-      </div>
-      <div class="pref-row" onclick="showSnack('Sounds — coming soon.')">
-        <div class="pref-ic"><i class="ri-volume-up-line"></i></div>
-        <div class="pref-body"><h4>Sounds</h4><p>Feedback &amp; alert tones</p></div>
-        <i class="ri-arrow-right-s-line pref-chev"></i>
-      </div>
-      <div class="pref-row" onclick="showSnack('Date &amp; time — coming soon.')">
-        <div class="pref-ic"><i class="ri-time-line"></i></div>
-        <div class="pref-body"><h4>Date &amp; Time</h4><p>Locale formats &amp; reminders</p></div>
-        <i class="ri-arrow-right-s-line pref-chev"></i>
-      </div>
-    </div>
-
-    <div class="sec-h">Farm Preferences</div>
-    <div class="info-card" style="padding:0;overflow:hidden;">
-      <div class="pref-row" onclick="showSnack('Units — coming soon.')">
-        <div class="pref-ic"><i class="ri-ruler-line"></i></div>
-        <div class="pref-body"><h4>Units</h4><p>Area, temperature &amp; rainfall</p></div>
-        <i class="ri-arrow-right-s-line pref-chev"></i>
-      </div>
-      <div class="pref-row" onclick="showSnack('Irrigation preferences — coming soon.')">
-        <div class="pref-ic"><i class="ri-drop-line"></i></div>
-        <div class="pref-body"><h4>Irrigation</h4><p>Defaults &amp; scheduling hints</p></div>
-        <i class="ri-arrow-right-s-line pref-chev"></i>
-      </div>
-      <div class="pref-row" onclick="closePanel('panel-preferences'); openPanel('panel-ai-prefs');">
-        <div class="pref-ic"><i class="ri-brain-line"></i></div>
-        <div class="pref-body"><h4>AI Recommendations</h4><p>How suggestions are tailored</p></div>
-        <i class="ri-arrow-right-s-line pref-chev"></i>
-      </div>
-    </div>
-
-    <div class="sec-h">More Settings</div>
-    <div class="info-card" style="padding:0;overflow:hidden;">
-      <div class="pref-row" onclick="closePanel('panel-preferences'); openPanel('panel-privacy');">
-        <div class="pref-ic"><i class="ri-shield-keyhole-line"></i></div>
-        <div class="pref-body"><h4>Privacy</h4><p>Data &amp; permissions</p></div>
-        <i class="ri-arrow-right-s-line pref-chev"></i>
-      </div>
-      <div class="pref-row" onclick="showSnack('Backup &amp; sync — coming soon.')">
-        <div class="pref-ic"><i class="ri-cloud-line"></i></div>
-        <div class="pref-body"><h4>Backup &amp; Sync</h4><p>Keep data safe across devices</p></div>
-        <i class="ri-arrow-right-s-line pref-chev"></i>
-      </div>
-      <div class="pref-row" onclick="closePanel('panel-preferences'); openPanel('panel-about');">
-        <div class="pref-ic"><i class="ri-information-line"></i></div>
-        <div class="pref-body"><h4>About</h4><p>Version &amp; credits</p></div>
-        <i class="ri-arrow-right-s-line pref-chev"></i>
-      </div>
-    </div>
-    <div style="height:8px;"></div>
-  </div><!-- /panel-preferences -->
 
 
   <!-- ════════════════════════════════════════
@@ -888,7 +791,7 @@
 
 
   <!-- ════════════════════════════════════════
-       PANEL: CHOOSE LANGUAGE (from Account Settings / Preferences)
+       PANEL: CHOOSE LANGUAGE (from Account Settings)
   ════════════════════════════════════════ -->
   <div id="panel-choose-language" class="panel panel-choose-lang">
     <div class="lang-page-top">
@@ -1462,8 +1365,12 @@
   }
   window.showSnack = showSnack;
 
-  /* ── Choose Language panel (opens over Account Settings / Preferences) ── */
+  /* ── Choose Language panel (Account Settings) ── */
   function openLangSheet() {
+    /* Avoid licenses / legal panels (later in DOM) staying visible on top of this sheet */
+    closePanel('panel-licenses');
+    closePanel('panel-tos');
+    closePanel('panel-privacy');
     openPanel('panel-choose-language');
     document.body.style.overflow = 'hidden';
     requestAnimationFrame(function () {
@@ -1550,6 +1457,6 @@
     }, {passive:true});
   })();
 </script>
-<script type="module" src="js/profile.js?v=33"></script>
+<script type="module" src="js/profile.js?v=34"></script>
 </body>
 </html>

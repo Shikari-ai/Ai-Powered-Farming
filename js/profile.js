@@ -142,8 +142,8 @@ window._profileLogout = () => logoutUser();
 
 /* ─── static UI wiring ────────────────── */
 function wireStatic() {
-  /* main settings → preferences hub (App Preferences + language) */
-  el("main-settings-btn")?.addEventListener("click", () => openPanel("panel-preferences"));
+  /* main settings → account settings */
+  el("main-settings-btn")?.addEventListener("click", () => openPanel("panel-account-settings"));
 
   /* logout buttons are wired to showLogoutSheet() in the inline script */
 
@@ -242,7 +242,6 @@ function wireStatic() {
   function syncLangSummaryLabels() {
     const cur = LANGUAGES.find((x) => x.code === getLang());
     const name = cur ? cur.name : getLang().toUpperCase();
-    setText("pref-lang-current", name);
     setText("as-lang-summary", cur ? `${cur.native} — ${name}` : name);
   }
 
