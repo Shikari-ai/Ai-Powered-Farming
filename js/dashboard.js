@@ -137,12 +137,23 @@ function pestRiskColor(level) {
     return "#10B981";
 }
 
-function pestRiskImg(level) {
-    if (!level) return "https://images.unsplash.com/photo-1574943320219-3c1a7fec3b9c?w=200&q=75";
-    if (level === "high") {
-        return "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=200&q=75";
-    }
-    return "https://images.unsplash.com/photo-1574943320219-3c1a7fec3b9c?w=200&q=75";
+// Normalize an internal risk level ("high"/"medium"/"low"/null) to the
+// 4-key risk vocabulary used by the .pest-orb CSS palette.
+function pestRiskKey(level) {
+    if (level === "high") return "high";
+    if (level === "medium" || level === "moderate") return "moderate";
+    if (level === "low") return "low";
+    return "unknown";
+}
+
+// Apply risk styling to the pest orb: sets data-risk (drives CSS palette)
+// and the tag label text. Safe to call with a null/missing element.
+function applyPestOrb(el, level) {
+    if (!el) return;
+    const key = pestRiskKey(level);
+    el.setAttribute("data-risk", key);
+    const tag = document.getElementById("pest-orb-tag");
+    if (tag) tag.textContent = key === "unknown" ? "—" : key.toUpperCase();
 }
 
 // ─── Notification panel renderer ─────────────────────────────────────────────
@@ -887,7 +898,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 pestDescEl.textContent = "Pest risk is low based on recent scan analysis. Continue monitoring.";
                             }
                         }
-                        if (pestImgEl) pestImgEl.src = pestRiskImg(riskLevel);
+                        applyPestOrb(pestImgEl, riskLevel);
 
                         const blip = el("radar-blip");
                         if (blip) {
@@ -1007,7 +1018,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 ? names.slice(0, 3).join(" · ")
                                 : "Model refreshed from your latest saved analysis.";
                         }
-                        if (pestImgEl) pestImgEl.src = pestRiskImg(rk);
+                        applyPestOrb(pestImgEl, rk);
                     },
                     "pest_predictions"
                 );
