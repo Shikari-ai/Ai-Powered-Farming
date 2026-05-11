@@ -8,7 +8,7 @@
 import { detectIntents } from "./detect-intents.js";
 import { pickRotated } from "./conversation-naturals.js?v=48";
 import { farmContextEmptyLead } from "./epistemic-policy.js?v=2";
-import { matchSymptomTrainingReply } from "./symptom-training-corpus.js?v=77";
+import { matchSymptomTrainingReply } from "./symptom-training-corpus.js?v=78";
 
 const AGRI_TOKEN =
     /\b(field|fields|farm|farms|crop|crops|scans?|pest|pests|disease|diseases|fungal|blight|rust|mildew|rot|aphid|thrips|nematode|irrigation|irrigat|spray|fungicide|pesticide|herbicide|rain|humidity|weather|soil|moisture|yield|harvest|acre|hectare|nitrogen|fertil|deficien|tomatoes?|potatoes?|wheat|rice|corn|maize|cotton|soy|canopy|ndvi|scouting)\b/i;

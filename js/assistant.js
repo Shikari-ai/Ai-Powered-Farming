@@ -33,7 +33,7 @@ import {
   buildMicroSocialAssistantReply,
   buildVagueSymptomReply,
   classifyAssistantRouting,
-} from "./ai/assistant-intent-router.js?v=59";
+} from "./ai/assistant-intent-router.js?v=60";
 import {
   detectConversationMood,
   polishFarmReportProse,
