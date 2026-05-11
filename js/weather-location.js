@@ -257,32 +257,82 @@ export function isGeolocationSecureContext() {
 }
 
 /**
- * Instant region detection via IP — no permission needed, resolves in ~0.5s.
- * Returns city-level accuracy (good enough for weather).
+ * Try a single IP-geo provider with a tight timeout. Returns a normalized
+ * shape or throws. Kept small so the multi-provider chain stays readable.
+ * @param {{
+ *   url: string,
+ *   parse: (d: any) => { lat: number, lon: number, city: string, regionName?: string, country?: string } | null,
+ *   timeoutMs?: number,
+ * }} cfg
  */
-export async function resolveLocationApprox() {
+async function tryIpGeoProvider(cfg) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 4000);
+  const timer = setTimeout(() => controller.abort(), cfg.timeoutMs || 4000);
   try {
-    const res = await fetch(
-      "https://ip-api.com/json?fields=status,city,regionName,country,lat,lon",
-      { signal: controller.signal }
-    );
+    const res = await fetch(cfg.url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`ip-geo ${res.status}`);
     const d = await res.json();
-    if (d.status !== "success") throw new Error("IP geo failed");
+    const parsed = cfg.parse(d);
+    if (!parsed || !Number.isFinite(parsed.lat) || !Number.isFinite(parsed.lon)) {
+      throw new Error("ip-geo unparseable");
+    }
     return {
-      city: d.city || d.regionName || "Your Region",
-      district: d.regionName || "",
-      state: d.regionName || "",
-      country: d.country || "",
-      lat: d.lat,
-      lon: d.lon,
+      city: parsed.city || parsed.regionName || "Your Region",
+      district: parsed.regionName || "",
+      state: parsed.regionName || "",
+      country: parsed.country || "",
+      lat: parsed.lat,
+      lon: parsed.lon,
       source: "ip",
       accuracyM: null,
     };
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Instant region detection via IP — no permission needed.
+ *
+ * ip-api.com 403s on many mobile User-Agents (live audit confirmed this for
+ * iOS Safari UA), which left mobile users with no IP fallback at all and
+ * forced them through the full GPS prompt → permission → timeout path,
+ * which is why the page sat on "Syncing location..." for ages on phone.
+ * Walk a chain of providers; first success wins.
+ */
+export async function resolveLocationApprox() {
+  const providers = [
+    {
+      url: "https://ipwho.is/?fields=success,city,region,country,latitude,longitude",
+      parse: (d) =>
+        d && d.success !== false && typeof d.latitude === "number"
+          ? { lat: d.latitude, lon: d.longitude, city: d.city, regionName: d.region, country: d.country }
+          : null,
+    },
+    {
+      url: "https://ipapi.co/json/",
+      parse: (d) =>
+        d && !d.error && typeof d.latitude === "number"
+          ? { lat: d.latitude, lon: d.longitude, city: d.city, regionName: d.region, country: d.country_name }
+          : null,
+    },
+    {
+      url: "https://ip-api.com/json?fields=status,city,regionName,country,lat,lon",
+      parse: (d) =>
+        d && d.status === "success" && typeof d.lat === "number"
+          ? { lat: d.lat, lon: d.lon, city: d.city, regionName: d.regionName, country: d.country }
+          : null,
+    },
+  ];
+  let lastErr = null;
+  for (const p of providers) {
+    try {
+      return await tryIpGeoProvider(p);
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error("IP geo failed");
 }
 
 /** Fresh GPS fix + Nominatim labels, else {@link FALLBACK_LOC}. */
