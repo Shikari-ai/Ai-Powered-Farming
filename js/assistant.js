@@ -703,208 +703,33 @@ onAuthStateChanged(auth, (user) => {
       /** @type {{ entry: any, score: number }[]} */
       let learnedMemoryHits = [];
 
-      // Gemini-first: for any non-trivial text turn (skip micro_social to keep
-      // tiny acks instant, skip image turns until the proxy handles vision).
-      // Failures fall through to the rule-based composer below.
-      if (routing.mode !== "micro_social" && !imageBlob) {
+      // ── LLM-only path ──
+      // Every turn goes through the Val Town proxy → Gemini 2.5 Flash →
+      // Groq Llama 3.3 70B → GitHub GPT-4o-mini cascade. No rule-based
+      // composer fallback — if the cascade fails, show a short error
+      // and let the user retry. The old orchestrator/engine code stays
+      // in the bundle but is no longer wired into the reply path.
+      orch = null;
+      snapshot = null;
+      if (!imageBlob) {
         try {
           const gReply = await tryGeminiReply(text, { fields, scans, weatherLogs }, chatMessages);
           if (gReply) reply = gReply;
         } catch (e) {
-          console.warn("[assistant] gemini path failed, using rule-based fallback:", e);
-        }
-      }
-
-      if (reply) {
-        // Gemini already produced a reply — skip the routing branches.
-        orch = null;
-      } else if (routing.mode === "micro_social") {
-        reply = buildMicroSocialAssistantReply(text, { fieldCount: fields.length, scanCount: scans.length });
-        orch = null;
-      } else if (routing.mode === "casual") {
-        reply = buildCasualAssistantReply(text, { fieldCount: fields.length, scanCount: scans.length });
-        orch = null;
-      } else if (routing.mode === "clarify") {
-        reply = buildVagueSymptomReply(text, { fieldCount: fields.length, scanCount: scans.length });
-        orch = null;
-      } else if (routing.mode === "operations_quick") {
-        snapshot = {
-          userId: user.uid,
-          fields,
-          scans,
-          recs,
-          weatherLogs,
-          environmental,
-          fieldContextStates,
-          interventions: farmInterventions,
-          operationalTasks: farmOperationalTasks,
-          alerts: assistantAlerts,
-          locale: getLang() || "en",
-          companion: companionProfile,
-          regionalBriefing: "",
-          learningProfile: null,
-        };
-        reply = composeOperationsSnapshotReply(text, snapshot, companionProfile);
-        orch = null;
-      } else {
-        if (routing.mode !== "weather_quick" && !regionalBriefingText) {
-          try {
-            regionalBriefingText = await fetchRegionalBriefing(db);
-          } catch {
-            regionalBriefingText = "";
-          }
-        }
-
-        snapshot = {
-          userId: user.uid,
-          fields,
-          scans,
-          recs,
-          weatherLogs,
-          environmental,
-          fieldContextStates,
-          interventions: farmInterventions,
-          operationalTasks: farmOperationalTasks,
-          alerts: assistantAlerts,
-          locale: getLang() || "en",
-          companion: companionProfile,
-          regionalBriefing: routing.mode === "weather_quick" ? "" : regionalBriefingText || "",
-          learningProfile: routing.mode === "weather_quick" ? null : learningProfile || null,
-        };
-
-        orch = await runAgriOrchestrator(text || "Analyze the attached crop image.", snapshot, { imageBlob }, {
-          routingMode: routing.mode === "weather_quick" ? "weather_quick" : "full",
-          flowSnapshot: flowSnap,
-        });
-        attachSnapshotForReply(orch, snapshot);
-        const cfgKmMem = getAiConfig();
-        learnedMemoryHits = cfgKmMem.assistantKnowledgeMemoryEnabled
-          ? findRelevantKnowledgeMemory(knowledgeMemoryEntries, text, { limit: 2, minScore: 0.16 })
-          : [];
-        orch.turnConfidence = computeTurnConfidence({
-          question: text,
-          routingMode: routing.mode,
-          orch,
-          memoryHits: learnedMemoryHits,
-        });
-        const replyVerbosity =
-          routing.mode === "weather_quick"
-            ? "minimal"
-            : resolveReplyVerbosity({
-                routingMode: routing.mode,
-                profile: companionProfile,
-                flow: flowSnap,
-                userText: text,
-              });
-        reply = composeAssistantReply(text || "[image]", orch, {
-          locale: snapshot.locale,
-          companionProfile,
-          replyVerbosity,
-          routingReason: routing.reason,
-          flowSnapshot: flowSnap,
-          learnedMemoryHits,
-        });
-
-        if (!reply) {
-          reply = buildAssistantReply({ question: text, fields, scans, recs, weatherLogs });
-        }
-
-        const cfgWeb = getAiConfig();
-        let webBrief = null;
-        /** @type {{ use?: boolean, reasons?: string[], query?: string } | null} */
-        let webResearchMeta = null;
-        if (cfgWeb.webResearchEnabled !== false && String(text || "").trim().length > 12 && orch) {
-          const wr = shouldUseWebAssistedResearch({
-            question: text,
-            routingMode: routing.mode,
-            orch,
-            memoryHits: learnedMemoryHits,
-            precomputedConfidence: orch.turnConfidence,
-          });
-          if (wr.use) {
-            webResearchMeta = wr;
-            try {
-              const brief = await fetchPublicAgriBrief(wr.query || text, { signal: streamAbort.signal });
-              webBrief = brief;
-              if (brief?.summary) {
-                reply = `${String(reply || "").trimEnd()}\n\n${formatWebResearchAppend(brief, { reasons: wr.reasons })}`;
-              }
-            } catch (e) {
-              console.warn("[assistant] web research:", e?.message || e);
-            }
-          }
-        }
-
-        const cfgKmPersist = getAiConfig();
-        if (cfgKmPersist.assistantKnowledgeMemoryEnabled && webBrief?.summary && orch && webResearchMeta?.use) {
-          void (async () => {
-            try {
-              const payload = buildKnowledgeDocPayload({
-                userId: user.uid,
-                question: text,
-                researchQuery: webResearchMeta.query || text,
-                brief: webBrief,
-                webReasons: webResearchMeta.reasons || [],
-                intents: orch.intents || {},
-                assistantReply: reply,
-              });
-              const mergeT = findMergeTargetEntry(knowledgeMemoryEntries, text);
-              if (mergeT?.id) {
-                const { id: _i, lastUsedAtMs: _lu, createdAtMs: _cm, lastReinforcedAtMs: _lr, ...base } = mergeT;
-                const merged = mergeKnowledgeEntries(base, payload);
-                await updateDoc(doc(db, "assistant_knowledge_memory", mergeT.id), {
-                  ...stripUndefinedForFirestore(merged),
-                  lastUsedAt: serverTimestamp(),
-                  lastReinforcedAt: serverTimestamp(),
-                });
-              } else {
-                await addDoc(
-                  collection(db, "assistant_knowledge_memory"),
-                  stripUndefinedForFirestore({
-                    ...payload,
-                    createdAt: serverTimestamp(),
-                    lastUsedAt: serverTimestamp(),
-                    lastReinforcedAt: serverTimestamp(),
-                  }),
-                );
-              }
-              const ps = await getDocs(
-                query(collection(db, "assistant_knowledge_memory"), where("userId", "==", user.uid), limit(55)),
-              );
-              if (ps.size > KNOWLEDGE_MEMORY_CAP) {
-                const rows = ps.docs.map((d) => ({
-                  id: d.id,
-                  lu: d.data().lastUsedAt?.toMillis?.() ?? 0,
-                }));
-                rows.sort((a, b) => a.lu - b.lu);
-                const batch = writeBatch(db);
-                for (const r of rows.slice(0, ps.size - KNOWLEDGE_MEMORY_CAP)) {
-                  batch.delete(doc(db, "assistant_knowledge_memory", r.id));
-                }
-                await batch.commit();
-              }
-            } catch (e) {
-              console.warn("[assistant] knowledge memory persist:", e?.message || e);
-            }
-          })();
-        }
-
-        if (
-          cfgKmPersist.assistantKnowledgeMemoryEnabled &&
-          learnedMemoryHits.length &&
-          learnedMemoryHits[0].entry?.id &&
-          routing.mode !== "weather_quick"
-        ) {
-          void updateDoc(doc(db, "assistant_knowledge_memory", learnedMemoryHits[0].entry.id), {
-            lastUsedAt: serverTimestamp(),
-          }).catch(() => {});
+          console.warn("[assistant] LLM cascade failed:", e);
         }
       }
 
       if (!reply) {
-        reply =
-          "I’m here — ask about a field, weather, pests, or your latest scan and I’ll route it through the farm engines.";
+        reply = imageBlob
+          ? "I can't read images yet — describe what you see (color, spots, location on the leaf, growth stage) and I'll diagnose from text."
+          : "Sorry, the AI is unreachable right now. Please try again in a few seconds.";
       }
+      // (Old orchestrator + web-research + knowledge-memory persistence
+      // lived here and depended on `orch` being populated by the rule-based
+      // engines. They're skipped now that every reply comes from the LLM
+      // cascade. The helpers (composeAssistantReply, fetchPublicAgriBrief,
+      // etc.) are still imported but unused — safe to prune in a later pass.)
 
       const mood = detectConversationMood(text);
       const naturalMicroBeforePolish =
