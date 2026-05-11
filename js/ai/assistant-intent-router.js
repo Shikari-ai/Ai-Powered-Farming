@@ -6,7 +6,7 @@ import { detectIntents } from "./detect-intents.js";
 import { pickRotated } from "./conversation-naturals.js?v=48";
 
 const AGRI_TOKEN =
-    /\b(field|fields|farm|farms|crop|crops|scans?|pest|pests|disease|diseases|fungal|blight|rust|mildew|rot|aphid|thrips|nematode|irrigation|irrigat|spray|fungicide|pesticide|herbicide|rain|humidity|weather|soil|moisture|yield|harvest|acre|hectare|nitrogen|fertil|deficien|tomato|potato|wheat|rice|corn|maize|cotton|soy|canopy|ndvi|scouting)\b/i;
+    /\b(field|fields|farm|farms|crop|crops|scans?|pest|pests|disease|diseases|fungal|blight|rust|mildew|rot|aphid|thrips|nematode|irrigation|irrigat|spray|fungicide|pesticide|herbicide|rain|humidity|weather|soil|moisture|yield|harvest|acre|hectare|nitrogen|fertil|deficien|tomatoes?|potatoes?|wheat|rice|corn|maize|cotton|soy|canopy|ndvi|scouting)\b/i;
 
 const DEEP_PIPELINE =
     /\b(simulat|simulation|digital\s*twin|\btwin\b|counterfactual|scenario|stress\s*test|forecast|outbreak|epidemic|regional\s*network|\bgeo\b|geo-?intel|stress\s*map|learning\s*engine|calibration|deep\s*dive|full\s*analysis|risk\s*report|audit\s*trail|compare\s*scenarios|what\s*if)\b/i;
@@ -17,7 +17,7 @@ const OPS_INVENTORY =
 
 /** User is asking for substantive reasoning, not a wave. */
 const SUBSTANTIVE =
-    /\b(why|how\s+(do|does|can|should|much|long)|explain|what\s+(causes|is\s+the\s+best|should\s+i)|recommend|priorit|troubleshoot|diagnos|symptom|treatment|dose|rate\s*of)\b/i;
+    /\b(why|how\s+(do|does|can|should|much|long)|explain|what\s+(causes|is\s+the\s+best|should\s+i|i['']d)|recommend|priorit|troubleshoot|diagnos|symptom|treatment|dose|rate\s*of|plausible\s+causes|multi-?section|be\s+thorough)\b/i;
 
 const POSITIVE_CHECKIN =
     /\b(looks?\s+better|finally(\s+\w+){0,3}\s+better|recover|recovering|bouncing\s+back|picking\s+up|improved|much\s+better|turning\s+(around|a\s+corner)|on\s+the\s+mend)\b/i;

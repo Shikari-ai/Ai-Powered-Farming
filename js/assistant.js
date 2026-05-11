@@ -18,7 +18,7 @@ import {
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { runAgriOrchestrator } from "./ai/orchestrator.js?v=70";
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=71";
 import { attachSnapshotForReply, composeAssistantReply, composeOperationsSnapshotReply } from "./ai/assistant-reply.js?v=69";
 import { getAiConfig } from "./ai/config.js?v=69";
 import {
@@ -33,7 +33,7 @@ import {
   buildMicroSocialAssistantReply,
   buildVagueSymptomReply,
   classifyAssistantRouting,
-} from "./ai/assistant-intent-router.js?v=52";
+} from "./ai/assistant-intent-router.js?v=53";
 import {
   detectConversationMood,
   polishFarmReportProse,

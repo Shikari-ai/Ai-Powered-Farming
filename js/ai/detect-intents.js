@@ -6,7 +6,7 @@ export function detectIntents(question) {
     return {
         weather: /\b(weather|rain|humidity|wind|irrigation|spray|frost|uv|sun)\b/.test(q),
         pest: /\b(pest|insect|larva|worm|aphid|whitefly|jassid|thrips)\b/.test(q),
-        disease: /\b(disease|blight|rust|mildew|spot|fungal|rot|infection|pathogen)\b/.test(q),
+        disease: /\b(disease|blight|rust|mildew|spot|fungal|rot|curl|wilts?|infection|pathogen)\b/.test(q),
         yellow: /\b(yellow|chloros|nitrogen|nutrient|deficien)\b/.test(q),
         yield: /\b(yield|harvest|ton|quintal|bushel|production)\b/.test(q),
         field: /\b(field|plot|acre|hectare)\b/.test(q),
