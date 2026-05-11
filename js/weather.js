@@ -15,7 +15,7 @@ import {
   resolveWeatherLocation,
   resolveLocationApprox,
   searchPlacesNominatim,
-} from "./weather-location.js";
+} from "./weather-location.js?v=2";
 import { NAVIC_GPS_WEATHER, detectGNSSSource } from "./navic.js";
 
 /** Works on older mobile WebViews without AbortSignal.timeout. */
