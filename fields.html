@@ -203,6 +203,11 @@
         /* 4-tier hologram tints (Critical and At-Risk separated) */
         .f-risk { border-color: #F97316 !important; box-shadow: inset 0 0 30px rgba(249,115,22,0.25), 0 0 18px rgba(249,115,22,0.18); }
 
+        /* Crop picker trigger (looks like .field-input, behaves like a button) */
+        .crop-trigger { transition: background 0.18s ease, border-color 0.18s ease; }
+        .crop-trigger:hover { background: rgba(57,255,20,0.04); border-color: rgba(57,255,20,0.25); }
+        .crop-trigger.has-value #field-crop-label { color: var(--text-main); font-weight: 500; }
+
         .fields-list { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 16px; }
         
         .field-card {
@@ -670,17 +675,14 @@
             <div id="wiz-step-2" class="hidden"></div>
 
             <div id="wiz-step-3" class="hidden">
-                <input class="field-input" id="field-crop" placeholder="Main crop (e.g. Wheat)" list="crop-list"/>
-                <datalist id="crop-list">
-                    <option value="Wheat"></option>
-                    <option value="Rice"></option>
-                    <option value="Maize"></option>
-                    <option value="Cotton"></option>
-                    <option value="Soybean"></option>
-                    <option value="Sugarcane"></option>
-                    <option value="Pulses"></option>
-                    <option value="Vegetables"></option>
-                </datalist>
+                <label style="font-size:10px;color:var(--text-dim);">Main crop</label>
+                <button type="button" class="field-input crop-trigger" id="field-crop-trigger" style="display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;cursor:pointer;width:100%;">
+                    <span id="field-crop-label" style="color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Tap to search 200+ crops…</span>
+                    <i class="ri-search-2-line" style="color:var(--text-dim);font-size:16px;flex-shrink:0;"></i>
+                </button>
+                <!-- canonical values written by the crop picker -->
+                <input type="hidden" id="field-crop" value=""/>
+                <input type="hidden" id="field-crop-variety" value=""/>
                 <label style="font-size:10px;color:var(--text-dim);">Soil type</label>
                 <select class="field-input" id="field-soil" style="margin-bottom:10px;">
                     <option value="">— Select —</option>
@@ -789,7 +791,7 @@
     </div>
     <!-- ════════════ END FULL-SCREEN MAP ════════════ -->
 
-    <script type="module" src="js/fields.js?v=33"></script>
+    <script type="module" src="js/fields.js?v=34"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>
