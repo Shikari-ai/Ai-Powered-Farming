@@ -44,7 +44,7 @@ import {
   buildMicroSocialAssistantReply,
   buildVagueSymptomReply,
   classifyAssistantRouting,
-} from "./ai/assistant-intent-router.js?v=62";
+} from "./ai/assistant-intent-router.js?v=63";
 import {
   detectConversationMood,
   polishFarmReportProse,
@@ -409,19 +409,46 @@ onAuthStateChanged(auth, (user) => {
     }),
   );
 
+  let fallbackKnowledgeListener = false;
   const knowledgeMemQ = query(
     collection(db, "assistant_knowledge_memory"),
     where("userId", "==", user.uid),
     orderBy("lastUsedAt", "desc"),
     limit(40),
   );
-  onSnapshot(
+  const unsubKnowledge = onSnapshot(
     knowledgeMemQ,
     (snap) => {
       knowledgeMemoryEntries = snap.docs.map((d) => normalizeKnowledgeMemoryDoc(d));
     },
-    (err) => console.warn("[assistant] knowledge memory listener:", err?.message || err),
+    (err) => {
+      const msg = String(err?.message || err || "");
+      if (!fallbackKnowledgeListener && /requires an index|failed-precondition/i.test(msg)) {
+        fallbackKnowledgeListener = true;
+        // Fallback keeps assistant usable even if composite index is missing.
+        const fallbackQ = query(
+          collection(db, "assistant_knowledge_memory"),
+          where("userId", "==", user.uid),
+          limit(40),
+        );
+        const unsubFallback = onSnapshot(
+          fallbackQ,
+          (snap) => {
+            const rows = snap.docs.map((d) => normalizeKnowledgeMemoryDoc(d));
+            rows.sort((a, b) => (b.lastUsedAtMs || 0) - (a.lastUsedAtMs || 0));
+            knowledgeMemoryEntries = rows;
+          },
+          (fallbackErr) =>
+            console.warn("[assistant] knowledge memory fallback listener:", fallbackErr?.message || fallbackErr),
+        );
+        activeSubscriptions.push(unsubFallback);
+        console.warn("[assistant] knowledge memory index missing; using fallback query.");
+        return;
+      }
+      console.warn("[assistant] knowledge memory listener:", msg);
+    },
   );
+  activeSubscriptions.push(unsubKnowledge);
 
   const attachInput = el("assistant-attach-input");
   const attachBtn = el("assistant-attach");
@@ -882,6 +909,7 @@ onAuthStateChanged(auth, (user) => {
 
         if (!ROUTING_NO_ENGINE_LOG.includes(routing.mode)) {
           try {
+            const safeGeo = orch?.geo && typeof orch.geo === "object" ? stripUndefinedForFirestore(orch.geo) : null;
             await addDoc(collection(db, "ai_engine_runs"), {
               userId: user.uid,
               createdAt: serverTimestamp(),
@@ -889,7 +917,7 @@ onAuthStateChanged(auth, (user) => {
               enginePackVersion: orch?.enginePackVersion,
               intents: orch?.intents,
               preview: orch?.persistedPreview || null,
-              geo: orch?.geo || null,
+              geo: safeGeo,
               routingMode: orch?.routingMode || "full",
               cognitive: orch?.cognitivePlan
                 ? {

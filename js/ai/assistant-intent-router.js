@@ -12,7 +12,7 @@ import { getNamedPlaceHintOrNull } from "../weather-location.js?v=61";
 import { matchSymptomTrainingReply } from "./symptom-training-corpus.js?v=79";
 
 const AGRI_TOKEN =
-    /\b(field|fields|farm|farms|crop|crops|scans?|pest|pests|disease|diseases|fungal|blight|rust|mildew|rot|aphid|thrips|nematode|irrigation|irrigat|spray|fungicide|pesticide|herbicide|rain|humidity|weather|soil|moisture|yield|harvest|acre|hectare|nitrogen|fertil|deficien|tomatoes?|potatoes?|wheat|rice|corn|maize|cotton|soy|canopy|ndvi|scouting)\b/i;
+    /\b(field|fields|farm|farms|crop|crops|scans?|pest|pests|disease|diseases|fungal|blight|rust|mildew|rot|aphid|thrips|nematode|irrigation|irrigat|spray|fungicide|pesticide|herbicide|rain|humidity|weather|soil|moisture|yield|harvest|acre|hectare|nitrogen|fertil|deficien|tomatoes?|potatoes?|wheat|rice|corn|maize|cotton|soy|canopy|ndvi|scouting|icar|imd|msp|subsidy|mandi|agri(?:culture)?)\b/i;
 
 const DEEP_PIPELINE =
     /\b(simulat|simulation|digital\s*twin|\btwin\b|counterfactual|scenario|stress\s*test|forecast|outbreak|epidemic|regional\s*network|\bgeo\b|geo-?intel|stress\s*map|learning\s*engine|calibration|deep\s*dive|full\s*analysis|risk\s*report|audit\s*trail|compare\s*scenarios|what\s*if)\b/i;
@@ -43,6 +43,10 @@ function isNamedPlaceWeatherQuery(text) {
 
 const SPECIFIC_SYMPTOM =
     /\b(yellow|chloros|spot|spots|mold|mildew|rust|blight|wilt|hole|chew|aphid|thrips|mite|bug|larvae|worm|rot|canker|curl|necrosis|stunt|stem\s+bore)\b/i;
+
+/** Strongly task-oriented asks should run full planning even if short/non-agri tokens. */
+const ACTION_REQUEST =
+    /\b(give\s+me\s+\d+\s+(?:action|step|bullet)s?|next\s+24\s+hours|priority\s+list|what\s+should\s+i\s+do\s+first|step-?by-?step\s+plan|action\s+plan)\b/i;
 
 function isOutcomeAffirmMicro(text) {
     const t = String(text || "").trim();
@@ -157,6 +161,10 @@ export function classifyAssistantRouting(rawText, opts = {}) {
 
     if (DEEP_PIPELINE.test(text) || SUBSTANTIVE.test(text)) {
         return { mode: "full", reason: "deep_or_substantive" };
+    }
+
+    if (ACTION_REQUEST.test(text)) {
+        return { mode: "full", reason: "explicit_action_request" };
     }
 
     if (isNamedPlaceWeatherQuery(text)) {
