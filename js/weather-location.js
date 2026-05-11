@@ -4,6 +4,31 @@
  */
 import { NAVIC_GPS_WEATHER, detectGNSSSource } from "./navic.js";
 
+/** Some mobile WebViews ignore `timeout` in PositionOptions and never call back — force completion. */
+function createTimeoutSignal(ms) {
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+    return AbortSignal.timeout(ms);
+  }
+  const c = new AbortController();
+  setTimeout(() => c.abort(), ms);
+  return c.signal;
+}
+
+function geolocationWithHardTimeout(options, hardMs) {
+  return Promise.race([
+    new Promise((resolve, reject) => {
+      try {
+        navigator.geolocation.getCurrentPosition(resolve, reject, options);
+      } catch (e) {
+        reject(e);
+      }
+    }),
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("gps-hard-timeout")), hardMs);
+    }),
+  ]);
+}
+
 /** Tokens that look like a place after "weather …" but are not geocodable cities. */
 const WEATHER_TAIL_BLOCK = new Set(
   "today tomorrow tonight now here there please outside local home like this next again soon help me current report alert update live check last outside".split(
@@ -269,9 +294,7 @@ export async function resolveWeatherLocation() {
   let gps = null;
   if ("geolocation" in navigator) {
     try {
-      const pos = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, NAVIC_GPS_WEATHER);
-      });
+      const pos = await geolocationWithHardTimeout(NAVIC_GPS_WEATHER, 12_000);
       const lat = pos.coords.latitude;
       const lon = pos.coords.longitude;
       const accuracyM = typeof pos.coords.accuracy === "number" ? pos.coords.accuracy : null;
@@ -288,7 +311,7 @@ export async function resolveWeatherLocation() {
   try {
     const rg = await fetch(
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${gps.lat}&lon=${gps.lon}&zoom=18&addressdetails=1`,
-      { headers: { Accept: "application/json" } },
+      { headers: { Accept: "application/json" }, signal: createTimeoutSignal(10_000) },
     );
     const data = await rg.json();
     const a = data.address || {};

@@ -1,4 +1,4 @@
-import "./auth-session.js?v=32";
+import "./auth-session.js?v=33";
 import "./i18n.js?v=6";
 import { auth, db } from "./auth.js?v=32";
 import { getLang } from "./i18n.js?v=6";

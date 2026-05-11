@@ -29,6 +29,21 @@ const OVERPASS_ENDPOINTS = [
 ];
 let _overpassIdx = 0;
 
+function createTimeoutSignal(ms) {
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+    try {
+      return AbortSignal.timeout(ms);
+    } catch (_) {}
+  }
+  const c = new AbortController();
+  setTimeout(() => {
+    try {
+      c.abort();
+    } catch (_) {}
+  }, ms);
+  return c.signal;
+}
+
 async function fetchOverpass(query) {
   for (let i = 0; i < OVERPASS_ENDPOINTS.length; i++) {
     const url = OVERPASS_ENDPOINTS[(_overpassIdx + i) % OVERPASS_ENDPOINTS.length];
@@ -37,7 +52,7 @@ async function fetchOverpass(query) {
         method: "POST",
         body: "data=" + encodeURIComponent(query),
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        signal: AbortSignal.timeout(20000),
+        signal: createTimeoutSignal(20000),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json();
@@ -215,17 +230,103 @@ export function deriveAIInsights(address, places) {
 
 /* ─── Main entry point ───────────────────────────────────────────── */
 let _cache = null;
-let _running = false;
+/** Latest run id — stale async steps must not overwrite UI. */
+let liRunGen = 0;
+
+function ipFetchSignal(ms) {
+  return createTimeoutSignal(ms);
+}
+
+/**
+ * Saved map pin / search result: skip IP+GPS, use anchor coords for OSM + Overpass.
+ */
+async function runAnchoredCycle(uid, emit, opts, anchor) {
+  const { radius = 2500, persist = true } = opts;
+  const lat = anchor.lat;
+  const lng = anchor.lon;
+  const accuracy =
+    typeof anchor.accuracyM === "number" && Number.isFinite(anchor.accuracyM) ? anchor.accuracyM : 500;
+  const src = String(anchor.source || "manual");
+  const coords = {
+    lat,
+    lng,
+    accuracy,
+    source: src === "gps" ? "gps" : src === "field" ? "field" : "manual-pin",
+    gnssSource: anchor.gnssSource ?? null,
+  };
+
+  emit({
+    coords,
+    address: null,
+    places: [],
+    insights: [],
+    accuracy,
+    gnssSource: coords.gnssSource,
+    phase: "anchored",
+  });
+
+  const address = await reverseGeocode(lat, lng);
+  let places = [];
+  try {
+    places = await fetchNearbyPlaces(lat, lng, radius);
+  } catch (e) {
+    console.warn("[LI] Overpass fetch failed:", e.message);
+  }
+  const insights = deriveAIInsights(address, places);
+  const result = {
+    coords,
+    address,
+    places,
+    insights,
+    accuracy,
+    gnssSource: coords.gnssSource,
+    phase: "precise",
+    timestamp: Date.now(),
+  };
+  _cache = result;
+  emit(result);
+
+  if (persist && uid) {
+    await syncToFirestore(uid, {
+      coords: { lat, lng, accuracy, gnssSource: coords.gnssSource || null },
+      address: address || {},
+      nearbyCount: places.length,
+      insights: insights.map((i) => ({ type: i.type, text: i.text })),
+      radius,
+    });
+  }
+  return result;
+}
 
 /**
  * Run a full location intelligence cycle.
  * @param {string}   uid       Firebase user ID (for Firestore)
  * @param {function} onUpdate  callback({ address, coords, places, insights, accuracy })
- * @param {object}   opts      { radius:2500, persist:true }
+ * @param {object}   opts      { radius:2500, persist:true, anchor?: { lat, lon, accuracyM?, gnssSource?, source? } }
  */
 export async function runLocationIntelligence(uid, onUpdate, opts = {}) {
-  if (_running) return _cache;
-  _running = true;
+  const gen = ++liRunGen;
+  const emit = (data) => {
+    if (gen !== liRunGen) return;
+    onUpdate?.(data);
+  };
+
+  const anchor = opts.anchor;
+  if (
+    anchor &&
+    typeof anchor.lat === "number" &&
+    typeof anchor.lon === "number" &&
+    Number.isFinite(anchor.lat) &&
+    Number.isFinite(anchor.lon)
+  ) {
+    try {
+      return await runAnchoredCycle(uid, emit, opts, anchor);
+    } catch (e) {
+      console.error("[LI] Anchored intelligence error:", e.message);
+      emit({ error: e.message, phase: "error" });
+      return null;
+    }
+  }
 
   const { radius = 2500, persist = true } = opts;
   let result = null;
@@ -234,11 +335,20 @@ export async function runLocationIntelligence(uid, onUpdate, opts = {}) {
     /* Phase 1 — fast IP-based approximate */
     let approxCoords = null;
     try {
-      const ip = await fetch("https://ip-api.com/json/?fields=lat,lon,city,regionName,country", { signal: AbortSignal.timeout(4000) });
+      const ip = await fetch("https://ip-api.com/json/?fields=lat,lon,city,regionName,country", {
+        signal: ipFetchSignal(4000),
+      });
       const ipData = await ip.json();
       if (ipData.lat) {
         approxCoords = { lat: ipData.lat, lng: ipData.lon, accuracy: 5000, source: "ip" };
-        onUpdate?.({ coords: approxCoords, address: { town: ipData.city, state: ipData.regionName }, places: [], insights: [], accuracy: 5000, phase: "approximate" });
+        emit({
+          coords: approxCoords,
+          address: { town: ipData.city, state: ipData.regionName, country: ipData.country },
+          places: [],
+          insights: [],
+          accuracy: 5000,
+          phase: "approximate",
+        });
       }
     } catch (_) {}
 
@@ -255,10 +365,25 @@ export async function runLocationIntelligence(uid, onUpdate, opts = {}) {
       : null;
 
     const coords = gpsPos
-      ? { lat: gpsPos.coords.latitude, lng: gpsPos.coords.longitude, accuracy: gpsPos.coords.accuracy, source: "gps", gnssSource }
+      ? {
+          lat: gpsPos.coords.latitude,
+          lng: gpsPos.coords.longitude,
+          accuracy: gpsPos.coords.accuracy,
+          source: "gps",
+          gnssSource,
+        }
       : approxCoords;
 
-    if (!coords) throw new Error("No location available");
+    if (!coords) {
+      emit({
+        error: "No location available",
+        phase: "error",
+        coords: null,
+        places: [],
+        insights: [],
+      });
+      return null;
+    }
 
     /* Phase 3 — reverse geocode */
     const address = await reverseGeocode(coords.lat, coords.lng);
@@ -274,26 +399,33 @@ export async function runLocationIntelligence(uid, onUpdate, opts = {}) {
     /* Phase 5 — AI insights */
     const insights = deriveAIInsights(address, places);
 
-    result = { coords, address, places, insights, accuracy: coords.accuracy, gnssSource: gnssSource || null, phase: "precise", timestamp: Date.now() };
+    result = {
+      coords,
+      address,
+      places,
+      insights,
+      accuracy: coords.accuracy,
+      gnssSource: gnssSource || null,
+      phase: "precise",
+      timestamp: Date.now(),
+    };
     _cache = result;
 
-    onUpdate?.(result);
+    emit(result);
 
     /* Phase 6 — Firestore persistence */
     if (persist && uid) {
       await syncToFirestore(uid, {
-        coords    : { lat: coords.lat, lng: coords.lng, accuracy: coords.accuracy, gnssSource: gnssSource || null },
-        address   : address || {},
+        coords: { lat: coords.lat, lng: coords.lng, accuracy: coords.accuracy, gnssSource: gnssSource || null },
+        address: address || {},
         nearbyCount: places.length,
-        insights  : insights.map(i => ({ type: i.type, text: i.text })),
+        insights: insights.map((i) => ({ type: i.type, text: i.text })),
         radius,
       });
     }
   } catch (e) {
     console.error("[LI] Location intelligence error:", e.message);
-    onUpdate?.({ error: e.message, phase: "error" });
-  } finally {
-    _running = false;
+    emit({ error: e.message, phase: "error" });
   }
   return result;
 }

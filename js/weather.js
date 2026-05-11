@@ -1,4 +1,4 @@
-import "./auth-session.js?v=32";
+import "./auth-session.js?v=33";
 import "./i18n.js";
 import { auth, db } from "./auth.js?v=32";
 import { doc, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -10,6 +10,7 @@ import {
   subscribeActiveLocation,
 } from "./geo/active-location.js?v=1";
 import {
+  FALLBACK_LOC,
   isGeolocationSecureContext,
   resolveWeatherLocation,
   resolveLocationApprox,
@@ -17,11 +18,29 @@ import {
 } from "./weather-location.js";
 import { NAVIC_GPS_WEATHER, detectGNSSSource } from "./navic.js";
 
+/** Works on older mobile WebViews without AbortSignal.timeout. */
+function createTimeoutSignal(ms) {
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+    try {
+      return AbortSignal.timeout(ms);
+    } catch (_) {}
+  }
+  const c = new AbortController();
+  setTimeout(() => {
+    try {
+      c.abort();
+    } catch (_) {}
+  }, ms);
+  return c.signal;
+}
+
 const STORAGE_IMD_KEY = "agri_imd_api_key";
 const STORAGE_IMD_PROXY = "agri_imd_proxy";
 
 /** Last location used for this weather view. */
 let lastWeatherLoc = null;
+/** Bumped when starting a new unpinned load or when switching to pinned — drops stale IP/GPS callbacks. */
+let weatherLoadGen = 0;
 /** @type {null | { lat: number, lon: number, label: string, shortLabel: string }} */
 let pendingPickerPlace = null;
 let searchHits = [];
@@ -176,14 +195,41 @@ async function fetchImdCityForecastLoc(lat, lon) {
   return { ok: false, reason: "imd_fetch_failed" };
 }
 
-async function fetchOpenMeteo(lat, lon) {
+function fetchImdCityForecastLocWithTimeout(lat, lon, ms = 12_000) {
+  return Promise.race([
+    fetchImdCityForecastLoc(lat, lon),
+    new Promise((resolve) => {
+      setTimeout(() => resolve({ ok: false, reason: "imd_timeout" }), ms);
+    }),
+  ]);
+}
+
+/** Fast path: single Open-Meteo forecast request (matches dashboard-style first paint). */
+async function fetchOpenMeteoForecastOnly(lat, lon) {
   const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,is_day,surface_pressure,visibility&hourly=temperature_2m,precipitation_probability,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max&timezone=auto&forecast_days=10`;
-  const aqUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=pm2_5,pm10,ozone&timezone=auto`;
-  const [fRes, aqRes] = await Promise.all([fetch(forecastUrl), fetch(aqUrl)]);
+  const fRes = await fetch(forecastUrl);
   if (!fRes.ok) throw new Error("Weather API unavailable");
   const forecast = await fRes.json();
-  const air = aqRes.ok ? await aqRes.json() : null;
-  return { forecast, air };
+  if (forecast?.error || !forecast?.current || !forecast?.hourly || !forecast?.daily) {
+    throw new Error(forecast?.reason || "Weather API returned an incomplete forecast");
+  }
+  return forecast;
+}
+
+/** Deferred: air quality does not block hero / hourly / daily grid. */
+async function fetchOpenMeteoAir(lat, lon) {
+  try {
+    const aqUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=pm2_5,pm10,ozone&timezone=auto`;
+    const aqRes = await fetch(aqUrl, { signal: createTimeoutSignal(12_000) });
+    if (!aqRes.ok) return null;
+    return await aqRes.json();
+  } catch {
+    return null;
+  }
+}
+
+function isStillWeatherTarget(lat, lon) {
+  return lastWeatherLoc && lastWeatherLoc.lat === lat && lastWeatherLoc.lon === lon;
 }
 
 function applyEnvironment({ weatherCode, isDay }) {
@@ -222,6 +268,10 @@ function applyEnvironment({ weatherCode, isDay }) {
 function renderHourly(hourly) {
   const list = qs("hourly-list");
   if (!list) return;
+  if (!hourly?.time?.length) {
+    list.innerHTML = `<div class="empty">Hourly forecast unavailable</div>`;
+    return;
+  }
   list.innerHTML = "";
   const nowIso = new Date().toISOString().slice(0, 13);
   let start = hourly.time.findIndex((t) => t.slice(0, 13) >= nowIso);
@@ -320,7 +370,7 @@ function renderInsights({ current, daily, pm25, soilMoisture, rainSoon, imdRow }
       });
     }
   }
-  if (current.relative_humidity_2m >= 80) {
+  if (typeof current.relative_humidity_2m === "number" && current.relative_humidity_2m >= 80) {
     items.push({
       cls: "warn",
       icon: "ri-virus-line",
@@ -522,24 +572,119 @@ function bindImdSetup() {
   });
 }
 
-async function renderWeatherForLoc(loc) {
-  lastWeatherLoc = loc;
-  setLocationLines(loc);
-
+/** IMD + air quality + Firestore — runs after grid is on screen so the page feels as fast as the dashboard. */
+async function enrichWeatherPage(loc, forecast) {
+  const { lat, lon } = loc;
   const hasImdCreds =
     !!(localStorage.getItem(STORAGE_IMD_KEY) || "").trim() ||
     !!(localStorage.getItem(STORAGE_IMD_PROXY) || "").trim();
 
-  const [{ forecast, air }, imd] = await Promise.all([
-    fetchOpenMeteo(loc.lat, loc.lon),
-    fetchImdCityForecastLoc(loc.lat, loc.lon),
-  ]);
+  try {
+    const [air, imd] = await Promise.all([
+      fetchOpenMeteoAir(lat, lon),
+      fetchImdCityForecastLocWithTimeout(lat, lon),
+    ]);
+    if (!isStillWeatherTarget(lat, lon)) return;
 
-  const imdOk = !!imd.ok;
-  const imdRow = imdOk ? imd.row : null;
-  const imdSeries = imdOk ? buildImdDailySeries(imdRow) : null;
+    const imdOk = !!imd.ok;
+    const imdRow = imdOk ? imd.row : null;
+    const imdSeries = imdOk ? buildImdDailySeries(imdRow) : null;
 
-  setSourceLine(imdOk, hasImdCreds, loc);
+    setSourceLine(imdOk, hasImdCreds, loc);
+
+    const current = forecast.current;
+    const hourly = forecast.hourly;
+    const daily = forecast.daily;
+
+    const imdTodayText = imdRow?.Todays_Forecast ? String(imdRow.Todays_Forecast).trim() : "";
+    const curDesc = qs("cur-desc");
+    if (curDesc) {
+      curDesc.textContent = imdTodayText || weatherDesc(current.weather_code);
+    }
+
+    const curMeta = qs("cur-meta");
+    if (curMeta) {
+      const station = imdRow?.Station_Name ? `IMD station: ${imdRow.Station_Name}` : "High-res grid at your coordinates";
+      const sr = daily.sunrise?.[0] ? new Date(daily.sunrise[0]).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "--";
+      const ss = daily.sunset?.[0] ? new Date(daily.sunset[0]).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "--";
+      curMeta.textContent = `${station} · Sunrise ${sr} · Sunset ${ss}`;
+    }
+
+    renderDays(imdSeries, daily);
+
+    const aqH = air?.hourly || {};
+    const pm25 = Array.isArray(aqH.pm2_5) ? aqH.pm2_5[0] : null;
+    const mPm = qs("m-pm25");
+    if (mPm) mPm.textContent = pm25 == null ? "--" : `${Math.round(pm25)}`;
+    const aql = pm25Label(pm25);
+    const aqiLabel = qs("m-aqi-label");
+    if (aqiLabel) {
+      aqiLabel.textContent = aql.label;
+      aqiLabel.className = `s ${aql.cls}`;
+    }
+
+    const rainNow = Array.isArray(hourly.precipitation_probability) ? Math.round(hourly.precipitation_probability[0]) : null;
+    const r3 = (hourly.precipitation_probability || []).slice(0, 3).reduce((a, b) => a + (b || 0), 0) / 3;
+    const soilMoisture = Math.max(
+      0,
+      Math.min(
+        100,
+        Math.round(
+          current.relative_humidity_2m * 0.45 + r3 * 0.4 + (24 - Math.min(24, current.temperature_2m)) * 1.1 - current.wind_speed_10m * 0.6,
+        ),
+      ),
+    );
+    const mSoil = qs("m-soil");
+    if (mSoil) mSoil.textContent = `${soilMoisture}%`;
+
+    renderInsights({
+      current,
+      daily,
+      pm25,
+      soilMoisture,
+      rainSoon: rainNow,
+      imdRow,
+    });
+
+    if (auth.currentUser) {
+      void (async () => {
+        try {
+          await syncWeatherLog(auth.currentUser, loc, forecast, air, imd, soilMoisture);
+          await setDoc(
+            doc(db, "users", auth.currentUser.uid),
+            {
+              village: loc.city,
+              locationDetails: {
+                city: loc.city,
+                district: loc.district || "",
+                state: loc.state || "",
+                country: loc.country || "",
+                lat: loc.lat,
+                lon: loc.lon,
+                accuracyM: loc.accuracyM ?? null,
+                source: loc.source || "gps",
+              },
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true },
+          );
+        } catch (e) {
+          console.warn("[weather] post-enrich sync:", e?.message || e);
+        }
+      })();
+    }
+  } catch (e) {
+    console.warn("[weather] enrich failed:", e?.message || e);
+  }
+}
+
+async function renderWeatherForLoc(loc) {
+  lastWeatherLoc = loc;
+  setLocationLines(loc);
+
+  const forecast = await fetchOpenMeteoForecastOnly(loc.lat, loc.lon);
+  /* Neutral line until IMD attempt finishes (avoids flashing “IMD unavailable” while still loading). */
+  setSourceLine(false, false, loc);
 
   const current = forecast.current;
   const hourly = forecast.hourly;
@@ -551,47 +696,44 @@ async function renderWeatherForLoc(loc) {
   const curIcon = qs("cur-icon");
 
   if (curTemp) curTemp.textContent = `${Math.round(current.temperature_2m)}°`;
-  const imdTodayText = imdRow?.Todays_Forecast ? String(imdRow.Todays_Forecast).trim() : "";
-  if (curDesc) {
-    if (imdTodayText) {
-      curDesc.textContent = imdTodayText;
-    } else {
-      curDesc.textContent = weatherDesc(current.weather_code);
-    }
-  }
+  if (curDesc) curDesc.textContent = weatherDesc(current.weather_code);
 
   if (curMeta) {
-    const station = imdRow?.Station_Name ? `IMD station: ${imdRow.Station_Name}` : "High-res grid at your coordinates";
     const sr = daily.sunrise?.[0] ? new Date(daily.sunrise[0]).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "--";
     const ss = daily.sunset?.[0] ? new Date(daily.sunset[0]).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "--";
-    curMeta.textContent = `${station} · Sunrise ${sr} · Sunset ${ss}`;
+    curMeta.textContent = `High-res grid at your coordinates · Sunrise ${sr} · Sunset ${ss}`;
   }
   if (curIcon) curIcon.innerHTML = `<i class="${weatherIcon(current.weather_code, current.is_day)}"></i>`;
 
-  qs("cur-hum").textContent = `${Math.round(current.relative_humidity_2m)}%`;
-  qs("cur-wind").textContent = `${Math.round(current.wind_speed_10m)} km/h`;
+  const curHum = qs("cur-hum");
+  const curWind = qs("cur-wind");
+  const curRain = qs("cur-rain");
+  const curUv = qs("cur-uv");
+  if (curHum) curHum.textContent = `${Math.round(current.relative_humidity_2m)}%`;
+  if (curWind) curWind.textContent = `${Math.round(current.wind_speed_10m)} km/h`;
   const rainNow = Array.isArray(hourly.precipitation_probability) ? Math.round(hourly.precipitation_probability[0]) : null;
-  qs("cur-rain").textContent = rainNow == null ? "--" : `${rainNow}%`;
-  qs("cur-uv").textContent = `${Math.round(daily.uv_index_max?.[0] || 0)}`;
+  if (curRain) curRain.textContent = rainNow == null ? "--" : `${rainNow}%`;
+  if (curUv) curUv.textContent = `${Math.round(daily.uv_index_max?.[0] || 0)}`;
 
   renderHourly(hourly);
-  renderDays(imdSeries, daily);
+  renderDays(null, daily);
 
   const vis = typeof current.visibility === "number" ? (current.visibility / 1000).toFixed(1) : "--";
-  qs("m-vis").textContent = `${vis}`;
+  const mVis = qs("m-vis");
+  if (mVis) mVis.textContent = `${vis}`;
 
-  const aqH = air?.hourly || {};
-  const pm25 = Array.isArray(aqH.pm2_5) ? aqH.pm2_5[0] : null;
-  qs("m-pm25").textContent = pm25 == null ? "--" : `${Math.round(pm25)}`;
-  const aql = pm25Label(pm25);
+  const mPm = qs("m-pm25");
+  if (mPm) mPm.textContent = "--";
   const aqiLabel = qs("m-aqi-label");
   if (aqiLabel) {
+    const aql = pm25Label(null);
     aqiLabel.textContent = aql.label;
     aqiLabel.className = `s ${aql.cls}`;
   }
 
   const hi = heatIndexC(current.temperature_2m, current.relative_humidity_2m);
-  qs("m-heat").textContent = hi == null ? "--" : `${Math.round(hi)}°`;
+  const mHeat = qs("m-heat");
+  if (mHeat) mHeat.textContent = hi == null ? "--" : `${Math.round(hi)}°`;
 
   const r3 = (hourly.precipitation_probability || []).slice(0, 3).reduce((a, b) => a + (b || 0), 0) / 3;
   const soilMoisture = Math.max(
@@ -603,66 +745,57 @@ async function renderWeatherForLoc(loc) {
       ),
     ),
   );
-  qs("m-soil").textContent = `${soilMoisture}%`;
+  const mSoil = qs("m-soil");
+  if (mSoil) mSoil.textContent = `${soilMoisture}%`;
 
   renderInsights({
     current,
     daily,
-    pm25,
+    pm25: null,
     soilMoisture,
     rainSoon: rainNow,
-    imdRow,
+    imdRow: null,
   });
   applyEnvironment({ weatherCode: current.weather_code, isDay: current.is_day === 1 });
 
-  if (auth.currentUser) {
-    await syncWeatherLog(auth.currentUser, loc, forecast, air, imd, soilMoisture);
-    await setDoc(
-      doc(db, "users", auth.currentUser.uid),
-      {
-        village: loc.city,
-        locationDetails: {
-          city: loc.city,
-          district: loc.district || "",
-          state: loc.state || "",
-          country: loc.country || "",
-          lat: loc.lat,
-          lon: loc.lon,
-          accuracyM: loc.accuracyM ?? null,
-          source: loc.source || "gps",
-        },
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-  }
+  void enrichWeatherPage(loc, forecast).catch((e) => console.warn("[weather] enrich:", e?.message || e));
 }
 
 async function loadWeather() {
   const pinned = peekActiveWeatherLocation();
   if (pinned) {
+    weatherLoadGen++;
     await renderWeatherForLoc(pinned).catch((e) => console.error(e));
     return;
   }
 
-  let gpsWon = false;
-
-  // Phase 1 — IP region weather, instant (~0.5s), no permission needed
-  resolveLocationApprox().then(async (loc) => {
-    if (gpsWon) return;
-    await renderWeatherForLoc({ ...loc, source: "ip" }).catch(() => {});
-  }).catch(() => {});
-
-  // Phase 2 — exact GPS, upgrades when ready (up to ~15s)
+  const gen = ++weatherLoadGen;
+  let showed = false;
   try {
-    const loc = await resolveWeatherLocation();
-    if (loc.source !== "fallback" && loc.source !== "insecure-context") {
-      gpsWon = true;
-      await renderWeatherForLoc(loc);
-    }
+    const ipLoc = await resolveLocationApprox();
+    if (peekActiveWeatherLocation() || gen !== weatherLoadGen) return;
+    await renderWeatherForLoc({ ...ipLoc, source: "ip" });
+    showed = true;
   } catch (e) {
-    console.error("Weather GPS upgrade failed:", e);
+    console.warn("[weather] IP geo failed:", e?.message || e);
   }
+
+  resolveWeatherLocation()
+    .then(async (loc) => {
+      if (peekActiveWeatherLocation() || gen !== weatherLoadGen) return;
+      if (loc.source !== "fallback" && loc.source !== "insecure-context") {
+        await renderWeatherForLoc(loc);
+      } else if (!showed) {
+        await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" });
+      }
+    })
+    .catch(async (e) => {
+      console.error("Weather GPS upgrade failed:", e);
+      if (peekActiveWeatherLocation() || gen !== weatherLoadGen) return;
+      if (!showed) {
+        await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" });
+      }
+    });
 }
 
 function escapeHtml(str) {
@@ -824,7 +957,7 @@ function bindLocationPicker() {
   });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function initWeatherPage() {
   bindImdSetup();
   bindLocationPicker();
   startActiveLocationRemoteSync();
@@ -833,4 +966,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   const btn = qs("refresh-btn");
   btn?.addEventListener("click", () => loadWeather().catch(console.error));
-});
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initWeatherPage, { once: true });
+} else {
+  initWeatherPage();
+}

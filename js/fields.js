@@ -1,4 +1,4 @@
-import "./auth-session.js?v=32";
+import "./auth-session.js?v=33";
 import "./i18n.js";
 import { auth, db, storage } from "./auth.js?v=32";
 import { FALLBACK_LOC } from "./weather-location.js";
