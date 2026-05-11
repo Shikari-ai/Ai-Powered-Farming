@@ -21,7 +21,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import { runAgriOrchestrator } from "./ai/orchestrator.js?v=73";
-import { attachSnapshotForReply, composeAssistantReply, composeOperationsSnapshotReply } from "./ai/assistant-reply.js?v=72";
+import { attachSnapshotForReply, composeAssistantReply, composeOperationsSnapshotReply } from "./ai/assistant-reply.js?v=73";
 import { getAiConfig } from "./ai/config.js?v=71";
 import {
   buildKnowledgeDocPayload,

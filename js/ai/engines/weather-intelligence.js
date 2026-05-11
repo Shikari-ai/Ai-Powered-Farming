@@ -26,6 +26,23 @@ export async function runWeatherIntelligence(ctx, loc) {
     const rainTomorrow =
         daily.precipitation_sum && typeof daily.precipitation_sum[1] === "number" ? daily.precipitation_sum[1] : null;
 
+    // Build a 5-day day-by-day forecast array so reply builders can surface
+    // multi-day questions ("rain tomorrow", "next 3 days", "this week")
+    // directly instead of punting users to the Weather tab.
+    /** @type {Array<{date:string, tMaxC:number|null, tMinC:number|null, precipMm:number|null, precipProbMax:number|null, weatherCode:number|null}>} */
+    const forecastDaily = [];
+    const dateRows = Array.isArray(daily.time) ? daily.time : [];
+    for (let i = 0; i < dateRows.length; i++) {
+        forecastDaily.push({
+            date: dateRows[i] || null,
+            tMaxC: typeof daily.temperature_2m_max?.[i] === "number" ? daily.temperature_2m_max[i] : null,
+            tMinC: typeof daily.temperature_2m_min?.[i] === "number" ? daily.temperature_2m_min[i] : null,
+            precipMm: typeof daily.precipitation_sum?.[i] === "number" ? daily.precipitation_sum[i] : null,
+            precipProbMax: typeof daily.precipitation_probability_max?.[i] === "number" ? daily.precipitation_probability_max[i] : null,
+            weatherCode: typeof daily.weather_code?.[i] === "number" ? daily.weather_code[i] : null,
+        });
+    }
+
     /** Simple fungal pressure index 0–1 from humidity + rain */
     let fungalPressure = 0;
     const reasons = [];
@@ -93,6 +110,7 @@ export async function runWeatherIntelligence(ctx, loc) {
             uv,
             rainTodayMm: rainToday,
             rainTomorrowMm: rainTomorrow,
+            forecastDaily,
         },
         fungalDiseasePressure: {
             score: Math.round(fungalPressure * 100) / 100,
