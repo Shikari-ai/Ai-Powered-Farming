@@ -322,10 +322,15 @@ onAuthStateChanged(auth, (user) => {
 
   function updateCompanionEmptyHint() {
     const hintEl = el("assistant-companion-hint");
+    const railBody = el("assistant-rail-body");
     if (!hintEl) return;
     if (lastMsgCount !== 0) {
       hintEl.textContent = "";
       hintEl.classList.add("hidden");
+      if (railBody) {
+        railBody.textContent = "";
+        railBody.classList.add("hidden");
+      }
       return;
     }
     const live = buildProactiveDigest({ fields, scans, fieldContextStates, weatherLogs, recs });
@@ -339,6 +344,10 @@ onAuthStateChanged(auth, (user) => {
     const full = text + regHint;
     hintEl.textContent = full;
     hintEl.classList.toggle("hidden", !full.trim());
+    if (railBody) {
+      railBody.textContent = full;
+      railBody.classList.toggle("hidden", !full.trim());
+    }
   }
 
   function paintChat() {
