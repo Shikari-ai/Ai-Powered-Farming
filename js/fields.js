@@ -15,6 +15,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { decorateNotificationForAmbient } from "./ambient/notification-decorator.js";
+import { openCropPicker } from "./crop-picker.js?v=1";
 
 const DRAFT_KEY = "agri_field_wizard_draft";
 
@@ -168,12 +169,32 @@ function pestQuick(scan) {
   return Math.min(95, p);
 }
 
+// Set the crop on the wizard's hidden inputs + visible label/trigger.
+// Pass empty strings to clear.
+function setCropValue(crop, variety) {
+  const cropEl = el("field-crop");
+  const varEl = el("field-crop-variety");
+  const labelEl = el("field-crop-label");
+  const trigger = el("field-crop-trigger");
+  if (cropEl) cropEl.value = crop || "";
+  if (varEl) varEl.value = variety || "";
+  if (labelEl) {
+    if (crop) {
+      labelEl.textContent = variety ? `${crop} · ${variety}` : crop;
+    } else {
+      labelEl.textContent = "Tap to search 200+ crops…";
+    }
+  }
+  if (trigger) trigger.classList.toggle("has-value", !!crop);
+}
+
 function persistDraft() {
   try {
     const payload = {
       step: wizardStep,
       name: el("field-name")?.value || "",
       crop: el("field-crop")?.value || "",
+      cropVariety: el("field-crop-variety")?.value || "",
       soil: el("field-soil")?.value || "",
       irrigation: el("field-irrigation")?.value || "",
       area: el("field-area")?.value || "",
@@ -190,7 +211,7 @@ function loadDraft() {
     if (!raw) return;
     const p = JSON.parse(raw);
     if (el("field-name") && p.name) el("field-name").value = p.name;
-    if (el("field-crop") && p.crop) el("field-crop").value = p.crop;
+    if (p.crop) setCropValue(p.crop, p.cropVariety || "");
     if (el("field-soil") && p.soil) el("field-soil").value = p.soil;
     if (el("field-irrigation") && p.irrigation) el("field-irrigation").value = p.irrigation;
     if (el("field-area") && p.area) el("field-area").value = p.area;
@@ -236,7 +257,9 @@ function renderFieldCard({ index, field, latestScan, soilMoisture }) {
     pct === null ? "rgba(255,255,255,0.06)" : `conic-gradient(${status.color} ${pct}%, rgba(255,255,255,0.06) ${pct}%)`;
   const ringInner = pct === null ? "—" : `${pct}%`;
   const areaText = typeof field.areaAcres === "number" ? `${field.areaAcres.toFixed(1)} ac` : "—";
-  const crop = field.cropType || "Crop not set";
+  const crop = field.cropType
+    ? (field.cropVariety ? `${field.cropType} · ${field.cropVariety}` : field.cropType)
+    : "Crop not set";
   const risk = aiRiskLabel(latestScan);
   const moist =
     typeof soilMoisture === "number" ? `${Math.round(soilMoisture)}%` : "—";
@@ -849,7 +872,7 @@ function mountFieldsPage(user) {
     wizardStep = 1;
     if (el("field-modal-title")) el("field-modal-title").textContent = "New field";
     if (el("field-name")) el("field-name").value = "";
-    if (el("field-crop")) el("field-crop").value = "";
+    setCropValue("", "");
     if (el("field-soil")) el("field-soil").value = "";
     if (el("field-irrigation")) el("field-irrigation").value = "";
     if (el("field-area")) el("field-area").value = "";
@@ -869,7 +892,7 @@ function mountFieldsPage(user) {
     wizardStep = 1;
     if (el("field-modal-title")) el("field-modal-title").textContent = "Edit field";
     if (el("field-name")) el("field-name").value = field.name || "";
-    if (el("field-crop")) el("field-crop").value = field.cropType || "";
+    setCropValue(field.cropType || "", field.cropVariety || "");
     if (el("field-soil")) el("field-soil").value = field.soilType || "";
     if (el("field-irrigation")) el("field-irrigation").value = field.irrigationType || "";
     if (el("field-area")) el("field-area").value = typeof field.areaAcres === "number" ? field.areaAcres.toFixed(2) : "";
@@ -1079,8 +1102,20 @@ function mountFieldsPage(user) {
       }
     });
 
-    ["field-name", "field-crop", "field-soil", "field-irrigation", "field-area", "field-planted", "field-notes"].forEach((id) => {
+    ["field-name", "field-soil", "field-irrigation", "field-area", "field-planted", "field-notes"].forEach((id) => {
       el(id)?.addEventListener("input", persistDraft);
+    });
+
+    // Crop picker trigger — opens full-screen searchable picker
+    el("field-crop-trigger")?.addEventListener("click", () => {
+      openCropPicker({
+        initialCrop: el("field-crop")?.value || "",
+        initialVariety: el("field-crop-variety")?.value || "",
+        onSelect: ({ crop, variety }) => {
+          setCropValue(crop, variety);
+          persistDraft();
+        },
+      });
     });
 
     el("area-minus")?.addEventListener("click", () => {
@@ -1099,6 +1134,7 @@ function mountFieldsPage(user) {
   async function saveField(user) {
     const name = (el("field-name")?.value || "").trim();
     const cropType = (el("field-crop")?.value || "").trim();
+    const cropVariety = (el("field-crop-variety")?.value || "").trim();
     const soilType = el("field-soil")?.value || "";
     const irrigationType = el("field-irrigation")?.value || "";
     const areaRaw = (el("field-area")?.value || "").trim();
@@ -1133,6 +1169,7 @@ function mountFieldsPage(user) {
           userId: user.uid,
           name,
           cropType: cropType || null,
+          cropVariety: cropVariety || null,
           soilType: soilType || null,
           irrigationType: irrigationType || null,
           notes: notes || null,
@@ -1203,7 +1240,7 @@ function mountFieldsPage(user) {
       window.closeAddFieldModal();
       clearDrawing();
       if (el("field-name")) el("field-name").value = "";
-      if (el("field-crop")) el("field-crop").value = "";
+      setCropValue("", "");
       if (el("field-soil")) el("field-soil").value = "";
       if (el("field-irrigation")) el("field-irrigation").value = "";
       if (el("field-area")) el("field-area").value = "";
