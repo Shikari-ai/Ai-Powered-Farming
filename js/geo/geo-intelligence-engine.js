@@ -3,6 +3,19 @@
  * spatial overlays. Clearly labels INFERRED vs OBSERVED in GeoJSON properties.
  */
 
+// Boundary coords may be persisted as either [{lat,lng}, …] (current shape,
+// required by Firestore which forbids nested arrays) or [[lat,lng], …]
+// (legacy in-memory shape). Normalize once at read.
+function normalizeCoords(coords) {
+    if (!Array.isArray(coords)) return [];
+    const out = [];
+    for (const p of coords) {
+        if (Array.isArray(p) && p.length >= 2 && typeof p[0] === "number" && typeof p[1] === "number") out.push([p[0], p[1]]);
+        else if (p && typeof p === "object" && typeof p.lat === "number" && typeof p.lng === "number") out.push([p.lat, p.lng]);
+    }
+    return out;
+}
+
 /** @param {[number,number][]} ring [lng,lat] closed or open ring */
 export function pointInRing(lng, lat, ring) {
     let inside = false;
@@ -72,8 +85,8 @@ export function computeNdviProxy(signals, baseHealth) {
  * @returns {import("geojson").FeatureCollection}
  */
 export function buildStressGridGeoJson(field, scan, weatherLog, fieldCtx, options = {}) {
-    const coords = field?.boundary?.coordinates;
-    if (!Array.isArray(coords) || coords.length < 3) {
+    const coords = normalizeCoords(field?.boundary?.coordinates);
+    if (coords.length < 3) {
         return { type: "FeatureCollection", features: [] };
     }
     const ring = coords.map(([lat, lng]) => [lng, lat]);
@@ -176,8 +189,8 @@ export function buildGeoNarration({ fieldLabel, monthsAgo, meanStress, meanNdvi,
  * @param {number} windDegFromNorth meteorological degrees
  */
 export function buildSpreadWedgeFeature(field, windDegFromNorth = 45, options = {}) {
-    const coords = field?.boundary?.coordinates;
-    if (!Array.isArray(coords) || coords.length < 3) return null;
+    const coords = normalizeCoords(field?.boundary?.coordinates);
+    if (coords.length < 3) return null;
     const ring = coords.map(([lat, lng]) => [lng, lat]);
     const lngs = ring.map((p) => p[0]);
     const lats = ring.map((p) => p[1]);

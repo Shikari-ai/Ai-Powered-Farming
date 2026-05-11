@@ -13,6 +13,7 @@ import {
 import { resolveLocationApprox } from "./weather-location.js";
 import { peekActiveWeatherLocation } from "./geo/active-location.js?v=1";
 import { runLocationIntelligence, CATEGORIES } from "./location-intelligence.js?v=2";
+import { normalizeBoundaryCoords } from "./boundary-coords.js?v=1";
 import { NAVIC_GPS_OPTIONS, detectGNSSSource, navicBadgeHTML } from "./navic.js";
 import { getActiveBasemapDescriptor, getNdviTileLayerConfig } from "./geo/satellite-providers.js";
 import {
@@ -378,7 +379,7 @@ function buildFieldsGeoJSON() {
     .filter(f => f.boundary?.coordinates?.length >= 3)
     .map(f => {
       const score = scansByField[f.id]?.healthScore ?? null;
-      const ring = f.boundary.coordinates.map(([lat, lng]) => [lng, lat]);
+      const ring = normalizeBoundaryCoords(f.boundary.coordinates).map(([lat, lng]) => [lng, lat]);
       ring.push(ring[0]);
       return {
         type: "Feature",
@@ -425,7 +426,7 @@ function refreshHealthBadges() {
     const score = scansByField[f.id]?.healthScore ?? null;
     const color = healthColor(score);
     const label = healthLabel(score);
-    const ring = f.boundary.coordinates.map(([lat, lng]) => [lng, lat]);
+    const ring = normalizeBoundaryCoords(f.boundary.coordinates).map(([lat, lng]) => [lng, lat]);
     const center = polygonCenter(ring);
 
     const div = document.createElement("div");
@@ -891,7 +892,7 @@ onAuthStateChanged(auth, async (user) => {
 function fitToFields() {
   const mapped = fields.filter(f => f.boundary?.coordinates?.length >= 3);
   if (!mapped.length || !map) return;
-  const allCoords = mapped.flatMap(f => f.boundary.coordinates.map(([lat, lng]) => [lng, lat]));
+  const allCoords = mapped.flatMap(f => normalizeBoundaryCoords(f.boundary.coordinates).map(([lat, lng]) => [lng, lat]));
   const lngs = allCoords.map(([lng]) => lng);
   const lats = allCoords.map(([, lat]) => lat);
   const sw = [Math.min(...lngs), Math.min(...lats)];
