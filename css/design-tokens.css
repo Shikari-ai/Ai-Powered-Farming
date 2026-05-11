@@ -89,6 +89,8 @@
 
   /* ── Motion ── */
   --motion-intensity: 1;
+  /* Tier density (device-adaptive-shell.js may raise on large screens) */
+  --agri-density-scale: 1;
   --duration-fast: 0.15s;
   --duration-normal: 0.25s;
   --ease-out-soft: cubic-bezier(0.4, 0, 0.2, 1);

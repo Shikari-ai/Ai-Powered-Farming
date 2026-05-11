@@ -1,4 +1,4 @@
-import { getAiConfig } from "./config.js?v=68";
+import { getAiConfig } from "./config.js?v=71";
 import { detectIntents } from "./detect-intents.js";
 import { buildFarmerContext, tsToMs } from "./farmer-context.js";
 import { runWeatherIntelligence } from "./engines/weather-intelligence.js";
@@ -11,7 +11,7 @@ import {
     FALLBACK_LOC,
     extractNamedPlaceHint,
     geocodePlaceName,
-} from "../weather-location.js?v=60";
+} from "../weather-location.js?v=61";
 import { peekActiveWeatherLocation } from "../geo/active-location.js?v=1";
 import { buildRichVisionContextBundle } from "./vision-context.js?v=34";
 import { buildVisionReliability } from "./reliability/core.js";
@@ -32,32 +32,72 @@ async function resolveGeoForAI(ctx, question = "") {
             /\bweather\b/i.test(q) ||
             /\b(briefing|forecast|regional)\b/i.test(q));
 
+    let geocodeMiss = false;
+    let namedQuery = null;
+
     if (wantsNamedGeo) {
+        namedQuery = place;
         try {
             const g = await geocodePlaceName(place);
             if (g && typeof g.lat === "number" && typeof g.lon === "number") {
-                return { lat: g.lat, lon: g.lon, city: g.city || "" };
+                return {
+                    lat: g.lat,
+                    lon: g.lon,
+                    city: g.city || "",
+                    source: "geocode",
+                    namedQuery: place,
+                    geocodeMiss: false,
+                };
             }
         } catch {
             /* fall through */
         }
+        geocodeMiss = true;
     }
 
     const pinned = peekActiveWeatherLocation();
     if (pinned && typeof pinned.lat === "number" && typeof pinned.lon === "number") {
-        return { lat: pinned.lat, lon: pinned.lon, city: pinned.city || "" };
+        return {
+            lat: pinned.lat,
+            lon: pinned.lon,
+            city: pinned.city || "",
+            source: "pinned",
+            namedQuery: geocodeMiss ? namedQuery : undefined,
+            geocodeMiss,
+        };
     }
     const w = ctx.latestWeatherLog;
     const wLat = typeof w?.geo?.lat === "number" ? w.geo.lat : w?.lat;
     const wLon = typeof w?.geo?.lon === "number" ? w.geo.lon : w?.lon;
     if (w && typeof wLat === "number" && typeof wLon === "number") {
-        return { lat: wLat, lon: wLon, city: w.city || "" };
+        return {
+            lat: wLat,
+            lon: wLon,
+            city: w.city || "",
+            source: "weather_log",
+            namedQuery: geocodeMiss ? namedQuery : undefined,
+            geocodeMiss,
+        };
     }
     try {
         const loc = await resolveWeatherLocation();
-        return { lat: loc.lat, lon: loc.lon, city: loc.city || "" };
+        return {
+            lat: loc.lat,
+            lon: loc.lon,
+            city: loc.city || "",
+            source: "device_gps",
+            namedQuery: geocodeMiss ? namedQuery : undefined,
+            geocodeMiss,
+        };
     } catch {
-        return { lat: FALLBACK_LOC.lat, lon: FALLBACK_LOC.lon, city: FALLBACK_LOC.city };
+        return {
+            lat: FALLBACK_LOC.lat,
+            lon: FALLBACK_LOC.lon,
+            city: FALLBACK_LOC.city,
+            source: "default_fallback",
+            namedQuery: geocodeMiss ? namedQuery : undefined,
+            geocodeMiss,
+        };
     }
 }
 

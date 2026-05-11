@@ -11,16 +11,27 @@ import {
   getDocs,
   limit,
   onSnapshot,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { runAgriOrchestrator } from "./ai/orchestrator.js?v=70";
-import { attachSnapshotForReply, composeAssistantReply, composeOperationsSnapshotReply } from "./ai/assistant-reply.js?v=69";
-import { getAiConfig } from "./ai/config.js?v=68";
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=73";
+import { attachSnapshotForReply, composeAssistantReply, composeOperationsSnapshotReply } from "./ai/assistant-reply.js?v=72";
+import { getAiConfig } from "./ai/config.js?v=71";
+import {
+  buildKnowledgeDocPayload,
+  findMergeTargetEntry,
+  findRelevantKnowledgeMemory,
+  KNOWLEDGE_MEMORY_CAP,
+  mergeKnowledgeEntries,
+} from "./ai/assistant-knowledge-memory.js?v=1";
+import { computeTurnConfidence, shouldUseWebAssistedResearch } from "./ai/web-research-policy.js?v=4";
+import { fetchPublicAgriBrief, formatWebResearchAppend } from "./ai/web-research-client.js?v=4";
 import {
   buildProactiveDigest,
   defaultCompanionProfile,
@@ -33,7 +44,7 @@ import {
   buildMicroSocialAssistantReply,
   buildVagueSymptomReply,
   classifyAssistantRouting,
-} from "./ai/assistant-intent-router.js?v=52";
+} from "./ai/assistant-intent-router.js?v=62";
 import {
   detectConversationMood,
   polishFarmReportProse,
@@ -45,6 +56,34 @@ import { computePresencePlan, maybePresenceMemoryNudge, sleep as presenceSleep }
 import { getFlowSnapshot, recordFlowUserTurn, resolveReplyVerbosity, streamRhythmPreference } from "./ai/conversation-flow.js?v=48";
 
 const ROUTING_NO_ENGINE_LOG = /** @type {const} */ (["micro_social", "casual", "clarify", "operations_quick"]);
+
+/** @param {Record<string, unknown>} o */
+function stripUndefinedForFirestore(o) {
+  const out = {};
+  for (const [k, v] of Object.entries(o || {})) {
+    if (v !== undefined) out[k] = v;
+  }
+  return out;
+}
+
+/** @param {{ id: string, data: () => any }} d */
+function normalizeKnowledgeMemoryDoc(d) {
+  const x = d.data();
+  const lastR = x.lastReinforcedAt;
+  const lastRMs =
+    lastR && typeof lastR.toMillis === "function"
+      ? lastR.toMillis()
+      : typeof lastR === "string"
+        ? Date.parse(lastR) || 0
+        : 0;
+  return {
+    id: d.id,
+    ...x,
+    lastUsedAtMs: x.lastUsedAt?.toMillis?.() ?? 0,
+    createdAtMs: x.createdAt?.toMillis?.() ?? 0,
+    lastReinforcedAtMs: lastRMs,
+  };
+}
 
 function el(id) {
   return document.getElementById(id);
@@ -286,6 +325,8 @@ onAuthStateChanged(auth, (user) => {
   let regionalBriefingText = null;
   /** Latest `learning_profiles/{uid}` (may be absent until first aggregation). */
   let learningProfile = null;
+  /** Cached `assistant_knowledge_memory` rows for this user (bounded query). */
+  let knowledgeMemoryEntries = [];
 
   listScrollRoot = getAssistantScrollRoot(listEl);
   listScrollRoot.addEventListener(
@@ -305,10 +346,15 @@ onAuthStateChanged(auth, (user) => {
 
   function updateCompanionEmptyHint() {
     const hintEl = el("assistant-companion-hint");
+    const railBody = el("assistant-rail-body");
     if (!hintEl) return;
     if (lastMsgCount !== 0) {
       hintEl.textContent = "";
       hintEl.classList.add("hidden");
+      if (railBody) {
+        railBody.textContent = "";
+        railBody.classList.add("hidden");
+      }
       return;
     }
     const live = buildProactiveDigest({ fields, scans, fieldContextStates, weatherLogs, recs });
@@ -322,6 +368,10 @@ onAuthStateChanged(auth, (user) => {
     const full = text + regHint;
     hintEl.textContent = full;
     hintEl.classList.toggle("hidden", !full.trim());
+    if (railBody) {
+      railBody.textContent = full;
+      railBody.classList.toggle("hidden", !full.trim());
+    }
   }
 
   function paintChat() {
@@ -357,6 +407,20 @@ onAuthStateChanged(auth, (user) => {
       learningProfile = snap.exists() ? { id: snap.id, ...snap.data() } : null;
       updateCompanionEmptyHint();
     }),
+  );
+
+  const knowledgeMemQ = query(
+    collection(db, "assistant_knowledge_memory"),
+    where("userId", "==", user.uid),
+    orderBy("lastUsedAt", "desc"),
+    limit(40),
+  );
+  onSnapshot(
+    knowledgeMemQ,
+    (snap) => {
+      knowledgeMemoryEntries = snap.docs.map((d) => normalizeKnowledgeMemoryDoc(d));
+    },
+    (err) => console.warn("[assistant] knowledge memory listener:", err?.message || err),
   );
 
   const attachInput = el("assistant-attach-input");
@@ -543,9 +607,11 @@ onAuthStateChanged(auth, (user) => {
       let snapshot = null;
       let orch = null;
       let reply = "";
+      /** @type {{ entry: any, score: number }[]} */
+      let learnedMemoryHits = [];
 
       if (routing.mode === "micro_social") {
-        reply = buildMicroSocialAssistantReply(text);
+        reply = buildMicroSocialAssistantReply(text, { fieldCount: fields.length, scanCount: scans.length });
         orch = null;
       } else if (routing.mode === "casual") {
         reply = buildCasualAssistantReply(text, { fieldCount: fields.length, scanCount: scans.length });
@@ -603,6 +669,16 @@ onAuthStateChanged(auth, (user) => {
           flowSnapshot: flowSnap,
         });
         attachSnapshotForReply(orch, snapshot);
+        const cfgKmMem = getAiConfig();
+        learnedMemoryHits = cfgKmMem.assistantKnowledgeMemoryEnabled
+          ? findRelevantKnowledgeMemory(knowledgeMemoryEntries, text, { limit: 2, minScore: 0.16 })
+          : [];
+        orch.turnConfidence = computeTurnConfidence({
+          question: text,
+          routingMode: routing.mode,
+          orch,
+          memoryHits: learnedMemoryHits,
+        });
         const replyVerbosity =
           routing.mode === "weather_quick"
             ? "minimal"
@@ -618,10 +694,102 @@ onAuthStateChanged(auth, (user) => {
           replyVerbosity,
           routingReason: routing.reason,
           flowSnapshot: flowSnap,
+          learnedMemoryHits,
         });
 
         if (!reply) {
           reply = buildAssistantReply({ question: text, fields, scans, recs, weatherLogs });
+        }
+
+        const cfgWeb = getAiConfig();
+        let webBrief = null;
+        /** @type {{ use?: boolean, reasons?: string[], query?: string } | null} */
+        let webResearchMeta = null;
+        if (cfgWeb.webResearchEnabled !== false && String(text || "").trim().length > 12 && orch) {
+          const wr = shouldUseWebAssistedResearch({
+            question: text,
+            routingMode: routing.mode,
+            orch,
+            memoryHits: learnedMemoryHits,
+            precomputedConfidence: orch.turnConfidence,
+          });
+          if (wr.use) {
+            webResearchMeta = wr;
+            try {
+              const brief = await fetchPublicAgriBrief(wr.query || text, { signal: streamAbort.signal });
+              webBrief = brief;
+              if (brief?.summary) {
+                reply = `${String(reply || "").trimEnd()}\n\n${formatWebResearchAppend(brief, { reasons: wr.reasons })}`;
+              }
+            } catch (e) {
+              console.warn("[assistant] web research:", e?.message || e);
+            }
+          }
+        }
+
+        const cfgKmPersist = getAiConfig();
+        if (cfgKmPersist.assistantKnowledgeMemoryEnabled && webBrief?.summary && orch && webResearchMeta?.use) {
+          void (async () => {
+            try {
+              const payload = buildKnowledgeDocPayload({
+                userId: user.uid,
+                question: text,
+                researchQuery: webResearchMeta.query || text,
+                brief: webBrief,
+                webReasons: webResearchMeta.reasons || [],
+                intents: orch.intents || {},
+                assistantReply: reply,
+              });
+              const mergeT = findMergeTargetEntry(knowledgeMemoryEntries, text);
+              if (mergeT?.id) {
+                const { id: _i, lastUsedAtMs: _lu, createdAtMs: _cm, lastReinforcedAtMs: _lr, ...base } = mergeT;
+                const merged = mergeKnowledgeEntries(base, payload);
+                await updateDoc(doc(db, "assistant_knowledge_memory", mergeT.id), {
+                  ...stripUndefinedForFirestore(merged),
+                  lastUsedAt: serverTimestamp(),
+                  lastReinforcedAt: serverTimestamp(),
+                });
+              } else {
+                await addDoc(
+                  collection(db, "assistant_knowledge_memory"),
+                  stripUndefinedForFirestore({
+                    ...payload,
+                    createdAt: serverTimestamp(),
+                    lastUsedAt: serverTimestamp(),
+                    lastReinforcedAt: serverTimestamp(),
+                  }),
+                );
+              }
+              const ps = await getDocs(
+                query(collection(db, "assistant_knowledge_memory"), where("userId", "==", user.uid), limit(55)),
+              );
+              if (ps.size > KNOWLEDGE_MEMORY_CAP) {
+                const rows = ps.docs.map((d) => ({
+                  id: d.id,
+                  lu: d.data().lastUsedAt?.toMillis?.() ?? 0,
+                }));
+                rows.sort((a, b) => a.lu - b.lu);
+                const batch = writeBatch(db);
+                for (const r of rows.slice(0, ps.size - KNOWLEDGE_MEMORY_CAP)) {
+                  batch.delete(doc(db, "assistant_knowledge_memory", r.id));
+                }
+                await batch.commit();
+              }
+            } catch (e) {
+              console.warn("[assistant] knowledge memory persist:", e?.message || e);
+            }
+          })();
+        }
+
+        if (
+          cfgKmPersist.assistantKnowledgeMemoryEnabled &&
+          learnedMemoryHits.length &&
+          learnedMemoryHits[0].entry?.id &&
+          routing.mode !== "weather_quick"
+        ) {
+          void updateDoc(doc(db, "assistant_knowledge_memory", learnedMemoryHits[0].entry.id), {
+            lastUsedAt: serverTimestamp(),
+          }).catch(() => {});
         }
       }
 
@@ -829,8 +997,10 @@ onAuthStateChanged(auth, (user) => {
       // Fire-and-forget — these write to Firestore but don't block the UI.
       commitTurnSideEffects();
     } catch (e) {
-      console.error(e);
-      alert(`Failed to send: ${e.message}`);
+      console.error("[assistant] send failed:", e);
+      alert(
+        "Couldn’t complete that message. Check your connection and try again. If it keeps failing, open the browser console (details for support).",
+      );
     } finally {
       awaitingAssistantAfterUserId = null;
       streamInFlight = false;

@@ -26,7 +26,9 @@
     <title>AI Assistant - AgriTech AI</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/design-tokens.css?v=1">
+    <link rel="stylesheet" href="css/design-tokens.css?v=2">
+    <script src="js/device-adaptive-shell.js?v=1"></script>
+    <link rel="stylesheet" href="css/adaptive-shell.css?v=1">
     <link rel="stylesheet" href="css/nav.css">
     <style>
         :root {
@@ -244,6 +246,7 @@
 </head>
 <body>
     <div class="app-layout">
+        <div class="assistant-surface">
         <header class="header">
             <div class="header-left">
                 <div class="icon-btn" onclick="window.location.href='fields.html'"><i class="ri-arrow-left-line"></i></div>
@@ -269,6 +272,14 @@
             </div>
 
             <div class="msg-list" id="assistant-messages"></div>
+        </div>
+
+        <aside class="assistant-rail" aria-label="Live farm intelligence context">
+            <div class="assistant-rail-card">
+                <div class="assistant-rail-title">Live farm context</div>
+                <div id="assistant-rail-body" class="assistant-rail-body hidden" aria-live="polite"></div>
+            </div>
+        </aside>
         </div>
     </div>
 
@@ -303,7 +314,7 @@
         </a>
     </nav>
 
-    <script type="module" src="js/assistant.js?v=70"></script>
+    <script type="module" src="js/assistant.js?v=87"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>

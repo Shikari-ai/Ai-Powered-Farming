@@ -1,5 +1,12 @@
+import { formatLearnedMemoryLines } from "./assistant-knowledge-memory.js?v=1";
 import { tsToMs } from "./farmer-context.js?v=34";
 import { softenOverclaimProse } from "./reliability/core.js";
+import {
+    allowDefiniteDiseaseClaims,
+    buildUncertaintyPreamble,
+    EPISTEMIC_PHRASES,
+    shouldFrameActionsProvisional,
+} from "./epistemic-policy.js?v=3";
 import { buildConversationalBridge } from "./internal-conversational-bridge.js?v=69";
 import { peekRecentAssistantOpenings, pickRotated } from "./conversation-naturals.js?v=48";
 import { summarizeOperationsAnalytics } from "../ops/effectiveness.js";
@@ -110,23 +117,24 @@ function modalityPreamble(profile) {
  * @param {Record<string, boolean>} intents orch.intents
  * @param {boolean} compact
  */
-function inferIntentReplyBundles(question, intents, compact) {
+function inferIntentReplyBundles(question, intents, compact, namedPlaceLeanWx = false) {
     if (compact) {
         return {
             slimBridge: true,
             includeTwin: false,
             includeLearning: false,
-            includeRegional: true,
+            includeRegional: !namedPlaceLeanWx,
             regionalMaxChars: 520,
             skipEpisodePickup: true,
             suppressBeginnerTone: false,
             slimOperationsFormatting: false,
             showSensorInventory: false,
-            extraFieldRecall: true,
-            extraFieldBlock: true,
-            omitFarmOpsLedger: false,
-            showClosingTip: true,
+            extraFieldRecall: !namedPlaceLeanWx,
+            extraFieldBlock: !namedPlaceLeanWx,
+            omitFarmOpsLedger: namedPlaceLeanWx,
+            showClosingTip: !namedPlaceLeanWx,
             narrowTurn: false,
+            namedPlaceLeanWx,
         };
     }
 
@@ -145,7 +153,7 @@ function inferIntentReplyBundles(question, intents, compact) {
         ql,
     );
 
-    const narrowTurn = qlen <= 168 && hits <= 1 && !broadCue;
+    const narrowTurn = namedPlaceLeanWx || (qlen <= 168 && hits <= 1 && !broadCue);
     const narrowerTurn = qlen <= 100 && hits <= 1 && !broadCue;
 
     const regionalCue = /\b(region|regional|network|outbreak)\b/i.test(q);
@@ -164,19 +172,22 @@ function inferIntentReplyBundles(question, intents, compact) {
         includeTwin: !narrowTurn && (broadCue || qlen > 218 || hits >= 2),
         includeLearning: !narrowTurn && (broadCue || qlen > 205 || hits >= 2),
         includeRegional:
-            !slimContext &&
-            (!!(intents.disease || intents.pest || regionalCue) ||
-                (!(narrowTurn && weatherOnlyLean && !regionalCue) && intents.weather)),
+            namedPlaceLeanWx || slimContext
+                ? false
+                : !!(intents.disease || intents.pest || regionalCue) ||
+                  (!(narrowTurn && weatherOnlyLean && !regionalCue) && intents.weather),
         regionalMaxChars: narrowTurn ? Math.min(520, 760) : 900,
         skipEpisodePickup: narrowTurn,
         suppressBeginnerTone: narrowTurn,
         slimOperationsFormatting: narrowTurn,
-        showSensorInventory: !narrowTurn,
-        extraFieldRecall: !narrowTurn,
-        extraFieldBlock: !narrowTurn,
+        showSensorInventory: !narrowTurn && !namedPlaceLeanWx,
+        extraFieldRecall: !narrowTurn && !namedPlaceLeanWx,
+        extraFieldBlock: !narrowTurn && !namedPlaceLeanWx,
         omitFarmOpsLedger:
-            narrowTurn && weatherOnlyLean && !intents.operations && !/\b(task|todo|alert|intervention)\b/i.test(ql),
+            namedPlaceLeanWx ||
+            (narrowTurn && weatherOnlyLean && !intents.operations && !/\b(task|todo|alert|intervention)\b/i.test(ql)),
         showClosingTip: !(narrowTurn && hits <= 1),
+        namedPlaceLeanWx,
     };
 }
 
@@ -198,16 +209,35 @@ function composeMinimalAgriReply(question, orch, profile, extra = {}) {
     const q = String(question || "").trim();
     const lines = [];
     const r = orch.results || {};
+    const intents = orch.intents || {};
 
-    // Only surface conversational hints (system-health classifies dev-jargon
-    // hints separately). Drop the "Note:" prefix — it reads stitched.
+    const namedPlaceLeanWx =
+        extra.routingReason === "named_place_weather_needs_full_context" &&
+        intents.weather &&
+        !intents.disease &&
+        !intents.pest &&
+        !intents.yellow;
+    // Drop dev-jargon hints (Vision server URL / API key / Firestore /
+    // disease-from-photo plumbing) — these leaked into farmer-facing chat.
+    // system-health classifies userHints vs devHints; this filter is a
+    // safety net for older callers. Also drops the "Note:" prefix which
+    // read stitched in chat.
     if (Array.isArray(orch.degradedHints) && orch.degradedHints.length) {
         const userish = orch.degradedHints.filter(
-            (h) => typeof h === "string" && !/\b(vision server url|api key|firestore|inference api)\b/i.test(h),
+            (h) => typeof h === "string" && !/\b(vision server url|api key|firestore|inference api|disease-from-photo)\b/i.test(h),
         );
         if (userish.length) {
             lines.push(softenAlarmistProse(userish.slice(0, 1).join(" "), profile));
         }
+    }
+    const minimalPre = buildUncertaintyPreamble({
+        snapshot: orch.snapshot,
+        orch,
+        question: q,
+        omitFarmOnboarding: namedPlaceLeanWx,
+    });
+    if (minimalPre) {
+        lines.push(minimalPre);
     }
     if (r.weatherIntelligence && !r.weatherIntelligence.error) {
         const w = r.weatherIntelligence;
@@ -216,14 +246,18 @@ function composeMinimalAgriReply(question, orch, profile, extra = {}) {
         const t = rd.temperatureC != null ? `${Math.round(rd.temperatureC)}°C` : "—";
         const h = rd.humidityPct != null ? `${Math.round(rd.humidityPct)}% RH` : "—";
         if (extra.routingReason === "named_place_weather_needs_full_context") {
-            lines.push(
-                "You named a specific place — the quick readout follows your **saved farm weather anchor**, not an auto city lookup.",
-            );
+            if (orch.geo?.geocodeMiss && orch.geo?.namedQuery) {
+                lines.push(
+                    `Couldn’t resolve “${orch.geo.namedQuery}” on the map — showing **${city}** from your saved/pinned location instead.`,
+                );
+            } else if (orch.geo?.source === "geocode") {
+                lines.push(`Using **${city}** from your question (geocoded; Open‑Meteo).`);
+            }
         }
         const futureAsk = isFutureWeatherQuery(q);
         const lead = futureAsk ? `Right now in ${city}` : `Quick weather (${city})`;
         let one = `${lead}: ~${t}, ${h}.`;
-        if (w.fungalDiseasePressure?.label) {
+        if (w.fungalDiseasePressure?.label && !namedPlaceLeanWx) {
             one += ` Fungal pressure: ${w.fungalDiseasePressure.label}.`;
         }
         lines.push(one);
@@ -236,20 +270,24 @@ function composeMinimalAgriReply(question, orch, profile, extra = {}) {
         lines.push("Weather didn’t refresh — try the Weather page when you’re online.");
     }
 
-    if (r.pestPrediction?.riskLabel) {
+    if (r.pestPrediction?.riskLabel && !namedPlaceLeanWx) {
         lines.push(`Pest outlook: ${r.pestPrediction.riskLabel}.`);
     }
 
-    const fc = orch.snapshot?.fields?.length ?? 0;
-    const sc = orch.snapshot?.scans?.length ?? 0;
-    if (extra.routingReason === "short_weather_only") {
-        lines.push(`${fc} field(s), ${sc} scan(s) on file — say **full breakdown** anytime for the heavier pass.`);
-    } else {
-        lines.push(`— ${fc} field(s), ${sc} scan(s) on file. Say “full breakdown” if you want the detailed engines.`);
+    if (!namedPlaceLeanWx) {
+        const fc = orch.snapshot?.fields?.length ?? 0;
+        const sc = orch.snapshot?.scans?.length ?? 0;
+        if (extra.routingReason === "short_weather_only") {
+            lines.push(`${fc} field(s), ${sc} scan(s) on file — say **full breakdown** anytime for the heavier pass.`);
+        } else {
+            lines.push(`— ${fc} field(s), ${sc} scan(s) on file. Say “full breakdown” if you want the detailed engines.`);
+        }
     }
 
     const out = lines.filter(Boolean).join("\n\n").trim();
-    return softenOverclaimProse(out || "Ask a longer question when you want the full farm breakdown.");
+    return softenOverclaimProse(out || "Ask a longer question when you want the full farm breakdown.", {
+        allowDefiniteDisease: allowDefiniteDiseaseClaims(orch),
+    });
 }
 
 /**
@@ -289,7 +327,7 @@ export function composeOperationsSnapshotReply(question, snapshot, companionProf
             "If you need scenario or twin contrast, mention simulation or “what if” and I’ll bring that stage in.",
         ]),
     );
-    return softenOverclaimProse(lines.filter(Boolean).join("\n").trim());
+    return softenOverclaimProse(lines.filter(Boolean).join("\n").trim(), { allowDefiniteDisease: false });
 }
 
 /**
@@ -304,6 +342,7 @@ export function composeAssistantReply(
         replyVerbosity = "full",
         routingReason = "",
         flowSnapshot = null,
+        learnedMemoryHits = [],
     } = {},
 ) {
     if (!orch) return "";
@@ -315,14 +354,21 @@ export function composeAssistantReply(
     const q = String(question || "").trim();
     const lines = [];
     const { intents } = orch;
-    const bundle = inferIntentReplyBundles(q, intents, compact);
+    const namedPlaceLeanWx =
+        routingReason === "named_place_weather_needs_full_context" &&
+        intents.weather &&
+        !intents.disease &&
+        !intents.pest &&
+        !intents.yellow;
+    const skipVisionNoise = namedPlaceLeanWx;
+    const bundle = inferIntentReplyBundles(q, intents, compact, namedPlaceLeanWx);
     const r = orch.results || {};
 
-    if (profile?.expertiseLevel === "beginner" && !compact && !bundle.suppressBeginnerTone) {
+    if (profile?.expertiseLevel === "beginner" && !compact && !bundle.suppressBeginnerTone && !bundle.namedPlaceLeanWx) {
         lines.push("I’ll stay practical—tell me if you want the deeper technical version.\n");
     }
 
-    if (profile?.expertiseLevel === "beginner" && compact) {
+    if (profile?.expertiseLevel === "beginner" && compact && !bundle.namedPlaceLeanWx) {
         lines.push("Keeping this tight — say if you want the longer version.\n");
     }
 
@@ -330,13 +376,27 @@ export function composeAssistantReply(
     if (modalityNote) lines.push(modalityNote);
 
     if (Array.isArray(orch.degradedHints) && orch.degradedHints.length) {
+        // Drop dev jargon AND the legacy "Status:" prefix — both leaked
+        // into farmer-facing replies in the live audit. system-health
+        // already classifies userHints/devHints; this is a safety net.
         const userish = orch.degradedHints.filter(
-            (h) => typeof h === "string" && !/\b(vision server url|api key|firestore|inference api)\b/i.test(h),
+            (h) => typeof h === "string" && !/\b(vision server url|api key|firestore|inference api|disease-from-photo)\b/i.test(h),
         );
         if (userish.length) {
             lines.push(userish.slice(0, 1).join(" "));
             lines.push("");
         }
+    }
+
+    const uncertaintyPreamble = buildUncertaintyPreamble({
+        snapshot: orch.snapshot,
+        orch,
+        question: q,
+        omitFarmOnboarding: namedPlaceLeanWx,
+    });
+    if (uncertaintyPreamble) {
+        lines.push(uncertaintyPreamble);
+        lines.push("");
     }
 
     const bridge = buildConversationalBridge(q, orch, {
@@ -348,6 +408,12 @@ export function composeAssistantReply(
     });
     if (bridge) {
         lines.push(bridge);
+        lines.push("");
+    }
+
+    if (Array.isArray(learnedMemoryHits) && learnedMemoryHits.length && !compact && !bundle.namedPlaceLeanWx) {
+        const lm = formatLearnedMemoryLines(learnedMemoryHits);
+        for (const line of lm) lines.push(line);
         lines.push("");
     }
 
@@ -368,9 +434,17 @@ export function composeAssistantReply(
             if (hl.length) lines.push(`Logged symptoms: ${hl.join(", ")}.`);
             lines.push("");
         } else {
-            lines.push(
-                "No vision-model or saved scan diagnosis yet. Use Scanner to log symptoms, or deploy the `/v1/vision/disease` service for image labels."
-            );
+            const hl = latest?.observedSymptoms || latest?.selectedSymptoms || [];
+            if (Array.isArray(hl) && hl.length) {
+                lines.push(`Logged symptoms on the latest saved scan (no diagnosis label yet): ${hl.join(", ")}.`);
+                lines.push(
+                    "Use Scanner or vision when you want a named hypothesis—below stays environmental and advisory.",
+                );
+            } else {
+                lines.push(
+                    "No vision-model or saved scan diagnosis yet. Use Scanner to log symptoms, or deploy the `/v1/vision/disease` service for image labels.",
+                );
+            }
             lines.push("");
         }
     }
@@ -425,11 +499,15 @@ export function composeAssistantReply(
         }
         lines.push("");
     } else if (r.diseaseVision?.status === "unconfigured") {
-        lines.push(`${r.diseaseVision.message}`);
-        lines.push("");
+        if (!skipVisionNoise) {
+            lines.push(`${r.diseaseVision.message}`);
+            lines.push("");
+        }
     } else if (r.diseaseVision?.status === "model_unavailable") {
-        lines.push("Disease vision server is reachable but no model is loaded yet — deploy weights to enable detections.");
-        lines.push("");
+        if (!skipVisionNoise) {
+            lines.push("Disease vision server is reachable but no model is loaded yet — deploy weights to enable detections.");
+            lines.push("");
+        }
     }
 
     if (intents.yellow || q.toLowerCase().includes("yellow")) {
@@ -464,10 +542,10 @@ export function composeAssistantReply(
     if (r.weatherIntelligence && !r.weatherIntelligence.error) {
         const w = r.weatherIntelligence;
         const futureAsk = isFutureWeatherQuery(q);
-        lines.push("Weather intelligence:");
-        if (routingReason === "named_place_weather_needs_full_context" && !compact) {
+        lines.push(bundle.namedPlaceLeanWx ? "Weather:" : "Weather intelligence:");
+        if (routingReason === "named_place_weather_needs_full_context" && !compact && orch.geo?.geocodeMiss && orch.geo?.namedQuery) {
             lines.push(
-                "You asked about a named location — these readings follow your **farm’s saved weather anchor** (Open‑Meteo), not an automatic geocode of that city name.",
+                `Couldn’t resolve “${orch.geo.namedQuery}” on the map — the numbers below are for **${orch.geo?.city || "your saved location"}** (pinned / last sync / fallback), not that name.`,
             );
         }
         if (futureAsk) {
@@ -479,25 +557,27 @@ export function composeAssistantReply(
         // "Live bundle @" is engineering jargon — rewrite as natural prose.
         const cityLabel = orch.geo?.city || "your location";
         lines.push(
+            // "Live bundle @" was internal jargon. "Right now in {City}" reads
+            // naturally for both named-place and farm-anchor weather paths.
             `Right now in ${cityLabel}: ` +
                 `${rd.temperatureC != null ? `${Math.round(rd.temperatureC)}°C` : "—"}, ` +
                 `${rd.humidityPct != null ? `${Math.round(rd.humidityPct)}% RH` : "—"}.`,
         );
-        if (w.fungalDiseasePressure) {
+        if (w.fungalDiseasePressure && !bundle.namedPlaceLeanWx) {
             lines.push(
                 `Fungal pressure: ${w.fungalDiseasePressure.label} (${pct(w.fungalDiseasePressure.score)} index).`,
             );
             if (!compact && w.fungalDiseasePressure.reasons?.[0]) lines.push(`Why: ${w.fungalDiseasePressure.reasons[0]}`);
         }
-        for (const x of (w.irrigation || []).slice(0, compact ? 0 : 1)) lines.push(`Irrigation: ${x}`);
-        for (const x of (w.spraying || []).slice(0, compact ? 0 : 1)) lines.push(`Spray window: ${x}`);
+        for (const x of (w.irrigation || []).slice(0, compact || bundle.namedPlaceLeanWx ? 0 : 1)) lines.push(`Irrigation: ${x}`);
+        for (const x of (w.spraying || []).slice(0, compact || bundle.namedPlaceLeanWx ? 0 : 1)) lines.push(`Spray window: ${x}`);
         lines.push("");
     } else if (r.weatherIntelligence?.error) {
         lines.push(`Weather intelligence paused: ${r.weatherIntelligence.message}`);
         lines.push("");
     }
 
-    if (r.pestPrediction) {
+    if (r.pestPrediction && !bundle.namedPlaceLeanWx) {
         const p = r.pestPrediction;
         lines.push(
             compact
@@ -563,7 +643,8 @@ export function composeAssistantReply(
     }
 
     if (r.recommendations?.actions?.length) {
-        lines.push("Prioritized actions:");
+        const prov = shouldFrameActionsProvisional(orch, orch.snapshot);
+        lines.push(prov ? EPISTEMIC_PHRASES.provisionalActionsHeader : "Prioritized actions:");
         const maxA = compact ? 2 : profile?.explanationStyle === "concise" ? 2 : 4;
         for (const a of r.recommendations.actions.slice(0, maxA)) {
             const c =
@@ -578,57 +659,58 @@ export function composeAssistantReply(
         lines.push("");
     }
 
-    const ctxLines = [];
-    const fc = orch.snapshot?.fields?.length ?? 0;
-    const sc = orch.snapshot?.scans?.length ?? 0;
-    // Narrow weather-only turns shouldn't trail "Account snapshot: 0 field(s)
-    // 0 scan(s)" — it reads like an analytics dump for a casual question.
-    if (!bundle.slimContext) {
-        ctxLines.push(`Account snapshot: ${fc} field(s), ${sc} scan(s).`);
-    }
-
-    const sortedFields = (orch.snapshot?.fieldContextStates || [])
-        .map((s) => {
-            const fid = s.fieldId || s.id;
-            const name = (orch.snapshot?.fields || []).find((f) => f.id === fid)?.name;
-            return { fid, lab: s.lastTopHypothesis || s.lastVisionLabels?.[0], name };
-        })
-        .filter((x) => x.lab);
-
-    if (sortedFields.length && profile?.expertiseLevel !== "beginner" && !compact && bundle.extraFieldRecall && !bundle.slimContext) {
-        const ref = sortedFields[0];
-        ctxLines.push(
-            `If this reminds you of prior stress: ${ref.name || "A field"} recently showed **${ref.lab}** in your intelligence timeline — humidity and season matter for recurrence.`,
-        );
-    }
-
-    const latestScan = orch.snapshot?.scans?.[0];
-    if (latestScan) {
-        const health = typeof latestScan.healthScore === "number" ? `${Math.round(latestScan.healthScore)}%` : "--";
-        ctxLines.push(`Latest saved scan: ${latestScan.cropType || "crop"} • ${latestScan.diagnosis?.label || "logged"} • health ${health}.`);
-    } else if (!bundle.slimContext) {
-        // Onboarding nudge only when there's space — never on narrow turns.
-        ctxLines.push("No scans yet — onboarding: run Scanner once to unlock disease/pest context in this assistant.");
-    }
-
-    const fcs = orch.snapshot?.fieldContextStates;
-    if (Array.isArray(fcs) && fcs.length && !compact && bundle.extraFieldBlock && !bundle.slimContext) {
-        const first = fcs[0];
-        const lab = first.lastTopHypothesis || first.lastVisionLabels?.[0];
-        if (lab || first.stabilityScore != null) {
-            ctxLines.push(
-                `Field intelligence snapshot: ${lab ? `recent focus ${lab}` : "history building"}${first.stabilityScore != null ? `; stability ~${first.stabilityScore}` : ""}.`,
-            );
-        }
-    }
-
     const lastTrust = !compact && profile?.trustNotes?.length ? profile.trustNotes[profile.trustNotes.length - 1] : null;
     if (lastTrust?.note && profile?.expertiseLevel === "advanced") {
         lines.push(`Why weights shifted this turn: ${lastTrust.note}`);
         lines.push("");
     }
 
-    lines.push(ctxLines.join("\n"));
+    // namedPlaceLeanWx is one narrow case; slimContext is the broader "this
+    // is a narrow weather-only turn" gate. Either suppresses the analytics
+    // dump (account snapshot, onboarding nudge, field-intel block) that
+    // makes casual questions read like a report card.
+    if (!bundle.namedPlaceLeanWx && !bundle.slimContext) {
+        const ctxLines = [];
+        const fc = orch.snapshot?.fields?.length ?? 0;
+        const sc = orch.snapshot?.scans?.length ?? 0;
+        ctxLines.push(`Account snapshot: ${fc} field(s), ${sc} scan(s).`);
+
+        const sortedFields = (orch.snapshot?.fieldContextStates || [])
+            .map((s) => {
+                const fid = s.fieldId || s.id;
+                const name = (orch.snapshot?.fields || []).find((f) => f.id === fid)?.name;
+                return { fid, lab: s.lastTopHypothesis || s.lastVisionLabels?.[0], name };
+            })
+            .filter((x) => x.lab);
+
+        if (sortedFields.length && profile?.expertiseLevel !== "beginner" && !compact && bundle.extraFieldRecall) {
+            const ref = sortedFields[0];
+            ctxLines.push(
+                `If this reminds you of prior stress: ${ref.name || "A field"} recently showed **${ref.lab}** in your intelligence timeline — humidity and season matter for recurrence.`,
+            );
+        }
+
+        const latestScan = orch.snapshot?.scans?.[0];
+        if (latestScan) {
+            const health = typeof latestScan.healthScore === "number" ? `${Math.round(latestScan.healthScore)}%` : "--";
+            ctxLines.push(`Latest saved scan: ${latestScan.cropType || "crop"} • ${latestScan.diagnosis?.label || "logged"} • health ${health}.`);
+        } else {
+            ctxLines.push("No scans yet — onboarding: run Scanner once to unlock disease/pest context in this assistant.");
+        }
+
+        const fcs = orch.snapshot?.fieldContextStates;
+        if (Array.isArray(fcs) && fcs.length && !compact && bundle.extraFieldBlock) {
+            const first = fcs[0];
+            const lab = first.lastTopHypothesis || first.lastVisionLabels?.[0];
+            if (lab || first.stabilityScore != null) {
+                ctxLines.push(
+                    `Field intelligence snapshot: ${lab ? `recent focus ${lab}` : "history building"}${first.stabilityScore != null ? `; stability ~${first.stabilityScore}` : ""}.`,
+                );
+            }
+        }
+
+        lines.push(ctxLines.join("\n"));
+    }
 
     if (profile?.expertiseLevel === "beginner" && r.recommendations?.actions?.[0]) {
         const a0 = r.recommendations.actions[0];
@@ -646,7 +728,9 @@ export function composeAssistantReply(
         lines.push("\nSay **more depth** anytime if you want the full engine pass.");
     }
 
-    return softenOverclaimProse(lines.filter(Boolean).join("\n").trim());
+    return softenOverclaimProse(lines.filter(Boolean).join("\n").trim(), {
+        allowDefiniteDisease: allowDefiniteDiseaseClaims(orch),
+    });
 }
 
 /**

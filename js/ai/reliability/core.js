@@ -242,13 +242,28 @@ export function calibrateEngineAction(action, ctx) {
     };
 }
 
-/** Strip overclaim / panic phrasing for assistant copy (lightweight guard). */
-export function softenOverclaimProse(text) {
+/**
+ * Strip overclaim / panic phrasing for assistant copy (lightweight guard).
+ * @param {string} text
+ * @param {{ allowDefiniteDisease?: boolean }} [opts] When `allowDefiniteDisease` is false, softens definitive disease naming.
+ */
+export function softenOverclaimProse(text, opts) {
     if (!text) return text;
-    return String(text)
+    let s = String(text)
         .replace(/\b\d{3}%\s*certain\b/gi, "uncertain without field verification")
         .replace(/\bguaranteed\b/gi, "not guaranteed")
         .replace(/\bimminent destruction\b/gi, "a situation to verify soon")
         .replace(/\bcrop destruction imminent\b/gi, "elevated risk — verify in person")
-        .replace(/\bwill definitely\b/gi, "may");
+        .replace(/\bwill definitely\b/gi, "may")
+        .replace(/\bdefinitely\b/gi, "likely")
+        .replace(/\bdefinitively\b/gi, "likely");
+
+    if (opts && opts.allowDefiniteDisease === false) {
+        s = s.replace(
+            /\b(this is|it is|that is|that's)\s+(the\s+|a\s+)?([A-Za-z][A-Za-z\s-]{2,45})\s+disease\b/gi,
+            (_m, _p, art, name) => `could be ${art || ""}${name} disease`.replace(/\s+/g, " "),
+        );
+    }
+
+    return s;
 }

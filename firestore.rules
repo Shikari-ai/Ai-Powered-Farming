@@ -144,6 +144,13 @@ service cloud.firestore {
       allow delete: if isOwnerByField("userId");
     }
 
+    // Compact structured summaries from optional public research (no raw HTML blobs).
+    match /assistant_knowledge_memory/{docId} {
+      allow create: if isOwnerNewByField("userId");
+      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow delete: if isOwnerByField("userId");
+    }
+
     match /ai_engine_runs/{docId} {
       allow create: if isOwnerNewByField("userId");
       allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");

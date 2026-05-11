@@ -101,6 +101,14 @@
         { "fieldPath": "fieldId", "order": "ASCENDING" },
         { "fieldPath": "performedAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "assistant_knowledge_memory",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "lastUsedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
