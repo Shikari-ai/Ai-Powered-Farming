@@ -77,6 +77,9 @@
         .msg .meta { font-size: 10px; color: var(--text-dim); margin-bottom: 6px; display:flex; justify-content:space-between; gap: 10px;}
         .msg .text { font-size: 13px; line-height: 1.45; color: rgba(255,255,255,0.92); white-space: pre-wrap; }
         .msg.typing { opacity: 0.92; }
+        .msg.is-superseded { opacity: 0.62; }
+        .msg.is-superseded .text { text-decoration: line-through; text-decoration-color: rgba(255,255,255,0.32); text-decoration-thickness: 1px; }
+        .msg-superseded { font-size: 11px; color: var(--text-dim); margin-top: 6px; font-style: italic; letter-spacing: 0.01em; }
         .typing-dots { display: flex; gap: 6px; align-items: center; padding: 6px 0 2px; }
         .typing-dots span {
             width: 7px; height: 7px; border-radius: 50%;

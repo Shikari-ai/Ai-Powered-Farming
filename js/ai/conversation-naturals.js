@@ -120,9 +120,17 @@ export function detectConversationMood(text) {
     return "neutral";
 }
 
+/**
+ * Section-header polishes only run when the line LOOKS like a real section
+ * (multi-line block or rich body). A one-token body like "Pest outlook: watch."
+ * is an inline statement, not a section — turning it into "On pests:\nwatch."
+ * reads stitched.
+ *
+ * The "Pest outlook:" entry is intentionally omitted here; it's polished by
+ * `polishInlinePestOutlook` further down which keeps short bodies inline.
+ */
 const HDR_REPLACERS = [
     [/^Weather intelligence:\s*/gim, ["Weather-wise:\n", "Here’s the weather readout:\n", "On weather:\n"]],
-    [/^Pest outlook:\s*/gim, ["Pest side:\n", "On pests:\n", "Scouting/pests:\n"]],
     [/^Prioritized actions:\s*/gim, ["Worth doing next:\n", "Practical next steps:\n", "If you prioritize:\n"]],
     [
         /^Farm operations \(you execute all field work[^\n]*\):\s*/gim,
@@ -132,6 +140,26 @@ const HDR_REPLACERS = [
     [/^Learning \/ knowledge evolution:\s*/gim, ["Learning notes from your timeline:\n", "What the app has learned (bounded):\n", "Adaptive notes:\n"]],
     [/^Regional network context[^\n]*:\s*/gim, ["Regional backdrop (coarse):\n", "Wider area context:\n", "Neighborhood signal:\n"]],
 ];
+
+/**
+ * Keep "Pest outlook: watch." inline. Only when there's a substantial body
+ * (multi-word phrase, semicolons, or follow-up bullets) does it become a
+ * section header. Avoids the "On pests:\nwatch." stitched-section bug.
+ */
+function polishInlinePestOutlook(text) {
+    return String(text || "").replace(
+        /^Pest outlook:\s*([^\n]+)/gim,
+        (full, body) => {
+            const b = String(body || "").trim();
+            // One- or two-word body → keep inline as "Pest pressure: watch."
+            const wordCount = b.replace(/[.,;:!?]+$/g, "").split(/\s+/).filter(Boolean).length;
+            if (wordCount <= 2) return `Pest pressure: ${b}`;
+            // Substantial body — render as section
+            const pick = ["Pest side:", "On pests:", "Scouting/pests:"][Math.floor(Math.random() * 3)];
+            return `${pick}\n${b}`;
+        },
+    );
+}
 
 const VOICEY_REPLACERS = [
     [/\bBased on current data,?\s*/gi, ["From what’s in your account, ", "From your latest saved signals, ", "Given what we have on file, "]],
@@ -159,6 +187,10 @@ export function polishFarmReportProse(text, opts = {}) {
     ) {
         return s.trim();
     }
+
+    // Inline-friendly pest polish runs first so short bodies stay inline,
+    // before the generic header replacers add line breaks.
+    s = polishInlinePestOutlook(s);
 
     for (let i = 0; i < HDR_REPLACERS.length; i++) {
         const [re, list] = HDR_REPLACERS[i];

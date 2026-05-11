@@ -160,15 +160,22 @@ function inferIntentReplyBundles(question, intents, compact, namedPlaceLeanWx = 
     const weatherOnlyLean =
         intents.weather && hits === 1 && !intents.pest && !intents.disease && !intents.operations && !intents.field;
 
+    // For "what's the weather in Mumbai?" — short, single-intent, weather-only.
+    // Live audit showed these getting a kitchen-sink reply with regional,
+    // account snapshot, onboarding nudge etc. Suppress all of that.
+    const slimContext = narrowTurn && weatherOnlyLean && !regionalCue;
+
     return {
         narrowTurn,
+        slimContext,
         slimBridge: narrowTurn || narrowerTurn,
         includeTwin: !narrowTurn && (broadCue || qlen > 218 || hits >= 2),
         includeLearning: !narrowTurn && (broadCue || qlen > 205 || hits >= 2),
-        includeRegional: namedPlaceLeanWx
-            ? false
-            : !!(intents.disease || intents.pest || regionalCue) ||
-              (!(narrowTurn && weatherOnlyLean && !regionalCue) && intents.weather),
+        includeRegional:
+            namedPlaceLeanWx || slimContext
+                ? false
+                : !!(intents.disease || intents.pest || regionalCue) ||
+                  (!(narrowTurn && weatherOnlyLean && !regionalCue) && intents.weather),
         regionalMaxChars: narrowTurn ? Math.min(520, 760) : 900,
         skipEpisodePickup: narrowTurn,
         suppressBeginnerTone: narrowTurn,
@@ -184,6 +191,20 @@ function inferIntentReplyBundles(question, intents, compact, namedPlaceLeanWx = 
     };
 }
 
+/**
+ * The orchestrator only carries current weather. If the user asked about
+ * tomorrow / next few days / forecast, be honest: the readings are "now",
+ * point them at the Weather page for the multi-day forecast.
+ * @param {string} text
+ */
+function isFutureWeatherQuery(text) {
+    const t = String(text || "").toLowerCase();
+    if (!/\b(weather|rain|storm|hot|cold|humid|wind|temperature|temp)\b/.test(t)) return false;
+    return /\b(tomorrow|tonight|tmrw|next\s+day|next\s+few\s+days|coming\s+days|this\s+week|upcoming|forecast|going\s+to\s+(rain|storm)|will\s+(it|the\s+weather)\s+(rain|be|change)|gonna\s+rain)\b/.test(
+        t,
+    );
+}
+
 function composeMinimalAgriReply(question, orch, profile, extra = {}) {
     const q = String(question || "").trim();
     const lines = [];
@@ -196,12 +217,18 @@ function composeMinimalAgriReply(question, orch, profile, extra = {}) {
         !intents.disease &&
         !intents.pest &&
         !intents.yellow;
-    const skipVisionNoise = namedPlaceLeanWx;
+    // Drop dev-jargon hints (Vision server URL / API key / Firestore /
+    // disease-from-photo plumbing) — these leaked into farmer-facing chat.
+    // system-health classifies userHints vs devHints; this filter is a
+    // safety net for older callers. Also drops the "Note:" prefix which
+    // read stitched in chat.
     if (Array.isArray(orch.degradedHints) && orch.degradedHints.length) {
-        const dh = skipVisionNoise
-            ? orch.degradedHints.filter((h) => !/vision|disease-from-photo/i.test(String(h)))
-            : orch.degradedHints;
-        if (dh.length) lines.push(softenAlarmistProse("Note: " + dh.slice(0, 2).join(" "), profile));
+        const userish = orch.degradedHints.filter(
+            (h) => typeof h === "string" && !/\b(vision server url|api key|firestore|inference api|disease-from-photo)\b/i.test(h),
+        );
+        if (userish.length) {
+            lines.push(softenAlarmistProse(userish.slice(0, 1).join(" "), profile));
+        }
     }
     const minimalPre = buildUncertaintyPreamble({
         snapshot: orch.snapshot,
@@ -227,11 +254,18 @@ function composeMinimalAgriReply(question, orch, profile, extra = {}) {
                 lines.push(`Using **${city}** from your question (geocoded; Open‑Meteo).`);
             }
         }
-        let one = `Quick weather (${city}): ~${t}, ${h}.`;
+        const futureAsk = isFutureWeatherQuery(q);
+        const lead = futureAsk ? `Right now in ${city}` : `Quick weather (${city})`;
+        let one = `${lead}: ~${t}, ${h}.`;
         if (w.fungalDiseasePressure?.label && !namedPlaceLeanWx) {
             one += ` Fungal pressure: ${w.fungalDiseasePressure.label}.`;
         }
         lines.push(one);
+        if (futureAsk) {
+            lines.push(
+                "I’m reading current conditions here — open the Weather tab for the 10‑day forecast and rain probability.",
+            );
+        }
     } else if (r.weatherIntelligence?.error) {
         lines.push("Weather didn’t refresh — try the Weather page when you’re online.");
     }
@@ -342,11 +376,14 @@ export function composeAssistantReply(
     if (modalityNote) lines.push(modalityNote);
 
     if (Array.isArray(orch.degradedHints) && orch.degradedHints.length) {
-        const dh = skipVisionNoise
-            ? orch.degradedHints.filter((h) => !/vision|disease-from-photo/i.test(String(h)))
-            : orch.degradedHints;
-        if (dh.length) {
-            lines.push("Status: " + dh.join(" "));
+        // Drop dev jargon AND the legacy "Status:" prefix — both leaked
+        // into farmer-facing replies in the live audit. system-health
+        // already classifies userHints/devHints; this is a safety net.
+        const userish = orch.degradedHints.filter(
+            (h) => typeof h === "string" && !/\b(vision server url|api key|firestore|inference api|disease-from-photo)\b/i.test(h),
+        );
+        if (userish.length) {
+            lines.push(userish.slice(0, 1).join(" "));
             lines.push("");
         }
     }
@@ -504,17 +541,27 @@ export function composeAssistantReply(
 
     if (r.weatherIntelligence && !r.weatherIntelligence.error) {
         const w = r.weatherIntelligence;
+        const futureAsk = isFutureWeatherQuery(q);
         lines.push(bundle.namedPlaceLeanWx ? "Weather:" : "Weather intelligence:");
         if (routingReason === "named_place_weather_needs_full_context" && !compact && orch.geo?.geocodeMiss && orch.geo?.namedQuery) {
             lines.push(
                 `Couldn’t resolve “${orch.geo.namedQuery}” on the map — the numbers below are for **${orch.geo?.city || "your saved location"}** (pinned / last sync / fallback), not that name.`,
             );
         }
+        if (futureAsk) {
+            lines.push(
+                "Heads-up: these are **current** readings — for tomorrow / multi-day rain probability, open the Weather tab.",
+            );
+        }
         const rd = w.readings || {};
+        // "Live bundle @" is engineering jargon — rewrite as natural prose.
+        const cityLabel = orch.geo?.city || "your location";
         lines.push(
-            `${bundle.namedPlaceLeanWx ? "Now" : "Live bundle"} @ ${orch.geo?.city || "location"}: ` +
+            // "Live bundle @" was internal jargon. "Right now in {City}" reads
+            // naturally for both named-place and farm-anchor weather paths.
+            `Right now in ${cityLabel}: ` +
                 `${rd.temperatureC != null ? `${Math.round(rd.temperatureC)}°C` : "—"}, ` +
-                `${rd.humidityPct != null ? `${Math.round(rd.humidityPct)}% RH` : "—"}.`
+                `${rd.humidityPct != null ? `${Math.round(rd.humidityPct)}% RH` : "—"}.`,
         );
         if (w.fungalDiseasePressure && !bundle.namedPlaceLeanWx) {
             lines.push(
@@ -618,7 +665,11 @@ export function composeAssistantReply(
         lines.push("");
     }
 
-    if (!bundle.namedPlaceLeanWx) {
+    // namedPlaceLeanWx is one narrow case; slimContext is the broader "this
+    // is a narrow weather-only turn" gate. Either suppresses the analytics
+    // dump (account snapshot, onboarding nudge, field-intel block) that
+    // makes casual questions read like a report card.
+    if (!bundle.namedPlaceLeanWx && !bundle.slimContext) {
         const ctxLines = [];
         const fc = orch.snapshot?.fields?.length ?? 0;
         const sc = orch.snapshot?.scans?.length ?? 0;

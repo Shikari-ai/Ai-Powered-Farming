@@ -424,21 +424,69 @@ export function buildCasualAssistantReply(text, ctx = {}) {
         ]);
     }
 
-    const needsOnboard = (fc === 0 && sc === 0) || sc === 0;
-    const onboardHint = needsOnboard
-        ? pickRotated("casual_onboard", [
-              fc === 0 && sc === 0
-                  ? " When you add a field + save a scan, I can tie answers to your numbers."
-                  : " A quick scan later will make follow-ups sharper.",
-              "",
-              "",
-          ])
-        : "";
+    // "How's your day", "how was your day", "how's it going" — same vibe as
+    // "how are you" but the existing regex only catches the latter exactly.
+    if (/\bhow'?s?\s+(your|ur|the|things)\s*(day|going|it\s+going|life)\b/.test(t)
+        || /\bhow\s+(was|is)\s+(your|ur|the)\s*(day|week|week\s*end|weekend)\b/.test(t)) {
+        return pickRotated("howsday", [
+            "Hanging in there — how about yours?",
+            "Going well, thanks. How’s yours shaping up?",
+            "Good day so far. What’s going on with you?",
+            "Pretty good — what about your day?",
+        ]);
+    }
 
+    // Empathetic — user expressed fatigue / stress. Don't pivot to onboarding.
+    if (/\b(i'?m|i\s+am|feeling|am)\s+(tired|exhausted|wiped|drained|stressed|burnt\s*out|overwhelmed|knackered|fried|beat)\b/.test(t)
+        || /^(tired|exhausted|wiped|drained|stressed|burnt\s*out)\b/.test(t)) {
+        return pickRotated("empath_tired", [
+            "Long day? Take it easy — I’m here when you want to dig into anything.",
+            "Yeah, those days happen. Step away when you can — I’ll be here.",
+            "That’s fair. Rest is part of the job too — ping me when you’re back at it.",
+        ]);
+    }
+
+    // "Tell me a joke" — own it, don't deflect.
+    if (/\b(tell|got|know)\s+(me\s+)?(a\s+)?(joke|pun|something\s+funny)\b/.test(t)
+        || /\bmake\s+me\s+laugh\b/.test(t)) {
+        return pickRotated("joke", [
+            "Why did the tomato turn red? It saw the salad dressing.",
+            "I told my soil a joke. Crickets. Literal ones — bad pest pressure that week.",
+            "Why don’t farmers trust the weather app? Too many forecast crops up.",
+            "A scarecrow won an award — outstanding in his field.",
+        ]);
+    }
+
+    // "Are you real?" / "are you a bot?" — be honest and warm.
+    if (/\bare\s+you\s+(real|a\s+bot|a\s+robot|human|an?\s+ai|a\s+person|alive)\b/.test(t)
+        || /\b(you'?re|youre|you\s+are)\s+(a\s+)?(bot|robot|ai)\b/.test(t)) {
+        return pickRotated("are_you_real", [
+            "I’m an AI assistant for your farm — real enough to be useful, but I can’t actually walk the rows.",
+            "Bot, yeah — built to help you read your fields, weather, and scans. I just can’t hold a shovel.",
+            "I’m AI. The numbers and forecasts are real; the personality is just me trying not to sound like a manual.",
+        ]);
+    }
+
+    // "Wait", "hold on", "one sec" — pause acknowledgement, no onboarding.
+    if (/^(wait|hold\s+on|one\s+sec|hang\s+on|gimme\s+a\s+sec|gimme\s+a\s+min|brb|moment)\b/.test(t)
+        || /^actually\s*(wait|hold\s+on)?[\s.,-]*$/.test(t.replace(/[—–-]+$/, "").trim())) {
+        return pickRotated("wait", [
+            "All good — take your time.",
+            "Sure, no rush.",
+            "I’m here when you’re back.",
+        ]);
+    }
+
+    // Fallback — open chat. Drop the onboarding-line spam: it appeared in
+    // half of all replies in the live audit. The empty-state hint card already
+    // surfaces the "add a field" nudge once when there's no history. Don't
+    // tack it onto every casual turn.
     return pickRotated("open_chat", [
-        `Hey — how’s your day?${onboardHint}`,
-        `Hi. What do you want to dig into?${onboardHint}`,
-        `What’s up?${onboardHint ? (onboardHint.trim() ? `\n${onboardHint.trim()}` : "") : ""}`,
+        "Hey — how’s your day?",
+        "Hi. What do you want to dig into?",
+        "What’s up?",
+        "I’m here — what’s on your mind?",
+        "Hey, what would you like to look at?",
     ]);
 }
 

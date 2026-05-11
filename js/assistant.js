@@ -117,6 +117,7 @@ function renderMessages(container, msgs, opts = {}) {
   if (!container) return;
   const awaitingId = opts.awaitingUserMsgId || null;
   const stream = opts.streamingAssistant || null;
+  const supersededIds = opts.supersededIds || new Set();
   const showTyping =
     !!awaitingId &&
     msgs.some((m) => m.id === awaitingId && m.role === "user") &&
@@ -129,10 +130,15 @@ function renderMessages(container, msgs, opts = {}) {
       const who = role === "user" ? "You" : "Assistant";
       const time = formatTime(tsToMs(m.createdAt));
       const safe = String(m.text || "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+      const supersededBadge =
+        role === "user" && supersededIds.has(m.id)
+          ? `<div class="msg-superseded" aria-label="Superseded by the next message">superseded by your next message</div>`
+          : "";
       return `
-        <div class="msg ${role}">
+        <div class="msg ${role}${role === "user" && supersededIds.has(m.id) ? " is-superseded" : ""}">
           <div class="meta"><span>${who}</span><span>${time}</span></div>
           <div class="text">${safe}</div>
+          ${supersededBadge}
         </div>
       `;
     })
@@ -251,7 +257,21 @@ function buildAssistantReply({ question, fields, scans, recs, weatherLogs }) {
   return lines.join("\n");
 }
 
+/** @type {Array<() => void>} */
+let activeSubscriptions = [];
+function teardownSubscriptions() {
+  for (const u of activeSubscriptions) {
+    try { u?.(); } catch (e) { console.warn("[assistant] teardown:", e); }
+  }
+  activeSubscriptions = [];
+}
+
 onAuthStateChanged(auth, (user) => {
+  // Auth callbacks can fire multiple times (token refresh, sign-out+in,
+  // multi-tab). Tear down any prior snapshot listeners before re-binding,
+  // otherwise each refresh stacks another full set of Firestore reads.
+  teardownSubscriptions();
+
   if (!user) {
     window.location.href = "login.html";
     return;
@@ -290,6 +310,10 @@ onAuthStateChanged(auth, (user) => {
   /** Per-send generation; new send aborts previous stream via signal + generation check. */
   let sendGeneration = 0;
   let streamAbort = new AbortController();
+  /** User-message IDs whose assistant reply was aborted by the user sending a follow-up. */
+  const supersededUserMsgIds = new Set();
+  /** Tracks the user-msg ID of the currently in-flight turn so we can mark it superseded on abort. */
+  let currentTurnUserMsgId = null;
   /** @type {{ promise: Promise<string>, fastForward: () => void } | null} */
   let activeStreamCtrl = null;
   /** User scrolled up → stop following; near bottom again → resume follow. */
@@ -356,6 +380,7 @@ onAuthStateChanged(auth, (user) => {
     renderMessages(listEl, chatMessages, {
       awaitingUserMsgId: awaitingAssistantAfterUserId,
       streamingAssistant,
+      supersededIds: supersededUserMsgIds,
     });
     updateCompanionEmptyHint();
     const root = listScrollRoot || getAssistantScrollRoot(listEl);
@@ -370,15 +395,19 @@ onAuthStateChanged(auth, (user) => {
     }
   }
 
-  onSnapshot(doc(db, "companion_profiles", user.uid), (snap) => {
-    companionProfile = normalizeCompanionProfile(snap.data(), user.uid);
-    updateCompanionEmptyHint();
-  });
+  activeSubscriptions.push(
+    onSnapshot(doc(db, "companion_profiles", user.uid), (snap) => {
+      companionProfile = normalizeCompanionProfile(snap.data(), user.uid);
+      updateCompanionEmptyHint();
+    }),
+  );
 
-  onSnapshot(doc(db, "learning_profiles", user.uid), (snap) => {
-    learningProfile = snap.exists() ? { id: snap.id, ...snap.data() } : null;
-    updateCompanionEmptyHint();
-  });
+  activeSubscriptions.push(
+    onSnapshot(doc(db, "learning_profiles", user.uid), (snap) => {
+      learningProfile = snap.exists() ? { id: snap.id, ...snap.data() } : null;
+      updateCompanionEmptyHint();
+    }),
+  );
 
   const knowledgeMemQ = query(
     collection(db, "assistant_knowledge_memory"),
@@ -419,75 +448,95 @@ onAuthStateChanged(auth, (user) => {
   };
 
   const msgsQ = query(collection(db, "assistant_messages"), where("userId", "==", user.uid), limit(200));
-  onSnapshot(msgsQ, (snap) => {
-    const msgs = [];
-    snap.forEach((d) => msgs.push({ id: d.id, ...d.data() }));
-    lastMsgCount = msgs.length;
-    chatMessages = msgs;
-    if (!streamInFlight) paintChat();
-  });
-
-  onSnapshot(query(collection(db, "fields"), where("userId", "==", user.uid), limit(200)), (snap) => {
-    fields = [];
-    snap.forEach((d) => fields.push({ id: d.id, ...d.data() }));
-    updateCompanionEmptyHint();
-  });
-  onSnapshot(query(collection(db, "crop_scans"), where("userId", "==", user.uid), limit(500)), (snap) => {
-    scans = [];
-    snap.forEach((d) => scans.push({ id: d.id, ...d.data() }));
-    updateCompanionEmptyHint();
-  });
-  onSnapshot(query(collection(db, "ai_recommendations"), where("userId", "==", user.uid), limit(200)), (snap) => {
-    recs = [];
-    snap.forEach((d) => recs.push({ id: d.id, ...d.data() }));
-    updateCompanionEmptyHint();
-  });
-  onSnapshot(query(collection(db, "weather_logs"), where("userId", "==", user.uid), limit(50)), (snap) => {
-    weatherLogs = [];
-    snap.forEach((d) => weatherLogs.push({ id: d.id, ...d.data() }));
-    updateCompanionEmptyHint();
-  });
-  onSnapshot(query(collection(db, "environmental_data"), where("userId", "==", user.uid), limit(40)), (snap) => {
-    environmental = [];
-    snap.forEach((d) => environmental.push({ id: d.id, ...d.data() }));
-  });
-  onSnapshot(query(collection(db, "field_context_state"), where("userId", "==", user.uid), limit(40)), (snap) => {
-    fieldContextStates = [];
-    snap.forEach((d) => fieldContextStates.push({ id: d.id, fieldId: d.id, ...d.data() }));
-    updateCompanionEmptyHint();
-  });
-
-  onSnapshot(
-    query(collection(db, "farm_interventions"), where("userId", "==", user.uid), limit(120)),
-    (snap) => {
-      const rows = [];
-      snap.forEach((d) => rows.push({ id: d.id, ...d.data() }));
-      rows.sort((a, b) => tsToMs(b.performedAt) - tsToMs(a.performedAt));
-      farmInterventions = rows.slice(0, 48);
-      updateCompanionEmptyHint();
-    },
+  activeSubscriptions.push(
+    onSnapshot(msgsQ, (snap) => {
+      const msgs = [];
+      snap.forEach((d) => msgs.push({ id: d.id, ...d.data() }));
+      lastMsgCount = msgs.length;
+      chatMessages = msgs;
+      if (!streamInFlight) paintChat();
+    }),
   );
 
-  onSnapshot(
-    query(collection(db, "farm_operational_tasks"), where("userId", "==", user.uid), limit(120)),
-    (snap) => {
-      const rows = [];
-      snap.forEach((d) => rows.push({ id: d.id, ...d.data() }));
-      rows.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
-      farmOperationalTasks = rows.slice(0, 48);
+  activeSubscriptions.push(
+    onSnapshot(query(collection(db, "fields"), where("userId", "==", user.uid), limit(200)), (snap) => {
+      fields = [];
+      snap.forEach((d) => fields.push({ id: d.id, ...d.data() }));
       updateCompanionEmptyHint();
-    },
+    }),
+  );
+  activeSubscriptions.push(
+    onSnapshot(query(collection(db, "crop_scans"), where("userId", "==", user.uid), limit(500)), (snap) => {
+      scans = [];
+      snap.forEach((d) => scans.push({ id: d.id, ...d.data() }));
+      updateCompanionEmptyHint();
+    }),
+  );
+  activeSubscriptions.push(
+    onSnapshot(query(collection(db, "ai_recommendations"), where("userId", "==", user.uid), limit(200)), (snap) => {
+      recs = [];
+      snap.forEach((d) => recs.push({ id: d.id, ...d.data() }));
+      updateCompanionEmptyHint();
+    }),
+  );
+  activeSubscriptions.push(
+    onSnapshot(query(collection(db, "weather_logs"), where("userId", "==", user.uid), limit(50)), (snap) => {
+      weatherLogs = [];
+      snap.forEach((d) => weatherLogs.push({ id: d.id, ...d.data() }));
+      updateCompanionEmptyHint();
+    }),
+  );
+  activeSubscriptions.push(
+    onSnapshot(query(collection(db, "environmental_data"), where("userId", "==", user.uid), limit(40)), (snap) => {
+      environmental = [];
+      snap.forEach((d) => environmental.push({ id: d.id, ...d.data() }));
+    }),
+  );
+  activeSubscriptions.push(
+    onSnapshot(query(collection(db, "field_context_state"), where("userId", "==", user.uid), limit(40)), (snap) => {
+      fieldContextStates = [];
+      snap.forEach((d) => fieldContextStates.push({ id: d.id, fieldId: d.id, ...d.data() }));
+      updateCompanionEmptyHint();
+    }),
   );
 
-  onSnapshot(
-    query(collection(db, "alerts"), where("userId", "==", user.uid), limit(80)),
-    (snap) => {
-      const rows = [];
-      snap.forEach((d) => rows.push({ id: d.id, ...d.data() }));
-      rows.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
-      assistantAlerts = rows.slice(0, 40);
-      updateCompanionEmptyHint();
-    },
+  activeSubscriptions.push(
+    onSnapshot(
+      query(collection(db, "farm_interventions"), where("userId", "==", user.uid), limit(120)),
+      (snap) => {
+        const rows = [];
+        snap.forEach((d) => rows.push({ id: d.id, ...d.data() }));
+        rows.sort((a, b) => tsToMs(b.performedAt) - tsToMs(a.performedAt));
+        farmInterventions = rows.slice(0, 48);
+        updateCompanionEmptyHint();
+      },
+    ),
+  );
+
+  activeSubscriptions.push(
+    onSnapshot(
+      query(collection(db, "farm_operational_tasks"), where("userId", "==", user.uid), limit(120)),
+      (snap) => {
+        const rows = [];
+        snap.forEach((d) => rows.push({ id: d.id, ...d.data() }));
+        rows.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
+        farmOperationalTasks = rows.slice(0, 48);
+        updateCompanionEmptyHint();
+      },
+    ),
+  );
+
+  activeSubscriptions.push(
+    onSnapshot(
+      query(collection(db, "alerts"), where("userId", "==", user.uid), limit(80)),
+      (snap) => {
+        const rows = [];
+        snap.forEach((d) => rows.push({ id: d.id, ...d.data() }));
+        rows.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
+        assistantAlerts = rows.slice(0, 40);
+        updateCompanionEmptyHint();
+      },
+    ),
   );
 
   attachBtn?.addEventListener("click", () => attachInput?.click());
@@ -508,6 +557,12 @@ onAuthStateChanged(auth, (user) => {
     refreshAttachUi();
 
     const hadPriorStreamInterrupt = streamInFlight;
+    // If we're aborting a turn that was either awaiting an assistant reply or
+    // actively streaming one, mark its originating user message as superseded
+    // so the transcript reads coherently (no orphan unanswered question).
+    if (currentTurnUserMsgId && (streamInFlight || awaitingAssistantAfterUserId)) {
+      supersededUserMsgIds.add(currentTurnUserMsgId);
+    }
     streamAbort.abort();
     streamAbort = new AbortController();
     sendGeneration += 1;
@@ -544,6 +599,7 @@ onAuthStateChanged(auth, (user) => {
         chatMessages = [...chatMessages, optimisticUser].sort((a, b) => tsToMs(a.createdAt) - tsToMs(b.createdAt));
       }
       awaitingAssistantAfterUserId = userMsgRef.id;
+      currentTurnUserMsgId = userMsgRef.id;
       paintChat();
 
       const routing = classifyAssistantRouting(text, { hasImage: !!imageBlob });
@@ -767,62 +823,73 @@ onAuthStateChanged(auth, (user) => {
         routing.mode === "casual" ||
         routing.mode === "clarify" ||
         reply.trim().length < 100;
-      try {
-        if (!naturalMicro && reply.trim().length > 96) pushRecentAssistantOpening(reply);
-        const orchForMemory =
-          orch ||
-          ({
-                intents: routing.mode === "operations_quick" ? { operations: true } : {},
-                results: {},
-                enginePackVersion:
-                  routing.mode === "clarify"
-                    ? "clarify-turn"
-                    : routing.mode === "casual"
-                      ? "casual-turn"
-                      : routing.mode === "micro_social"
-                        ? "micro-social-turn"
-                        : routing.mode === "operations_quick"
-                          ? "operations-turn"
-                          : "direct-turn",
-              });
-        const nextProfile = mergeCompanionAfterTurn(companionProfile, {
-          userText: text,
-          assistantReply: reply,
-          orch: orchForMemory,
-          locale: (snapshot && snapshot.locale) || getLang() || "en",
-          fields,
-          scans,
-          fieldContextStates,
-          weatherLogs,
-          recs,
-          userId: user.uid,
-        });
-        await setDoc(doc(db, "companion_profiles", user.uid), nextProfile, { merge: true });
-      } catch (memErr) {
-        console.warn("[assistant] companion memory:", memErr?.message || memErr);
-      }
+      const orchForMemory =
+        orch ||
+        ({
+              intents: routing.mode === "operations_quick" ? { operations: true } : {},
+              results: {},
+              enginePackVersion:
+                routing.mode === "clarify"
+                  ? "clarify-turn"
+                  : routing.mode === "casual"
+                    ? "casual-turn"
+                    : routing.mode === "micro_social"
+                      ? "micro-social-turn"
+                      : routing.mode === "operations_quick"
+                        ? "operations-turn"
+                        : "direct-turn",
+            });
 
-      if (!ROUTING_NO_ENGINE_LOG.includes(routing.mode)) {
-        await addDoc(collection(db, "ai_engine_runs"), {
-          userId: user.uid,
-          createdAt: serverTimestamp(),
-          replyTo: userMsgRef.id,
-          enginePackVersion: orch?.enginePackVersion,
-          intents: orch?.intents,
-          preview: orch?.persistedPreview || null,
-          geo: orch?.geo || null,
-          routingMode: orch?.routingMode || "full",
-          cognitive: orch?.cognitivePlan
-            ? {
-                layer: orch.cognitivePlan.layer,
-                reasoningDepth: orch.cognitivePlan.reasoningDepth,
-                llmTier: orch.cognitivePlan.llmTier,
-              }
-            : null,
-          verificationChecks: orch?.cognitiveVerification?.checks || null,
-          schemaVersion: 1,
-        });
-      }
+      // Companion memory + engine-run logging are deferred until after the
+      // stream actually completes, so an aborted/never-shown reply never
+      // pollutes the profile or analytics. See `commitTurnSideEffects` below.
+
+      const commitTurnSideEffects = async () => {
+        try {
+          if (!naturalMicro && reply.trim().length > 96) pushRecentAssistantOpening(reply);
+          const nextProfile = mergeCompanionAfterTurn(companionProfile, {
+            userText: text,
+            assistantReply: reply,
+            orch: orchForMemory,
+            locale: (snapshot && snapshot.locale) || getLang() || "en",
+            fields,
+            scans,
+            fieldContextStates,
+            weatherLogs,
+            recs,
+            userId: user.uid,
+          });
+          await setDoc(doc(db, "companion_profiles", user.uid), nextProfile, { merge: true });
+        } catch (memErr) {
+          console.warn("[assistant] companion memory:", memErr?.message || memErr);
+        }
+
+        if (!ROUTING_NO_ENGINE_LOG.includes(routing.mode)) {
+          try {
+            await addDoc(collection(db, "ai_engine_runs"), {
+              userId: user.uid,
+              createdAt: serverTimestamp(),
+              replyTo: userMsgRef.id,
+              enginePackVersion: orch?.enginePackVersion,
+              intents: orch?.intents,
+              preview: orch?.persistedPreview || null,
+              geo: orch?.geo || null,
+              routingMode: orch?.routingMode || "full",
+              cognitive: orch?.cognitivePlan
+                ? {
+                    layer: orch.cognitivePlan.layer,
+                    reasoningDepth: orch.cognitivePlan.reasoningDepth,
+                    llmTier: orch.cognitivePlan.llmTier,
+                  }
+                : null,
+              verificationChecks: orch?.cognitiveVerification?.checks || null,
+              schemaVersion: 1,
+            });
+          } catch (runErr) {
+            console.warn("[assistant] engine-run log:", runErr?.message || runErr);
+          }
+        }
+      };
 
       const presencePlan = computePresencePlan({
         routingMode: routing.mode,
@@ -873,14 +940,17 @@ onAuthStateChanged(auth, (user) => {
       activeStreamCtrl = null;
 
       if (myGen !== sendGeneration || streamResult === "aborted") {
-        streamInFlight = false;
-        streamingAssistant = null;
-        activeStreamCtrl = null;
-        paintChat();
+        // Aborted/superseded — keep DOM as-is until the finally block paints,
+        // and skip persistence + companion-memory writes. The reply was never
+        // fully shown, so don't record it.
         return;
       }
 
-      await addDoc(collection(db, "assistant_messages"), {
+      // Persist the assistant message FIRST so the snapshot listener has it
+      // ready; then in one paint frame swap streamingAssistant off. This
+      // avoids the brief flicker where stream shell disappears before the
+      // persisted message arrives.
+      const persistedReplyDoc = await addDoc(collection(db, "assistant_messages"), {
         userId: user.uid,
         role: "assistant",
         text: reply,
@@ -901,8 +971,31 @@ onAuthStateChanged(auth, (user) => {
         routingMode: routing.mode,
         schemaVersion: 2,
       });
+      // Optimistically place the persisted reply into chatMessages so the
+      // upcoming paint shows it instantly without waiting for snapshot RTT.
+      if (persistedReplyDoc?.id && !chatMessages.some((m) => m.id === persistedReplyDoc.id)) {
+        chatMessages = [
+          ...chatMessages,
+          {
+            id: persistedReplyDoc.id,
+            userId: user.uid,
+            role: "assistant",
+            text: reply,
+            replyTo: userMsgRef.id,
+            createdAt: { toMillis: () => Date.now() },
+            routingMode: routing.mode,
+            schemaVersion: 2,
+          },
+        ].sort((a, b) => tsToMs(a.createdAt) - tsToMs(b.createdAt));
+      }
       streamInFlight = false;
       streamingAssistant = null;
+      // Turn completed successfully — clear pointer so a later abort doesn't
+      // incorrectly mark this user-msg as superseded.
+      if (currentTurnUserMsgId === userMsgRef.id) currentTurnUserMsgId = null;
+
+      // Fire-and-forget — these write to Firestore but don't block the UI.
+      commitTurnSideEffects();
     } catch (e) {
       console.error("[assistant] send failed:", e);
       alert(
