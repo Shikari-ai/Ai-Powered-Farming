@@ -290,6 +290,22 @@ let currentWeatherCache = null;
 /** Invalidates in-flight IP/GPS home weather when the user pins or reloads. */
 let homeWeatherLoadGen = 0;
 
+function createTimeoutSignal(ms) {
+    if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+        return AbortSignal.timeout(ms);
+    }
+    const c = new AbortController();
+    setTimeout(() => c.abort(), ms);
+    return c.signal;
+}
+
+function setWcardWeatherError(message) {
+    const wTemp = document.getElementById("wcard-temp");
+    const wDesc = document.getElementById("wcard-cond");
+    if (wTemp) wTemp.textContent = "--°";
+    if (wDesc) wDesc.textContent = message;
+}
+
 async function updateWeatherForLocation(city, lat, lon) {
     const weatherHeader = document.querySelector('.weather-header h3');
     const aiAlert = document.querySelector('.ai-alert');
@@ -299,7 +315,8 @@ async function updateWeatherForLocation(city, lat, lon) {
     
     try {
         // Fetching real Meteorological Data (Current + Hourly + Daily) with Advanced Params
-        const weatherResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,weather_code,surface_pressure,visibility,is_day&hourly=temperature_2m,precipitation_probability,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max&timezone=auto`);
+        const omUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,weather_code,surface_pressure,visibility,is_day&hourly=temperature_2m,precipitation_probability,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max&timezone=auto`;
+        const weatherResponse = await fetch(omUrl, { signal: createTimeoutSignal(22_000) });
         if (!weatherResponse.ok) {
             throw new Error(`Weather API HTTP ${weatherResponse.status}`);
         }
@@ -410,12 +427,14 @@ async function updateWeatherForLocation(city, lat, lon) {
             }
         } catch {}
 
-        // Persist a lightweight weather log for realtime analytics (rate-limited to hourly doc id).
-        try {
-            const { auth, db } = await import('./auth.js?v=32');
-            const { doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-            const u = auth.currentUser;
-            if (u) {
+        // Persist weather log + derived alerts in the background so slow Firestore on mobile
+        // never blocks the home card after Open-Meteo has already returned.
+        void (async () => {
+            try {
+                const { auth, db } = await import('./auth.js?v=32');
+                const { doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+                const u = auth.currentUser;
+                if (!u) return;
                 const hourKey = new Date().toISOString().slice(0, 13).replace(/[-:T]/g, '');
                 const logId = `${u.uid}_${hourKey}`;
                 const hourly = weatherData.hourly || {};
@@ -477,11 +496,10 @@ async function updateWeatherForLocation(city, lat, lon) {
                 } catch (wxA) {
                     console.warn("Weather-derived alerts skipped:", wxA?.code || wxA);
                 }
+            } catch (e) {
+                console.warn("Weather log sync skipped:", e?.code || e);
             }
-        } catch (e) {
-            // Non-fatal: UI still uses live API response
-            console.warn("Weather log sync skipped:", e?.code || e);
-        }
+        })();
         
         // Show human readable remark
         if (remarkElement) {
@@ -505,6 +523,10 @@ async function updateWeatherForLocation(city, lat, lon) {
         }
     } catch (e) {
         console.error("Weather fetch failed", e);
+        const msg = (e && e.name === "AbortError")
+            ? "Weather timed out — pull down to refresh"
+            : "Weather unavailable — check connection";
+        setWcardWeatherError(msg);
     }
     
     // Add a slight pulse animation to the widget to show it updated
