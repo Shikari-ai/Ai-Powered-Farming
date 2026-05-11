@@ -1,6 +1,6 @@
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { postDiseaseVision } from "./ai/vision-client.js?v=34";
-import { getAiConfig } from "./ai/config.js?v=69";
+import { getAiConfig } from "./ai/config.js?v=70";
 import { buildRichVisionContextBundle } from "./ai/vision-context.js?v=34";
 import { mergeVisionInferenceIntoFieldMemory } from "./ai/field-context.js?v=34";
 

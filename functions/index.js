@@ -1,6 +1,7 @@
 /**
  * Firebase Cloud Functions — optional HTTP utilities.
  * Conversational assistant runs fully in the web client (no external LLM / chat providers).
+ * Optional: selective browser fetches to public reference APIs (see `js/ai/web-research-*.js`).
  */
 const { onRequest } = require("firebase-functions/v2/https");
 

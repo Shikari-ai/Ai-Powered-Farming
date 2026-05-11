@@ -37,10 +37,15 @@ export function getAiConfig() {
     const inferExplicit = String(g.__AGRI_INFERENCE_URL__ || readMeta("agri-inference-url") || "").replace(/\/$/, "");
     const localFallback = defaultLocalInferenceBaseIfDev();
 
+    /** `<meta name="agri-web-research" content="0">` disables optional client-side public briefs. */
+    const webMeta = readMeta("agri-web-research").toLowerCase();
+    const webResearchEnabled = webMeta !== "0" && webMeta !== "false" && webMeta !== "off";
+
     return {
         inferenceBaseUrl: inferExplicit || aiBase || localFallback,
         imdApiBaseUrl: String(g.__AGRI_IMD_API__ || readMeta("agri-imd-api") || "").replace(/\/$/, ""),
         enginePackVersion: "ecosystem-2026-05-reliability-v1",
+        webResearchEnabled,
     };
 }
 

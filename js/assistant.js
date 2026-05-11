@@ -18,9 +18,11 @@ import {
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { runAgriOrchestrator } from "./ai/orchestrator.js?v=71";
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=72";
 import { attachSnapshotForReply, composeAssistantReply, composeOperationsSnapshotReply } from "./ai/assistant-reply.js?v=70";
-import { getAiConfig } from "./ai/config.js?v=69";
+import { getAiConfig } from "./ai/config.js?v=70";
+import { shouldUseWebAssistedResearch } from "./ai/web-research-policy.js?v=1";
+import { fetchPublicAgriBrief, formatWebResearchAppend } from "./ai/web-research-client.js?v=1";
 import {
   buildProactiveDigest,
   defaultCompanionProfile,
@@ -566,6 +568,25 @@ onAuthStateChanged(auth, (user) => {
 
         if (!reply) {
           reply = buildAssistantReply({ question: text, fields, scans, recs, weatherLogs });
+        }
+
+        const cfgWeb = getAiConfig();
+        if (cfgWeb.webResearchEnabled !== false && String(text || "").trim().length > 12 && orch) {
+          const wr = shouldUseWebAssistedResearch({
+            question: text,
+            routingMode: routing.mode,
+            orch,
+          });
+          if (wr.use) {
+            try {
+              const brief = await fetchPublicAgriBrief(wr.query || text, { signal: streamAbort.signal });
+              if (brief?.summary) {
+                reply = `${String(reply || "").trimEnd()}\n\n${formatWebResearchAppend(brief, { reasons: wr.reasons })}`;
+              }
+            } catch (e) {
+              console.warn("[assistant] web research:", e?.message || e);
+            }
+          }
         }
       }
 
