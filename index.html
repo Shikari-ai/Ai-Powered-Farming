@@ -652,11 +652,78 @@
     .pi-sub { font-size: 10px; color: var(--text-muted); font-weight: 500; margin-bottom: 3px; }
     .pi-risk { font-size: 19px; font-weight: 800; margin-bottom: 5px; line-height: 1.2; }
     .pi-desc { font-size: 11px; color: var(--text-dim); line-height: 1.55; }
-    .pest-img-wrap {
-      width: 68px; height: 88px;
-      border-radius: 14px; overflow: hidden; flex-shrink: 0;
+    /* ── PEST RISK ORB ──
+       Replaces the old stock-photo with an on-brand glassy badge whose
+       glow tint reflects the predicted risk level. Color resolves via
+       the data-risk attribute set by dashboard.js. */
+    .pest-orb {
+      position: relative; flex-shrink: 0;
+      width: 78px; height: 88px;
+      border-radius: 16px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 6px;
+      background:
+        radial-gradient(circle at 50% 38%, var(--pest-orb-glow, rgba(57,255,20,0.32)) 0%, transparent 62%),
+        linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+      border: 1px solid var(--pest-orb-border, rgba(57,255,20,0.22));
+      box-shadow: 0 6px 18px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06);
+      transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+      overflow: hidden;
     }
-    .pest-img { width: 100%; height: 100%; object-fit: cover; }
+    .pest-orb::before {
+      content: ""; position: absolute; inset: 0;
+      background: radial-gradient(circle at 50% 110%, var(--pest-orb-base, rgba(57,255,20,0.10)) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .pest-orb-bug {
+      font-size: 28px;
+      color: var(--pest-orb-ico, #39ff14);
+      filter: drop-shadow(0 0 6px var(--pest-orb-glow, rgba(57,255,20,0.55)));
+      z-index: 1;
+    }
+    .pest-orb-tag {
+      position: relative; z-index: 1;
+      font-size: 9px; letter-spacing: 0.6px; font-weight: 700;
+      text-transform: uppercase;
+      padding: 2px 7px; border-radius: 999px;
+      color: var(--pest-orb-ico, #39ff14);
+      background: var(--pest-orb-tag-bg, rgba(57,255,20,0.12));
+      border: 1px solid var(--pest-orb-border, rgba(57,255,20,0.22));
+    }
+    /* Risk-level palettes — drive the entire orb from one attribute */
+    .pest-orb[data-risk="low"] {
+      --pest-orb-glow: rgba(57,255,20,0.32);
+      --pest-orb-base: rgba(57,255,20,0.10);
+      --pest-orb-border: rgba(57,255,20,0.28);
+      --pest-orb-ico: #39ff14;
+      --pest-orb-tag-bg: rgba(57,255,20,0.14);
+    }
+    .pest-orb[data-risk="moderate"] {
+      --pest-orb-glow: rgba(251,191,36,0.34);
+      --pest-orb-base: rgba(251,191,36,0.10);
+      --pest-orb-border: rgba(251,191,36,0.32);
+      --pest-orb-ico: #fbbf24;
+      --pest-orb-tag-bg: rgba(251,191,36,0.16);
+    }
+    .pest-orb[data-risk="high"] {
+      --pest-orb-glow: rgba(255,77,77,0.38);
+      --pest-orb-base: rgba(255,77,77,0.12);
+      --pest-orb-border: rgba(255,77,77,0.40);
+      --pest-orb-ico: #ff6b6b;
+      --pest-orb-tag-bg: rgba(255,77,77,0.16);
+      animation: pestOrbPulse 2.4s ease-in-out infinite;
+    }
+    .pest-orb[data-risk="unknown"] {
+      --pest-orb-glow: rgba(255,255,255,0.10);
+      --pest-orb-base: rgba(255,255,255,0.04);
+      --pest-orb-border: rgba(255,255,255,0.10);
+      --pest-orb-ico: rgba(255,255,255,0.55);
+      --pest-orb-tag-bg: rgba(255,255,255,0.05);
+    }
+    @keyframes pestOrbPulse {
+      0%,100% { box-shadow: 0 6px 18px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 0 rgba(255,77,77,0.0); }
+      50%     { box-shadow: 0 6px 18px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 6px rgba(255,77,77,0.12); }
+    }
 
     /* ── CARD DOTS ── */
     .card-dots {
@@ -1357,10 +1424,9 @@
           <h3 class="pi-risk" id="pest-risk" style="color:var(--text-dim);">--</h3>
           <p class="pi-desc" id="pest-desc">Analyzing weather patterns and crop history...</p>
         </div>
-        <div class="pest-img-wrap">
-          <img id="pest-img" class="pest-img"
-            src="https://images.unsplash.com/photo-1574943320219-3c1a7fec3b9c?w=200&q=75"
-            alt="Pest">
+        <div class="pest-orb" id="pest-img" data-risk="unknown" aria-hidden="true">
+          <i class="ri-bug-line pest-orb-bug"></i>
+          <span class="pest-orb-tag" id="pest-orb-tag">--</span>
         </div>
       </div>
       <div class="card-dots">
@@ -1677,7 +1743,7 @@
 </script>
 
 <script src="js/app.js?v=29"></script>
-<script type="module" src="js/dashboard.js?v=37"></script>
+<script type="module" src="js/dashboard.js?v=38"></script>
 <script type="module" src="js/i18n.js?v=6"></script>
 </body>
 </html>
