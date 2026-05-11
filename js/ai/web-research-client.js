@@ -29,7 +29,21 @@ export async function fetchPublicAgriBrief(query, opts = {}) {
     const ddg = await tryDuckDuckGoInstant(q, signal);
     if (ddg?.summary) return ddg;
 
-    return wikipediaOpenSearchThenExtract(q, signal, maxSummaryChars);
+    let wiki = await wikipediaSearchThenExtract(q, signal, maxSummaryChars);
+    if (wiki?.summary) return wiki;
+
+    /** `list=search` can miss very noisy sentences — retry with a shorter tail. */
+    const tail = q.replace(/^\s*agriculture\s+/i, "").trim().slice(0, 120);
+    if (tail && tail !== q) {
+        wiki = await wikipediaSearchThenExtract(tail, signal, maxSummaryChars);
+    }
+    if (wiki?.summary) return wiki;
+
+    /** Last resort: anchor on ICAR / council wording when the user mentioned it. */
+    if (/\bicar\b/i.test(q)) {
+        wiki = await wikipediaSearchThenExtract("Indian Council of Agricultural Research", signal, maxSummaryChars);
+    }
+    return wiki;
 }
 
 /**
@@ -79,16 +93,21 @@ async function tryDuckDuckGoInstant(q, signal) {
  * @param {AbortSignal|undefined} signal
  * @param {number} maxSummaryChars
  */
-async function wikipediaOpenSearchThenExtract(q, signal, maxSummaryChars) {
+/**
+ * Full-text search then first-page intro extract (more robust than opensearch for long questions).
+ * @param {string} q
+ * @param {AbortSignal|undefined} signal
+ * @param {number} maxSummaryChars
+ */
+async function wikipediaSearchThenExtract(q, signal, maxSummaryChars) {
     try {
-        const osUrl = `${W_API}?action=opensearch&format=json&origin=*&search=${encodeURIComponent(q)}&limit=2&namespace=0`;
-        const osRes = await fetch(osUrl, { signal, credentials: "omit", mode: "cors" });
-        if (!osRes.ok) return null;
+        const searchUrl = `${W_API}?action=query&format=json&origin=*&list=search&srsearch=${encodeURIComponent(q)}&srlimit=1&srnamespace=0`;
+        const sRes = await fetch(searchUrl, { signal, credentials: "omit", mode: "cors" });
+        if (!sRes.ok) return null;
         /** @type {any} */
-        const os = await osRes.json();
-        const titles = Array.isArray(os[1]) ? os[1] : [];
-        const urls = Array.isArray(os[3]) ? os[3] : [];
-        const title = String(titles[0] || "").trim();
+        const sj = await sRes.json();
+        const hit = sj?.query?.search?.[0];
+        const title = String(hit?.title || "").trim();
         if (!title) return null;
 
         const exUrl = `${W_API}?action=query&format=json&origin=*&prop=extracts&exintro=1&explaintext=1&titles=${encodeURIComponent(title)}`;
@@ -101,7 +120,7 @@ async function wikipediaOpenSearchThenExtract(q, signal, maxSummaryChars) {
         if (!page || page.missing) return null;
         const extract = String(page.extract || "").trim();
         if (!extract) return null;
-        const url = String(urls[0] || "").trim() || `https://en.wikipedia.org/wiki/${encodeURIComponent(title).replace(/%20/g, "_")}`;
+        const url = `https://en.wikipedia.org/wiki/${encodeURIComponent(String(page.title || title)).replace(/%20/g, "_")}`;
         return {
             source: "Wikipedia (intro extract)",
             title: String(page.title || title),

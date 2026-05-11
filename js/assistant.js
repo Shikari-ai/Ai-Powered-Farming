@@ -21,8 +21,8 @@ import {
 import { runAgriOrchestrator } from "./ai/orchestrator.js?v=72";
 import { attachSnapshotForReply, composeAssistantReply, composeOperationsSnapshotReply } from "./ai/assistant-reply.js?v=70";
 import { getAiConfig } from "./ai/config.js?v=70";
-import { shouldUseWebAssistedResearch } from "./ai/web-research-policy.js?v=1";
-import { fetchPublicAgriBrief, formatWebResearchAppend } from "./ai/web-research-client.js?v=1";
+import { shouldUseWebAssistedResearch } from "./ai/web-research-policy.js?v=2";
+import { fetchPublicAgriBrief, formatWebResearchAppend } from "./ai/web-research-client.js?v=3";
 import {
   buildProactiveDigest,
   defaultCompanionProfile,

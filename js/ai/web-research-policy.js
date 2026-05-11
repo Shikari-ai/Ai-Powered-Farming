@@ -72,7 +72,12 @@ export function shouldUseWebAssistedResearch({ question, routingMode, orch }) {
 /** @param {string} q */
 function buildResearchQuery(q) {
     let s = q.replace(/\s+/g, " ").trim().slice(0, 220);
-    if (!/\b(agricultur|agri|crop|farm|plant|soil|pest|disease|pathogen|irrigation|fertil|harvest)\b/i.test(s)) {
+    // Match common ag tokens inside longer words (e.g. "fertilizer") so we don’t over-prefix and break Wikipedia search.
+    if (
+        !/\b(agricultur|agri|crop|farm|farmers?|plant|soil|pest|disease|pathogen|irrigation|fertiliz|fertiliser|harvest|wheat|rice|maize|subsidy|policy|outbreak|market|mandi|variety)\b/i.test(
+            s,
+        )
+    ) {
         s = `agriculture ${s}`;
     }
     return s;
