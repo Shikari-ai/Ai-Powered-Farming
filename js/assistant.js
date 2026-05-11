@@ -820,11 +820,22 @@ onAuthStateChanged(auth, (user) => {
         }
       }
 
+      const rawUserText = String(text || "").trim();
+      const isGreetingOrAck = /^(hi|hello|hey|thanks|thank you|thx|ok|okay|bye|goodbye)\b/i.test(rawUserText);
+      const isGenericOrchReply =
+        !!orch &&
+        /\bNo fields or scans are on file yet\b/i.test(String(reply || "")) &&
+        !/\bIndian Council of Agricultural Research\b/i.test(String(reply || ""));
+      const looksLikeGeneralKnowledgeAsk =
+        /\b(full\s*form|what\s+does|what\s+is|who\s+is|define|meaning|history|policy|icar|imd|msp|subsidy|mandi)\b/i.test(
+          rawUserText,
+        );
+
       if (
         getAiConfig().webResearchEnabled !== false &&
-        !orch &&
-        String(text || "").trim().length > 14 &&
-        !/^(hi|hello|hey|thanks|thank you|thx|ok|okay|bye|goodbye)\b/i.test(String(text || "").trim())
+        rawUserText.length > 14 &&
+        !isGreetingOrAck &&
+        (!orch || (isGenericOrchReply && looksLikeGeneralKnowledgeAsk))
       ) {
         try {
           const brief = await fetchPublicAgriBrief(text, { signal: streamAbort.signal });
