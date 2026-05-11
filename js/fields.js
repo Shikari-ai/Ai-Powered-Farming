@@ -406,6 +406,7 @@ function mountFieldsPage(user) {
   }
 
   function closeFmsMap() {
+    stopNavicWatch();
     el("field-map-fullscreen")?.classList.add("hidden");
     wizardStep = 1;
     // Re-show the modal at step 1
@@ -419,6 +420,7 @@ function mountFieldsPage(user) {
   }
 
   function confirmFmsMap() {
+    stopNavicWatch();
     el("field-map-fullscreen")?.classList.add("hidden");
     wizardStep = 3;
     el("add-field-modal")?.classList.remove("hidden");
@@ -433,38 +435,70 @@ function mountFieldsPage(user) {
     persistDraft();
   }
 
-  function centerOnGPSHighAccuracy(silent = false) {
+  // ── NavIC + GNSS continuous location ──────────────────────────
+  // The Web Geolocation API doesn't let JS pick a constellation —
+  // the OS does. On modern Indian Android phones (Snapdragon 720G+,
+  // MediaTek Helio G37+, etc.) NavIC is automatically combined with
+  // GPS / GLONASS / Galileo when `enableHighAccuracy: true` is set,
+  // which is what we do here. The UI honestly reflects multi-
+  // constellation positioning instead of just saying "GPS".
+  let _gpsWatchId = null;
+  let _firstFix = true;
+
+  function stopNavicWatch() {
+    if (_gpsWatchId != null) {
+      navigator.geolocation.clearWatch(_gpsWatchId);
+      _gpsWatchId = null;
+    }
+    el("fms-gps-btn")?.classList.remove("active");
+  }
+
+  function startNavicWatch(silent = false) {
+    // Toggle: tapping the button again stops the watch.
+    if (_gpsWatchId != null) {
+      stopNavicWatch();
+      const badge = el("fms-gps-badge");
+      if (badge) badge.style.display = "none";
+      return;
+    }
     const badge   = el("fms-gps-badge");
     const accText = el("fms-accuracy-text");
+    const coords  = el("fms-gps-coords");
     const btn     = el("fms-gps-btn");
 
     if (!silent && badge)   { badge.style.display = "block"; }
     if (!silent && accText) { accText.textContent = "Locating…"; }
+    if (coords) coords.textContent = "";
     if (btn) btn.classList.add("active");
+    _firstFix = true;
 
-    navigator.geolocation.getCurrentPosition(
+    _gpsWatchId = navigator.geolocation.watchPosition(
       (pos) => {
-        const { latitude: lat, longitude: lng, accuracy: acc } = pos.coords;
-        if (btn) btn.classList.remove("active");
+        const { latitude: lat, longitude: lng, accuracy: acc, altitude, heading, speed } = pos.coords;
         if (!map) return;
 
-        const zoom = acc < 20 ? 19 : acc < 100 ? 17 : acc < 500 ? 15 : 13;
+        if (_firstFix) {
+          const zoom = acc < 20 ? 19 : acc < 100 ? 17 : acc < 500 ? 15 : 13;
+          map.flyTo({ center: [lng, lat], zoom, essential: true, speed: 1.4 });
+          _firstFix = false;
+          if (!silent) fmsToast(`NavIC + GPS locked · ±${Math.round(acc)} m`);
+        }
 
-        // Smooth fly-to with MapLibre
-        map.flyTo({ center: [lng, lat], zoom, essential: true, speed: 1.4 });
-
-        // GPS dot marker (MapLibre DOM marker)
-        if (_gpsMLMarker) { _gpsMLMarker.remove(); _gpsMLMarker = null; }
-        const dotEl = document.createElement("div");
-        dotEl.style.cssText = [
-          "width:20px", "height:20px", "border-radius:50%",
-          "background:#0A84FF", "border:3px solid #fff",
-          "box-shadow:0 2px 12px rgba(10,132,255,0.55)",
-          "animation:gpsPulse 1.8s ease-in-out infinite",
-        ].join(";");
-        _gpsMLMarker = new maplibregl.Marker({ element: dotEl })
-          .setLngLat([lng, lat])
-          .addTo(map);
+        // GPS dot marker (created once, then moved)
+        if (!_gpsMLMarker) {
+          const dotEl = document.createElement("div");
+          dotEl.style.cssText = [
+            "width:20px", "height:20px", "border-radius:50%",
+            "background:#39ff14", "border:3px solid #fff",
+            "box-shadow:0 2px 14px rgba(57,255,20,0.6)",
+            "animation:gpsPulse 1.8s ease-in-out infinite",
+          ].join(";");
+          _gpsMLMarker = new maplibregl.Marker({ element: dotEl })
+            .setLngLat([lng, lat])
+            .addTo(map);
+        } else {
+          _gpsMLMarker.setLngLat([lng, lat]);
+        }
 
         // Accuracy circle via GeoJSON source
         const accSrc = map.getSource("fms-gps-acc");
@@ -472,17 +506,23 @@ function mountFieldsPage(user) {
           accSrc.setData({ type: "FeatureCollection", features: [circleFeature(lat, lng, acc)] });
         }
 
-        if (!silent) {
-          if (badge)   badge.style.display = "block";
-          if (accText) accText.textContent = `±${Math.round(acc)} m`;
-          fmsToast(`Located · ±${Math.round(acc)} m accuracy`);
+        if (badge)   badge.style.display = "block";
+        if (accText) accText.textContent = `±${Math.round(acc)} m`;
+        if (coords) {
+          const parts = [
+            `${lat.toFixed(5)}°, ${lng.toFixed(5)}°`,
+          ];
+          if (Number.isFinite(altitude)) parts.push(`alt ${Math.round(altitude)} m`);
+          if (Number.isFinite(speed) && speed > 0.3) parts.push(`${(speed * 3.6).toFixed(1)} km/h`);
+          if (Number.isFinite(heading)) parts.push(`hdg ${Math.round(heading)}°`);
+          coords.textContent = parts.join(" · ");
         }
       },
       (err) => {
-        if (btn) btn.classList.remove("active");
+        stopNavicWatch();
         if (!silent) {
           if (badge) badge.style.display = "none";
-          fmsToast("GPS unavailable — " + err.message);
+          fmsToast("Positioning unavailable — " + err.message);
         }
       },
       { enableHighAccuracy: true, timeout: 14000, maximumAge: 0 }
@@ -506,8 +546,9 @@ function mountFieldsPage(user) {
       clearDrawing();
       updateFmsPointsLabel();
     });
-    el("fms-gps-btn")?.addEventListener("click", () => centerOnGPSHighAccuracy(false));
-    el("fms-3d-btn")?.addEventListener("click", toggle3D);
+    el("fms-gps-btn")?.addEventListener("click", () => startNavicWatch(false));
+    el("fms-3d-btn")?.addEventListener("click", () => setView3D(true));
+    el("fms-2d-btn")?.addEventListener("click", () => setView3D(false));
     el("fms-sat-btn")?.addEventListener("click", () => switchLayer(true));
     el("fms-str-btn")?.addEventListener("click", () => switchLayer(false));
 
@@ -538,44 +579,119 @@ function mountFieldsPage(user) {
       updateClearBtn();
     }
 
-    /* Photon — free, no API key, returns OSM-backed autocomplete results */
-    async function fetchPhoton(q) {
-      try {
-        const c = map?.getCenter();
-        let url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=8&lang=en`;
-        if (c) url += `&lat=${c.lat.toFixed(4)}&lon=${c.lng.toFixed(4)}`;
-
-        const res  = await fetch(url);
-        const data = await res.json();
-
-        if (!dd) return;
-        if (!data.features?.length) { hideFmsDropdown(); fmsToast("No results found"); return; }
-
-        dd.innerHTML = data.features.map((f) => {
-          const p    = f.properties;
-          const name = p.name || p.city || p.country || "Unknown";
-          const sub  = [p.city, p.state, p.country].filter(Boolean).join(", ");
-          const [lng, lat] = f.geometry.coordinates;
-          return `<div class="sr-item" data-lat="${lat}" data-lng="${lng}" data-name="${name}">
-            <i class="ri-map-pin-2-line"></i>
-            <div>
-              <div class="sr-name">${name}</div>
-              ${sub ? `<div class="sr-addr">${sub}</div>` : ""}
-            </div>
-          </div>`;
-        }).join("");
-        dd.style.display = "block";
-
-        dd.querySelectorAll(".sr-item").forEach((item) => {
-          item.addEventListener("mousedown", (e) => e.preventDefault());
-          item.addEventListener("click", () =>
-            flyToResult(parseFloat(item.dataset.lng), parseFloat(item.dataset.lat), item.dataset.name)
-          );
-        });
-      } catch (_) {
-        fmsToast("Search failed — check connection");
-      }
+    // ── Category icon resolution ───────────────────────────────
+    // Maps OSM key/value tags from Photon & Nominatim into a small
+    // set of visual categories so the dropdown reads like a real
+    // places picker (shops, food, schools, transit, etc.).
+    function categorize(kind, type) {
+      const k = (kind || "").toLowerCase();
+      const t = (type || "").toLowerCase();
+      const m = (re) => re.test(k) || re.test(t);
+      if (m(/shop|store|mall|market|kirana|bazaar|supermarket/)) return { cls: "cat-shop", icon: "ri-store-2-line", label: "Shop" };
+      if (m(/restaurant|cafe|food|bar|pub|fast_food|biryani|bakery|sweet/)) return { cls: "cat-food", icon: "ri-restaurant-2-line", label: "Food" };
+      if (m(/school|college|university|education|kindergarten|coaching/)) return { cls: "cat-school", icon: "ri-book-open-line", label: "Education" };
+      if (m(/hospital|clinic|pharmacy|health|dispensary|doctor/)) return { cls: "cat-health", icon: "ri-hospital-line", label: "Health" };
+      if (m(/station|airport|bus|train|transport|metro|terminal|fuel|petrol/)) return { cls: "cat-transit", icon: "ri-bus-line", label: "Transit" };
+      if (m(/temple|mosque|church|gurdwara|shrine|monastery|religious/)) return { cls: "cat-religion", icon: "ri-temple-line", label: "Religious" };
+      if (m(/park|forest|river|lake|reservoir|natural|peak|hill|wood/)) return { cls: "cat-nature", icon: "ri-leaf-line", label: "Nature" };
+      if (m(/farm|farmland|orchard|vineyard|nursery|plantation|paddy/)) return { cls: "cat-farm", icon: "ri-plant-line", label: "Farm" };
+      if (m(/city|town|village|hamlet|locality|suburb|district|state|country/)) return { cls: "cat-place", icon: "ri-map-pin-2-line", label: "Place" };
+      return { cls: "", icon: "ri-map-pin-line", label: "" };
     }
+
+    // ── Photon: keyword autocomplete (OSM-backed) ──────────────
+    async function fetchPhoton(q, c) {
+      try {
+        let url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=15&lang=en`;
+        if (c) url += `&lat=${c.lat.toFixed(4)}&lon=${c.lng.toFixed(4)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        return (data.features || []).map((f) => {
+          const p = f.properties || {};
+          const [lng, lat] = f.geometry.coordinates;
+          const name = p.name || p.city || p.country || "Unknown";
+          const sub = [p.street, p.city, p.state, p.country].filter(Boolean).join(", ");
+          return { lat, lng, name, sub, kind: p.osm_key, type: p.osm_value };
+        });
+      } catch { return []; }
+    }
+
+    // ── Nominatim: detail-rich free-text search ────────────────
+    async function fetchNominatim(q, c) {
+      try {
+        const params = new URLSearchParams({
+          q, format: "jsonv2", limit: "15", addressdetails: "1",
+          "accept-language": "en",
+        });
+        if (c) {
+          // Soft bias: small viewbox around current map center
+          const d = 0.6;
+          params.set("viewbox", `${c.lng - d},${c.lat + d},${c.lng + d},${c.lat - d}`);
+          params.set("bounded", "0");
+        }
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+          headers: { "Accept-Language": "en" },
+        });
+        const arr = await res.json();
+        return (arr || []).map((r) => {
+          const lat = parseFloat(r.lat), lng = parseFloat(r.lon);
+          const a = r.address || {};
+          const sub = [a.suburb || a.neighbourhood, a.city || a.town || a.village, a.state, a.country].filter(Boolean).join(", ");
+          return { lat, lng, name: r.name || r.display_name?.split(",")[0] || "Unknown", sub, kind: r.class || r.category, type: r.type };
+        });
+      } catch { return []; }
+    }
+
+    // Merge + de-duplicate by ~30m radius + name similarity
+    function mergeResults(a, b) {
+      const keep = [];
+      const close = (p, q) => {
+        const d = Math.hypot((p.lat - q.lat) * 111000, (p.lng - q.lng) * 111000 * Math.cos((p.lat * Math.PI) / 180));
+        return d < 30 && (p.name || "").toLowerCase().split(" ").some((w) => (q.name || "").toLowerCase().includes(w));
+      };
+      [...a, ...b].forEach((r) => {
+        if (!keep.some((k) => close(k, r))) keep.push(r);
+      });
+      return keep.slice(0, 18);
+    }
+
+    async function fetchPlaces(q) {
+      const c = map?.getCenter();
+      // Run both in parallel — Photon is fast autocomplete; Nominatim
+      // adds Indian POIs (shops, schools, temples, etc.) Photon can miss.
+      const [a, b] = await Promise.all([fetchPhoton(q, c), fetchNominatim(q, c)]);
+      const results = mergeResults(a, b);
+      if (!dd) return;
+      if (!results.length) { hideFmsDropdown(); fmsToast("No spots match — try a different query"); return; }
+
+      const hdr = `<div class="fms-search-hdr">
+        <i class="ri-radar-line"></i>
+        <span>${results.length} spot${results.length > 1 ? "s" : ""} · NavIC + OpenStreetMap</span>
+      </div>`;
+      dd.innerHTML = hdr + results.map((r, i) => {
+        const cat = categorize(r.kind, r.type);
+        return `<div class="sr-item" data-i="${i}">
+          <div class="sr-ico ${cat.cls}"><i class="${cat.icon}"></i></div>
+          <div class="sr-meta">
+            <div class="sr-name">${escapeHtmlSr(r.name)}</div>
+            ${r.sub ? `<div class="sr-addr">${escapeHtmlSr(r.sub)}</div>` : ""}
+            ${cat.label ? `<span class="sr-type-pill">${cat.label}</span>` : ""}
+          </div>
+        </div>`;
+      }).join("");
+      dd.style.display = "block";
+
+      dd.querySelectorAll(".sr-item").forEach((item) => {
+        const i = parseInt(item.dataset.i, 10);
+        const r = results[i];
+        item.addEventListener("mousedown", (e) => e.preventDefault());
+        item.addEventListener("click", () => flyToResult(r.lng, r.lat, r.name));
+      });
+    }
+    function escapeHtmlSr(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+    const fetchPhotonShim = fetchPlaces; // keep old call sites working
 
     clearBtn?.addEventListener("click", () => {
       if (inp) { inp.value = ""; inp.focus(); }
@@ -588,7 +704,7 @@ function mountFieldsPage(user) {
       updateClearBtn();
       const q = e.target.value.trim();
       if (q.length < 2) { hideFmsDropdown(); return; }
-      searchDebounce = setTimeout(() => fetchPhoton(q), 320);
+      searchDebounce = setTimeout(() => fetchPlaces(q), 320);
     });
 
     inp?.addEventListener("keydown", (e) => {
@@ -604,11 +720,10 @@ function mountFieldsPage(user) {
       } else if (e.key === "Enter") {
         e.preventDefault();
         if (srFocusIdx >= 0 && items[srFocusIdx]) {
-          const it = items[srFocusIdx];
-          flyToResult(parseFloat(it.dataset.lng), parseFloat(it.dataset.lat), it.dataset.name);
+          items[srFocusIdx].click();
         } else {
           const q = inp?.value.trim();
-          if (q) fetchPhoton(q);
+          if (q) fetchPlaces(q);
         }
       } else if (e.key === "Escape") {
         hideFmsDropdown();
@@ -724,14 +839,65 @@ function mountFieldsPage(user) {
     map.once("style.load", () => {
       _addDrawingLayers();
       redrawDrawing();
+      // Re-attach terrain DEM if 3D mode was active before the style swap
+      if (is3D) {
+        ensureTerrainSource();
+        try { map.setTerrain({ source: "terrain-dem", exaggeration: 1.35 }); } catch (_) {}
+      }
     });
   }
 
-  function toggle3D() {
-    is3D = !is3D;
-    map?.easeTo({ pitch: is3D ? 55 : 0, duration: 550 });
-    el("fms-3d-btn")?.classList.toggle("active", is3D);
+  // ── 3D terrain support ─────────────────────────────────────────
+  // AWS Terrain Tiles (free, public, Terrarium-encoded DEM). When 3D
+  // is enabled we attach this as a raster-dem source and call
+  // map.setTerrain(), giving true elevation-based 3D — not just a tilt.
+  const TERRAIN_TILES = [
+    "https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png",
+  ];
+  function ensureTerrainSource() {
+    if (!map) return;
+    if (!map.getSource("terrain-dem")) {
+      map.addSource("terrain-dem", {
+        type: "raster-dem",
+        tiles: TERRAIN_TILES,
+        encoding: "terrarium",
+        tileSize: 256,
+        maxzoom: 14,
+        attribution: "© Mapzen / Amazon Public Datasets",
+      });
+    }
+    // Sky layer for atmospheric 3D feel
+    if (!map.getLayer("fms-sky")) {
+      try {
+        map.addLayer({
+          id: "fms-sky",
+          type: "sky",
+          paint: {
+            "sky-type": "atmosphere",
+            "sky-atmosphere-sun": [0.0, 90.0],
+            "sky-atmosphere-sun-intensity": 8,
+          },
+        });
+      } catch (_) { /* some maplibre versions lack sky layer; ignore */ }
+    }
   }
+  function setView3D(on) {
+    is3D = !!on;
+    el("fms-3d-btn")?.classList.toggle("active", is3D);
+    el("fms-2d-btn")?.classList.toggle("active", !is3D);
+    el("fms-3d-btn")?.setAttribute("aria-selected", String(is3D));
+    el("fms-2d-btn")?.setAttribute("aria-selected", String(!is3D));
+    if (!map) return;
+    if (is3D) {
+      ensureTerrainSource();
+      try { map.setTerrain({ source: "terrain-dem", exaggeration: 1.35 }); } catch (_) {}
+      map.easeTo({ pitch: 60, bearing: -20, duration: 700 });
+    } else {
+      try { map.setTerrain(null); } catch (_) {}
+      map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
+    }
+  }
+  function toggle3D() { setView3D(!is3D); }
 
   /* Add MapLibre GeoJSON sources + layers for boundary drawing.
      Called once after style loads (and again after every setStyle). */
@@ -800,12 +966,32 @@ function mountFieldsPage(user) {
     await new Promise((res) => map.once("load", res));
     _addDrawingLayers();
 
+    // Tap an existing corner to remove it; tap empty area to add one.
     map.on("click", (e) => {
+      let hit = null;
+      try {
+        hit = map.queryRenderedFeatures(e.point, { layers: ["fms-dots"] });
+      } catch { hit = null; }
+      if (hit && hit.length) {
+        const lbl = hit[0].properties?.label;
+        const i = parseInt(lbl, 10) - 1;
+        if (Number.isInteger(i) && i >= 0 && i < drawingPoints.length) {
+          drawingPoints.splice(i, 1);
+          redrawDrawing();
+          updateFmsPointsLabel();
+          persistDraft();
+          fmsToast(`Removed corner ${lbl}`, 1500);
+          return;
+        }
+      }
       drawingPoints.push([e.lngLat.lat, e.lngLat.lng]);
       redrawDrawing();
       updateFmsPointsLabel();
       persistDraft();
     });
+    // Show a "deletable" cursor when hovering over a corner
+    map.on("mouseenter", "fms-dots", () => { map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", "fms-dots", () => { map.getCanvas().style.cursor = ""; });
   }
 
   function updateFmsPointsLabel() {
