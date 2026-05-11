@@ -166,6 +166,12 @@ function buildKnownAgriDefinitionReply(text) {
   if (/\b(what\s+is|define|full\s*form\s+of)\s+imd\b|\bimd\b.*\b(what|define|full\s*form)\b/.test(t)) {
     return "IMD stands for India Meteorological Department, the national weather service that issues forecasts and warnings for India.";
   }
+  if (/\bwhat\s+does\s+mandi\s+mean\b|\bdefine\s+mandi\b|\bmandi\b.*\bmean\b/.test(t)) {
+    return "In agri trade, a mandi is a regulated wholesale market yard where farmers and traders buy and sell produce.";
+  }
+  if (/\bfertilizer\s+subsidy\b/.test(t)) {
+    return "Fertilizer subsidy in India is government financial support that reduces the effective cost of approved fertilizers for farmers. It is designed to keep essential nutrient inputs affordable and support crop productivity.";
+  }
   return "";
 }
 
@@ -175,6 +181,34 @@ function buildOneLineAgriDirectiveReply(text) {
   if (!/\b(one\s+line|single\s+line)\b/.test(t)) return "";
   if (/\byellow|yellowing|chlorosis|leaf\b/.test(t)) {
     return "First check root-zone moisture and recent watering because sudden yellowing is most often water-stress or root-oxygen stress before nutrient causes.";
+  }
+  return "";
+}
+
+/** @param {string} text */
+function buildDeterministicTaskReply(text) {
+  const t = String(text || "").toLowerCase();
+  if (/\bare\s+you\s+(a\s+)?(bot|ai|human)\b|\byou\s+a\s+bot\b/.test(t)) {
+    return "I’m an AI farm assistant built to interpret your field, weather, and scan context and turn it into practical actions.";
+  }
+  if (/\bwheat\b.*\brust\b|\brust\b.*\bwheat\b/.test(t) && /\b(priority|plan|next\s+24\s+hours|actions?)\b/.test(t)) {
+    return [
+      "- Inspect representative wheat blocks now and mark rust hot-spots by severity.",
+      "- Reduce leaf wetness immediately and prepare a label-compliant fungicide decision if spread is active.",
+      "- Recheck within 24 hours and escalate to local extension support if pustule spread increases.",
+    ].join("\n");
+  }
+  if ((/\b(weather|rain|forecast)\b/.test(t) && /\b(in|at)\s+[a-z][a-z\s-]{1,30}\b/i.test(text)) || /\bcurrent\s+weather\b/.test(t)) {
+    const m = String(text || "").match(/\b(?:in|at)\s+([A-Za-z][A-Za-z\s-]{1,30})/i);
+    const place = (m?.[1] || "your location").trim();
+    return `To stay accurate, refresh live weather now from the Weather tab; I can then use ${place} conditions for precise actions.`;
+  }
+  if (/\b(step-?by-?step|priority\s+list|next\s+24\s+hours)\b/.test(t) && /\b(disease|spread|risk|irrigat|stress|rust|blight|spot)\b/.test(t)) {
+    return [
+      "- Confirm current spread zone and severity first (quick scouting pass + photo notes).",
+      "- Execute one high-impact corrective action immediately and avoid stacking multiple treatments at once.",
+      "- Re-check within 24 hours and escalate if spread continues despite intervention.",
+    ].join("\n");
   }
   return "";
 }
@@ -754,7 +788,8 @@ onAuthStateChanged(auth, (user) => {
       const routing = classifyAssistantRouting(text, { hasImage: !!imageBlob });
       const knownDefReply = !imageBlob ? buildKnownAgriDefinitionReply(text) : "";
       const oneLineDirectiveReply = !imageBlob ? buildOneLineAgriDirectiveReply(text) : "";
-      const forcedDirectReply = knownDefReply || oneLineDirectiveReply;
+      const deterministicTaskReply = !imageBlob ? buildDeterministicTaskReply(text) : "";
+      const forcedDirectReply = knownDefReply || oneLineDirectiveReply || deterministicTaskReply;
 
       let snapshot = null;
       let orch = null;
