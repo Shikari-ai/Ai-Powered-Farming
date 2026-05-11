@@ -178,8 +178,15 @@ function composeMinimalAgriReply(question, orch, profile, extra = {}) {
     const lines = [];
     const r = orch.results || {};
 
+    // Only surface conversational hints (system-health classifies dev-jargon
+    // hints separately). Drop the "Note:" prefix — it reads stitched.
     if (Array.isArray(orch.degradedHints) && orch.degradedHints.length) {
-        lines.push(softenAlarmistProse("Note: " + orch.degradedHints.slice(0, 2).join(" "), profile));
+        const userish = orch.degradedHints.filter(
+            (h) => typeof h === "string" && !/\b(vision server url|api key|firestore|inference api)\b/i.test(h),
+        );
+        if (userish.length) {
+            lines.push(softenAlarmistProse(userish.slice(0, 1).join(" "), profile));
+        }
     }
     if (r.weatherIntelligence && !r.weatherIntelligence.error) {
         const w = r.weatherIntelligence;
@@ -295,8 +302,13 @@ export function composeAssistantReply(
     if (modalityNote) lines.push(modalityNote);
 
     if (Array.isArray(orch.degradedHints) && orch.degradedHints.length) {
-        lines.push("Status: " + orch.degradedHints.join(" "));
-        lines.push("");
+        const userish = orch.degradedHints.filter(
+            (h) => typeof h === "string" && !/\b(vision server url|api key|firestore|inference api)\b/i.test(h),
+        );
+        if (userish.length) {
+            lines.push(userish.slice(0, 1).join(" "));
+            lines.push("");
+        }
     }
 
     const bridge = buildConversationalBridge(q, orch, {

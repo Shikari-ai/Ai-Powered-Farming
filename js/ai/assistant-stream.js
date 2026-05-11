@@ -289,8 +289,11 @@ export function runAssistantTextStream(opts) {
     let aborted = false;
     let fastForwardRequested = false;
     let first = true;
+    let settled = false;
     /** @type {ReturnType<typeof setTimeout> | null} */
     let timer = null;
+    /** @type {((v: 'done' | 'aborted') => void) | null} */
+    let resolveOuter = null;
 
     const clearTimer = () => {
         if (timer != null) {
@@ -299,9 +302,23 @@ export function runAssistantTextStream(opts) {
         }
     };
 
+    const settle = (/** @type {'done' | 'aborted'} */ result) => {
+        if (settled) return;
+        settled = true;
+        clearTimer();
+        signal?.removeEventListener("abort", onAbort);
+        resolveOuter?.(result);
+    };
+
     const onAbort = () => {
         aborted = true;
         clearTimer();
+        // Mark the caret as fading even if we never started the stream, so the
+        // visual state matches "we stopped" rather than "still thinking".
+        try {
+            textHost.classList.remove("is-streaming", "stream-speaking");
+        } catch { /* ignore */ }
+        settle("aborted");
     };
     signal?.addEventListener("abort", onAbort, { once: true });
 
@@ -315,16 +332,25 @@ export function runAssistantTextStream(opts) {
     }
 
     const promise = new Promise((resolve) => {
+        resolveOuter = resolve;
+
+        // Abort may have arrived synchronously between addEventListener and here;
+        // honor it before scheduling anything.
+        if (aborted || signal?.aborted) {
+            settle("aborted");
+            return;
+        }
+
         const finalize = (skipCaretFade) => {
             clearTimer();
-            signal?.removeEventListener("abort", onAbort);
 
             const applyRich = () => {
+                if (settled) return;
                 textHost.innerHTML = formatAssistantRichText(fullText);
                 textHost.classList.add("is-rich");
                 textHost.classList.remove("is-streaming", "stream-speaking");
                 gentleScroll();
-                resolve("done");
+                settle("done");
             };
 
             if (skipCaretFade || !caretEl) {
@@ -335,6 +361,7 @@ export function runAssistantTextStream(opts) {
             caretEl.classList.add("stream-caret-out");
             const doneMs = 340;
             const t = setTimeout(() => {
+                if (settled) return;
                 requestAnimationFrame(applyRich);
             }, doneMs);
             timer = /** @type {any} */ (t);
@@ -343,8 +370,7 @@ export function runAssistantTextStream(opts) {
         const step = () => {
             clearTimer();
             if (aborted || signal?.aborted) {
-                signal?.removeEventListener("abort", onAbort);
-                resolve("aborted");
+                settle("aborted");
                 return;
             }
 
@@ -416,7 +442,7 @@ export function runAssistantTextStream(opts) {
         },
         dispose: () => {
             aborted = true;
-            clearTimer();
+            settle("aborted");
         },
     };
 }

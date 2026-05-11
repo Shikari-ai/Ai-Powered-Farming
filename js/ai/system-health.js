@@ -97,26 +97,43 @@ function weatherFresh01() {
 }
 
 /**
- * @returns {{ degraded: boolean, reasons: string[], hints: string[], weatherFresh01: number, avgInferenceMs: number|null }}
+ * Hints come in two flavors:
+ *  - userHints: safe to surface in chat / cards (no jargon, no internal config terms)
+ *  - devHints: diagnostics only — shown in profile diagnostics, never in assistant replies
+ *
+ * `hints` is preserved for back-compat (= userHints) so legacy callers still work.
+ *
+ * @returns {{
+ *   degraded: boolean,
+ *   reasons: string[],
+ *   hints: string[],
+ *   userHints: string[],
+ *   devHints: string[],
+ *   weatherFresh01: number,
+ *   avgInferenceMs: number|null
+ * }}
  */
 export function getDegradedState() {
     const reasons = [];
-    const hints = [];
+    const userHints = [];
+    const devHints = [];
     if (!state.online) {
         reasons.push("offline");
-        hints.push("You appear offline — showing saved farm data only.");
+        userHints.push("You appear offline — showing saved farm data only.");
     }
     const wf = weatherFresh01();
     if (wf < 0.55) {
         reasons.push("stale_weather");
-        hints.push("Weather intelligence may be dated; refresh the Weather page when you reconnect.");
+        userHints.push("I haven’t pulled fresh weather in a while — open the Weather tab to refresh.");
     }
     if (isInferenceConfigured() && state.inferenceFailStreak >= 3) {
         reasons.push("inference_unstable");
-        hints.push("Vision API has had several failed attempts — image analysis may be unavailable.");
+        // Soft, plain-language; no "Vision API" leak.
+        userHints.push("Image analysis has been unreliable lately — retry in a moment if a scan looks off.");
     }
     if (!isInferenceConfigured()) {
-        hints.push("Vision server URL not configured — disease-from-photo uses fallback messaging.");
+        // Dev-only — never surface to farmers. Used by profile diagnostics.
+        devHints.push("Vision server URL not configured — disease-from-photo uses fallback messaging.");
     }
     const avgMs =
         state.inferenceSamplesMs.length > 0
@@ -127,13 +144,15 @@ export function getDegradedState() {
             : null;
     if (avgMs != null && avgMs > 12000) {
         reasons.push("high_latency");
-        hints.push("Inference responses have been slow — patience recommended for large images.");
+        userHints.push("Scans are running a bit slow today — large photos may take a while.");
     }
 
     return {
         degraded: reasons.length > 0,
         reasons,
-        hints,
+        hints: userHints,
+        userHints,
+        devHints,
         weatherFresh01: wf,
         avgInferenceMs: avgMs,
         lastInferenceError: state.lastInferenceError,
