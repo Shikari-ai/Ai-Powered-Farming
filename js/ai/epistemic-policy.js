@@ -71,9 +71,9 @@ export function farmContextEmptyLead(ctx = {}) {
 
 /**
  * 0–2 sentences when evidence is thin; empty string when nothing to say.
- * @param {{ snapshot?: any, orch?: any, question?: string }} args
+ * @param {{ snapshot?: any, orch?: any, question?: string, omitFarmOnboarding?: boolean }} args
  */
-export function buildUncertaintyPreamble({ snapshot, orch, question }) {
+export function buildUncertaintyPreamble({ snapshot, orch, question, omitFarmOnboarding = false }) {
     const snap = snapshot || orch?.snapshot || {};
     const fields = snap.fields || [];
     const scans = snap.scans || [];
@@ -85,11 +85,13 @@ export function buildUncertaintyPreamble({ snapshot, orch, question }) {
     /** @type {string[]} */
     const parts = [];
 
-    if (fields.length === 0 && scans.length === 0) {
-        parts.push(EPISTEMIC_PHRASES.noFieldsNoScans);
-    } else {
-        if (fields.length === 0) parts.push(EPISTEMIC_PHRASES.noFields);
-        if (scans.length === 0) parts.push(EPISTEMIC_PHRASES.noScans);
+    if (!omitFarmOnboarding) {
+        if (fields.length === 0 && scans.length === 0) {
+            parts.push(EPISTEMIC_PHRASES.noFieldsNoScans);
+        } else {
+            if (fields.length === 0) parts.push(EPISTEMIC_PHRASES.noFields);
+            if (scans.length === 0) parts.push(EPISTEMIC_PHRASES.noScans);
+        }
     }
 
     const wf = typeof orchRef.weatherFresh01 === "number" ? orchRef.weatherFresh01 : null;

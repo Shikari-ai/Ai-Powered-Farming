@@ -2,7 +2,7 @@
  * When to augment internal (orchestrator + heuristics) answers with a small **public** lookup.
  * Selective: no web for micro-social, casual, clarify, or very short non-technical turns.
  */
-import { shouldDeferDiagnosis, shouldFrameActionsProvisional } from "./epistemic-policy.js?v=2";
+import { shouldDeferDiagnosis, shouldFrameActionsProvisional } from "./epistemic-policy.js?v=3";
 
 /** @typedef {"micro_social"|"casual"|"clarify"|"operations_quick"|"weather_quick"|"full"} AssistantRoutingMode */
 

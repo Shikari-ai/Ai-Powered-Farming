@@ -7,7 +7,8 @@
  */
 import { detectIntents } from "./detect-intents.js";
 import { pickRotated } from "./conversation-naturals.js?v=48";
-import { farmContextEmptyLead } from "./epistemic-policy.js?v=2";
+import { farmContextEmptyLead } from "./epistemic-policy.js?v=3";
+import { getNamedPlaceHintOrNull } from "../weather-location.js?v=61";
 import { matchSymptomTrainingReply } from "./symptom-training-corpus.js?v=79";
 
 const AGRI_TOKEN =
@@ -33,11 +34,11 @@ const OUTCOME_AFFIRM =
 
 const VAGUE_WORRY = /\b(weird|off|wrong|looks?\s+bad|not\s+right|something['’]s?\s+off|strange|funny\s+(looking)?)\b/i;
 
-/** “Weather in Mumbai” needs full orchestration; weather_quick is farm-anchor only and felt like a broken reply. */
+/** “Weather in/of Mumbai”, “Mumbai weather”, etc. — needs full orchestration + geocode (not weather_quick anchor only). */
 function isNamedPlaceWeatherQuery(text) {
     const t = String(text || "");
-    if (!/\bweather\b/i.test(t)) return false;
-    return /\b(in|at|near|for)\s+[A-Za-z\u00C0-\u024f][A-Za-z\u00C0-\u024f\s.-]{2,40}\b/.test(t);
+    if (!/\b(weather|forecast|temperature|humidity)\b/i.test(t)) return false;
+    return getNamedPlaceHintOrNull(t) != null;
 }
 
 const SPECIFIC_SYMPTOM =

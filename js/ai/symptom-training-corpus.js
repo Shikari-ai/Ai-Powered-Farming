@@ -4,7 +4,7 @@
  * See `assistant-training-principles.js` for goals (uncertainty, follow-ups, tone).
  */
 import { pickRotated } from "./conversation-naturals.js?v=48";
-import { farmContextEmptyLead } from "./epistemic-policy.js?v=2";
+import { farmContextEmptyLead } from "./epistemic-policy.js?v=3";
 
 /**
  * @param {string} id stable key for rotation bucket

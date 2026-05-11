@@ -4,8 +4,15 @@
  */
 import { NAVIC_GPS_WEATHER, detectGNSSSource } from "./navic.js";
 
+/** Tokens that look like a place after "weather …" but are not geocodable cities. */
+const WEATHER_TAIL_BLOCK = new Set(
+  "today tomorrow tonight now here there please outside local home like this next again soon help me current report alert update live check last outside".split(
+    /\s+/,
+  ),
+);
+
 /**
- * Pull "in Raipur", "near Mumbai" style hints for geocoding (excludes "for …" to avoid "for kharif wheat").
+ * Pull "in Raipur", "weather of Delhi", "Mumbai weather", "weather Mumbai" style hints for geocoding.
  * @param {string} text
  * @returns {string|null}
  */
@@ -15,14 +22,65 @@ export function extractNamedPlaceHint(text) {
     const place = String(s || "")
       .replace(/\s+/g, " ")
       .trim()
-      .replace(/[.,;:!?]+$/, "");
+      .replace(/[.,;:!?]+$/, "")
+      .replace(/\s+(tomorrow|today|tonight|now|please)\s*$/i, "");
     return place.length >= 3 ? place : null;
   };
-  let m = t.match(/\b(?:in|at|near)\s+([A-Za-z\u00C0-\u024f][A-Za-z\u00C0-\u024f\s,.'-]{2,52})/);
-  if (m) return clean(m[1]);
-  m = t.match(/\bweather\s+for\s+([A-Za-z\u00C0-\u024f][A-Za-z\u00C0-\u024f\s,.'-]{2,48})/i);
-  if (m) return clean(m[1]);
+
+  let m = t.match(/\bweather\s+for\s+([A-Za-z\u00C0-\u024f][A-Za-z\u00C0-\u024f\s,.'-]{2,48})/i);
+  if (m) {
+    const place = clean(m[1]);
+    if (place && !isPlaceHintBlocked(place)) return place;
+  }
+
+  m = t.match(
+    /\b(?:forecast|temperature|humidity)\s+(?:in|at|of|for)\s+([A-Za-z\u00C0-\u024f][A-Za-z\u00C0-\u024f\s,.'-]{2,52})/i,
+  );
+  if (m) {
+    const place = clean(m[1]);
+    if (place && !isPlaceHintBlocked(place)) return place;
+  }
+
+  m = t.match(/\b(?:in|at|near|of)\s+([A-Za-z\u00C0-\u024f][A-Za-z\u00C0-\u024f\s,.'-]{2,52})/);
+  if (m) {
+    const place = clean(m[1]);
+    if (place && !/\bweather\b/i.test(place) && !isPlaceHintBlocked(place)) return place;
+  }
+
+  m = t.match(/\bfor\s+([A-Za-z\u00C0-\u024f][A-Za-z\u00C0-\u024f\s,.'-]{2,48})\s*,?\s*(?:weather|forecast|temperature)\b/i);
+  if (m) {
+    const place = clean(m[1]);
+    if (place && !isPlaceHintBlocked(place)) return place;
+  }
+
+  m = t.match(
+    /\b([A-Za-z\u00C0-\u024f][A-Za-z\u00C0-\u024f]{0,29}(?:\s+[A-Za-z\u00C0-\u024f][A-Za-z\u00C0-\u024f]{0,29}){0,2})\s+(?:weather|forecast)\b/i,
+  );
+  if (m) {
+    const place = clean(m[1]);
+    const head = place ? place.split(/\s+/)[0].toLowerCase() : "";
+    if (place && !isPlaceHintBlocked(place) && !WEATHER_TAIL_BLOCK.has(head)) return place;
+  }
+
+  m = t.match(/\bweather\s+([A-Za-z\u00C0-\u024f][A-Za-z\u00C0-\u024f\s,.'-]{2,48})(?:\s*[\?!.,]|$)/i);
+  if (m) {
+    const place = clean(m[1]);
+    const head = place ? place.split(/\s+/)[0].toLowerCase() : "";
+    if (place && !isPlaceHintBlocked(place) && !WEATHER_TAIL_BLOCK.has(head)) return place;
+  }
+
   return null;
+}
+
+/**
+ * Named place suitable for geocode + weather routing (not "here" / "the farm").
+ * @param {string} text
+ * @returns {string|null}
+ */
+export function getNamedPlaceHintOrNull(text) {
+  const h = extractNamedPlaceHint(text);
+  if (!h || isPlaceHintBlocked(h)) return null;
+  return h;
 }
 
 function isPlaceHintBlocked(place) {

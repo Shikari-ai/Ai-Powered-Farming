@@ -18,8 +18,8 @@ import {
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { runAgriOrchestrator } from "./ai/orchestrator.js?v=72";
-import { attachSnapshotForReply, composeAssistantReply, composeOperationsSnapshotReply } from "./ai/assistant-reply.js?v=70";
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=73";
+import { attachSnapshotForReply, composeAssistantReply, composeOperationsSnapshotReply } from "./ai/assistant-reply.js?v=71";
 import { getAiConfig } from "./ai/config.js?v=70";
 import { shouldUseWebAssistedResearch } from "./ai/web-research-policy.js?v=2";
 import { fetchPublicAgriBrief, formatWebResearchAppend } from "./ai/web-research-client.js?v=3";
@@ -35,7 +35,7 @@ import {
   buildMicroSocialAssistantReply,
   buildVagueSymptomReply,
   classifyAssistantRouting,
-} from "./ai/assistant-intent-router.js?v=61";
+} from "./ai/assistant-intent-router.js?v=62";
 import {
   detectConversationMood,
   polishFarmReportProse,
