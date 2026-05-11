@@ -725,6 +725,32 @@
       -webkit-overflow-scrolling: touch; scrollbar-width: none;
     }
     .mf-scroll::-webkit-scrollbar { display: none; }
+
+    /* ── Bottom Insights carousel (Ambient / Regional / Twin) ── */
+    .insights-section { margin-top: 8px; }
+    .insights-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2px 10px;
+    }
+    .insights-ttl { font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: 0.2px; }
+    .insights-hint { font-size: 11px; color: var(--text-dim); display: flex; align-items: center; gap: 4px; }
+    .insights-scroll {
+      display: flex; gap: 12px;
+      overflow-x: auto;
+      padding: 2px 2px 12px;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      scroll-padding-left: 2px;
+    }
+    .insights-scroll::-webkit-scrollbar { display: none; }
+    .insights-scroll > .dcard {
+      flex: 0 0 86%;
+      max-width: 360px;
+      min-width: 280px;
+      margin: 0;
+      scroll-snap-align: start;
+    }
     .mf-empty {
       min-width: 200px;
       background: rgba(255,255,255,0.03);
@@ -1232,37 +1258,6 @@
       </a>
     </div>
 
-    <!-- AMBIENT INTELLIGENCE (calm context — not a notification storm) -->
-    <div class="dcard fade-up fade-up-d1 amb-card" id="dash-ambient-root" style="opacity:0;">
-      <div class="dcard-hdr">
-        <div class="dcard-ttl" style="gap:8px;">
-          <i class="ri-mist-line" style="color:#c4b5fd;"></i>
-          <span>Ambient context</span>
-        </div>
-        <span class="dcard-lnk" style="cursor:default;opacity:0.65;">Steady · local</span>
-      </div>
-      <ul id="dash-ambient-insights" class="dash-amb-insights" aria-live="polite"></ul>
-      <p id="dash-ambient-brief" class="dash-amb-brief" style="display:none;"></p>
-    </div>
-
-    <!-- REGIONAL INTELLIGENCE (opt-in anonymized network layer) -->
-    <div class="dcard fade-up fade-up-d1b" id="dash-regional-card" style="border:1px solid rgba(34,211,238,0.12);">
-      <div class="dcard-hdr">
-        <div class="dcard-ttl" style="gap:8px;">
-          <i class="ri-earth-line" style="color:#22d3ee;"></i>
-          <span>Regional Intelligence Network</span>
-        </div>
-        <a href="regional.html" class="dcard-lnk">Open map</a>
-      </div>
-      <div style="padding:0 18px 16px;">
-        <label style="display:flex;align-items:flex-start;gap:10px;font-size:12px;color:rgba(255,255,255,0.52);cursor:pointer;line-height:1.45;">
-          <input type="checkbox" id="dash-regional-optin" style="margin-top:3px;accent-color:#22d3ee;flex-shrink:0;" />
-          <span>Opt in to contribute <strong style="font-weight:600;color:rgba(236,253,245,0.78);">anonymized</strong> coarse-grid signals only. We never share farm ownership, field boundaries, or chat.</span>
-        </label>
-        <p id="dash-regional-brief" style="margin-top:12px;font-size:12px;line-height:1.55;color:rgba(236,253,245,0.82);">Loading regional briefing…</p>
-      </div>
-    </div>
-
     <!-- FIELD OPERATIONS (interventions + tasks — human-in-the-loop) -->
     <div class="dcard fade-up fade-up-d1c" id="dash-ops-card" style="border:1px solid rgba(16,185,129,0.15);">
       <div class="dcard-hdr">
@@ -1275,20 +1270,6 @@
       <div style="padding:0 18px 14px;">
         <p id="dash-ops-summary" style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:8px;line-height:1.45;">Loading tasks…</p>
         <div id="dash-ops-list" class="dash-ops-list"></div>
-      </div>
-    </div>
-
-    <!-- DIGITAL TWIN (coarse simulated contrast — open field Twin tab for full curves) -->
-    <div class="dcard fade-up fade-up-d1c" id="dash-twin-card" style="border:1px solid rgba(56,189,248,0.18);">
-      <div class="dcard-hdr">
-        <div class="dcard-ttl" style="gap:8px;">
-          <i class="ri-pulse-line" style="color:#38bdf8;"></i>
-          <span>Digital twin teaser</span>
-        </div>
-        <a href="fields.html" class="dcard-lnk" id="dash-twin-field-link">Field</a>
-      </div>
-      <div style="padding:0 18px 14px;">
-        <p id="dash-twin-summary" style="font-size:11px;color:rgba(255,255,255,0.5);line-height:1.45;">Loading simulation hint…</p>
       </div>
     </div>
 
@@ -1439,6 +1420,62 @@
           <p>No fields yet.<br>Add your first field to start monitoring.</p>
           <a href="fields.html">+ Add Field</a>
         </div>
+      </div>
+    </div>
+
+    <!-- INSIGHTS — slidable carousel at bottom of home -->
+    <div class="insights-section fade-up fade-up-d5">
+      <div class="insights-hdr">
+        <h3 class="insights-ttl">Insights</h3>
+        <span class="insights-hint">Swipe <i class="ri-arrow-left-right-line"></i></span>
+      </div>
+      <div class="insights-scroll" id="insights-scroll" aria-label="Insights carousel">
+
+        <!-- AMBIENT INTELLIGENCE (calm context — not a notification storm) -->
+        <div class="dcard amb-card" id="dash-ambient-root" style="opacity:0;">
+          <div class="dcard-hdr">
+            <div class="dcard-ttl" style="gap:8px;">
+              <i class="ri-mist-line" style="color:#c4b5fd;"></i>
+              <span>Ambient context</span>
+            </div>
+            <span class="dcard-lnk" style="cursor:default;opacity:0.65;">Steady · local</span>
+          </div>
+          <ul id="dash-ambient-insights" class="dash-amb-insights" aria-live="polite"></ul>
+          <p id="dash-ambient-brief" class="dash-amb-brief" style="display:none;"></p>
+        </div>
+
+        <!-- REGIONAL INTELLIGENCE (opt-in anonymized network layer) -->
+        <div class="dcard" id="dash-regional-card" style="border:1px solid rgba(34,211,238,0.12);">
+          <div class="dcard-hdr">
+            <div class="dcard-ttl" style="gap:8px;">
+              <i class="ri-earth-line" style="color:#22d3ee;"></i>
+              <span>Regional Intelligence Network</span>
+            </div>
+            <a href="regional.html" class="dcard-lnk">Open map</a>
+          </div>
+          <div style="padding:0 18px 16px;">
+            <label style="display:flex;align-items:flex-start;gap:10px;font-size:12px;color:rgba(255,255,255,0.52);cursor:pointer;line-height:1.45;">
+              <input type="checkbox" id="dash-regional-optin" style="margin-top:3px;accent-color:#22d3ee;flex-shrink:0;" />
+              <span>Opt in to contribute <strong style="font-weight:600;color:rgba(236,253,245,0.78);">anonymized</strong> coarse-grid signals only. We never share farm ownership, field boundaries, or chat.</span>
+            </label>
+            <p id="dash-regional-brief" style="margin-top:12px;font-size:12px;line-height:1.55;color:rgba(236,253,245,0.82);">Loading regional briefing…</p>
+          </div>
+        </div>
+
+        <!-- DIGITAL TWIN (coarse simulated contrast — open field Twin tab for full curves) -->
+        <div class="dcard" id="dash-twin-card" style="border:1px solid rgba(56,189,248,0.18);">
+          <div class="dcard-hdr">
+            <div class="dcard-ttl" style="gap:8px;">
+              <i class="ri-pulse-line" style="color:#38bdf8;"></i>
+              <span>Digital twin teaser</span>
+            </div>
+            <a href="fields.html" class="dcard-lnk" id="dash-twin-field-link">Field</a>
+          </div>
+          <div style="padding:0 18px 14px;">
+            <p id="dash-twin-summary" style="font-size:11px;color:rgba(255,255,255,0.5);line-height:1.45;">Loading simulation hint…</p>
+          </div>
+        </div>
+
       </div>
     </div>
 
