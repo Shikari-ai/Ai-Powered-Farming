@@ -5,6 +5,7 @@
  */
 import { auth } from "./auth.js?v=32";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getActiveLocation, subscribeActiveLocation } from "./geo/active-location.js?v=1";
 import { runLocationIntelligence, CATEGORIES } from "./location-intelligence.js";
 import { navicBadgeHTML } from "./navic.js";
 
@@ -18,7 +19,8 @@ function renderAddress(address) {
   if (!chipsEl) return;
 
   const chips = [];
-  if (address.village)  chips.push({ text: `📍 ${address.village}`, primary: true });
+  const primaryPlace = address.village || address.town || address.locality || "";
+  if (primaryPlace) chips.push({ text: `📍 ${primaryPlace}`, primary: true });
   if (address.district) chips.push({ text: address.district });
   if (address.state)    chips.push({ text: address.state });
   if (address.road)     chips.push({ text: `🛣 ${address.road}` });
@@ -27,7 +29,7 @@ function renderAddress(address) {
     `<span class="lic-addr-chip${c.primary ? " primary" : ""}">${c.text}</span>`
   ).join("");
 
-  const summary = [address.village, address.district, address.state].filter(Boolean).join(", ");
+  const summary = [primaryPlace, address.district, address.state].filter(Boolean).join(", ");
   if (lineEl && summary) lineEl.textContent = summary;
 }
 
@@ -56,7 +58,11 @@ function renderInsights(insights) {
   const container = qs("lic-insights");
   const title     = qs("lic-insights-title");
   if (!container) return;
-  if (!insights?.length) { if (title) title.style.display = "none"; return; }
+  if (!insights?.length) {
+    container.innerHTML = "";
+    if (title) title.style.display = "none";
+    return;
+  }
   if (title) title.style.display = "block";
   container.innerHTML = insights.map((ins, i) => {
     const cls = ins.priority === "high" ? "lic-insight-high" : ins.priority === "medium" ? "lic-insight-medium" : "";
@@ -86,31 +92,71 @@ function renderCoords(coords) {
 }
 
 function onUpdate(data) {
-  if (data.error) return;
+  if (data.error) {
+    const line = qs("lic-address-line");
+    if (line) {
+      line.textContent =
+        "Could not get device location. Use the header pin to save a place, or allow location permission.";
+    }
+    const chip = qs("lic-chip-village");
+    if (chip) chip.textContent = "📍 Location needed";
+    return;
+  }
   const { coords, address, places, insights, accuracy, gnssSource, phase } = data;
-  if (coords)              renderCoords(coords);
+  if (coords) renderCoords(coords);
   if (accuracy !== undefined) renderAccuracy(accuracy, gnssSource ?? coords?.gnssSource ?? null);
-  if (address)             renderAddress(address);
-  if (places?.length)      renderPlaces(places);
-  if (insights?.length)    renderInsights(insights);
+  if (address) renderAddress(address);
+  if (Array.isArray(places)) renderPlaces(places);
+  if (Array.isArray(insights)) renderInsights(insights);
   const card = qs("loc-intel-card");
-  if (card) card.style.opacity = phase === "approximate" ? "0.75" : "1";
+  if (card) card.style.opacity = phase === "approximate" || phase === "anchored" ? "0.85" : "1";
+}
+
+function locationIntelOpts() {
+  const base = { radius: 2500, persist: true };
+  const a = getActiveLocation();
+  if (!a) return base;
+  return {
+    ...base,
+    anchor: {
+      lat: a.lat,
+      lon: a.lon,
+      accuracyM: a.accuracyM ?? null,
+      gnssSource: a.gnssSource ?? null,
+      source: a.source,
+    },
+  };
 }
 
 /* ── Boot ── */
+let unsubPin = null;
+
 onAuthStateChanged(auth, (user) => {
+  if (unsubPin) {
+    unsubPin();
+    unsubPin = null;
+  }
   if (!user) return;
 
-  runLocationIntelligence(user.uid, onUpdate, { radius: 2500, persist: true });
+  unsubPin = subscribeActiveLocation(() => {
+    runLocationIntelligence(user.uid, onUpdate, locationIntelOpts()).catch(console.error);
+  });
 
   const btn = qs("lic-refresh-btn");
-  btn?.addEventListener("click", () => {
-    btn.classList.add("spinning");
-    const places = qs("lic-places");
-    if (places) places.innerHTML = [1,2,3].map(() => '<div class="lic-skeleton"></div>').join("");
-    runLocationIntelligence(user.uid, (data) => {
-      btn.classList.remove("spinning");
-      onUpdate(data);
-    }, { radius: 2500, persist: true });
-  });
+  if (btn && !btn.dataset.agriLiBound) {
+    btn.dataset.agriLiBound = "1";
+    btn.addEventListener("click", () => {
+      btn.classList.add("spinning");
+      const places = qs("lic-places");
+      if (places) places.innerHTML = [1, 2, 3].map(() => '<div class="lic-skeleton"></div>').join("");
+      runLocationIntelligence(
+        user.uid,
+        (data) => {
+          btn.classList.remove("spinning");
+          onUpdate(data);
+        },
+        locationIntelOpts(),
+      ).catch(console.error);
+    });
+  }
 });
