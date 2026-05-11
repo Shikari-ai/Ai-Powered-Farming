@@ -1,6 +1,7 @@
 import { tsToMs } from "./farmer-context.js?v=34";
-import { isLlmProxyConfigured } from "./config.js?v=66";
 import { softenOverclaimProse } from "./reliability/core.js";
+import { buildConversationalBridge } from "./internal-conversational-bridge.js?v=69";
+import { peekRecentAssistantOpenings, pickRotated } from "./conversation-naturals.js?v=48";
 import { summarizeOperationsAnalytics } from "../ops/effectiveness.js";
 import { INTERVENTION_LABELS } from "../ops/types.js";
 import { formatShallowTwinReplyLines } from "../twin/assistant-twin-brief.js";
@@ -104,30 +105,82 @@ function modalityPreamble(profile) {
     return "";
 }
 
+/**
+ * @param {string} question
+ * @param {Record<string, boolean>} intents orch.intents
+ * @param {boolean} compact
+ */
+function inferIntentReplyBundles(question, intents, compact) {
+    if (compact) {
+        return {
+            slimBridge: true,
+            includeTwin: false,
+            includeLearning: false,
+            includeRegional: true,
+            regionalMaxChars: 520,
+            skipEpisodePickup: true,
+            suppressBeginnerTone: false,
+            slimOperationsFormatting: false,
+            showSensorInventory: false,
+            extraFieldRecall: true,
+            extraFieldBlock: true,
+            omitFarmOpsLedger: false,
+            showClosingTip: true,
+            narrowTurn: false,
+        };
+    }
+
+    const q = String(question || "").trim();
+    const ql = q.toLowerCase();
+    const qlen = q.length;
+
+    /** @type {string[]} */
+    const keys = ["weather", "pest", "disease", "yellow", "yield", "field", "scan", "operations"];
+    let hits = 0;
+    for (const k of keys) {
+        if (intents[k]) hits++;
+    }
+
+    const broadCue = /\b(why|explain|everything|deep|full\s*breakdown|compare|simulate|scenario|risk\s*report|whole\s*farm|digital\s*twin|\btwin\b|learning\s+(engine|digest))\b/i.test(
+        ql,
+    );
+
+    const narrowTurn = qlen <= 168 && hits <= 1 && !broadCue;
+    const narrowerTurn = qlen <= 100 && hits <= 1 && !broadCue;
+
+    const regionalCue = /\b(region|regional|network|outbreak)\b/i.test(q);
+    const weatherOnlyLean =
+        intents.weather && hits === 1 && !intents.pest && !intents.disease && !intents.operations && !intents.field;
+
+    return {
+        narrowTurn,
+        slimBridge: narrowTurn || narrowerTurn,
+        includeTwin: !narrowTurn && (broadCue || qlen > 218 || hits >= 2),
+        includeLearning: !narrowTurn && (broadCue || qlen > 205 || hits >= 2),
+        includeRegional:
+            !!(intents.disease || intents.pest || regionalCue) ||
+            (!(narrowTurn && weatherOnlyLean && !regionalCue) && intents.weather),
+        regionalMaxChars: narrowTurn ? Math.min(520, 760) : 900,
+        skipEpisodePickup: narrowTurn,
+        suppressBeginnerTone: narrowTurn,
+        slimOperationsFormatting: narrowTurn,
+        showSensorInventory: !narrowTurn,
+        extraFieldRecall: !narrowTurn,
+        extraFieldBlock: !narrowTurn,
+        omitFarmOpsLedger:
+            narrowTurn && weatherOnlyLean && !intents.operations && !/\b(task|todo|alert|intervention)\b/i.test(ql),
+        showClosingTip: !(narrowTurn && hits <= 1),
+    };
+}
+
 function composeMinimalAgriReply(question, orch, profile, extra = {}) {
     const q = String(question || "").trim();
     const lines = [];
     const r = orch.results || {};
 
-    let llmText = r.llm && !r.llm.error && r.llm.text ? String(r.llm.text).trim() : "";
-    llmText = softenOverclaimProse(softenAlarmistProse(llmText, profile));
-    if (llmText && isLlmProxyConfigured()) {
-        return llmText;
-    }
-
     if (Array.isArray(orch.degradedHints) && orch.degradedHints.length) {
         lines.push(softenAlarmistProse("Note: " + orch.degradedHints.slice(0, 2).join(" "), profile));
     }
-
-    if (llmText) {
-        const prefix = lines.length ? `${lines.join("\n\n")}\n\n` : "";
-        return softenOverclaimProse(prefix + llmText);
-    }
-
-    if (isLlmProxyConfigured()) {
-        return "Could not get a reply from the AI backend. Confirm POST /v1/chat/grounded is deployed with GITHUB_TOKEN (Cloud Function secret or FastAPI .env) and reachable.";
-    }
-
     if (r.weatherIntelligence && !r.weatherIntelligence.error) {
         const w = r.weatherIntelligence;
         const rd = w.readings || {};
@@ -154,19 +207,69 @@ function composeMinimalAgriReply(question, orch, profile, extra = {}) {
 
     const fc = orch.snapshot?.fields?.length ?? 0;
     const sc = orch.snapshot?.scans?.length ?? 0;
-    lines.push(`— ${fc} field(s), ${sc} scan(s) on file. Say “full breakdown” if you want the detailed engines.`);
+    if (extra.routingReason === "short_weather_only") {
+        lines.push(`${fc} field(s), ${sc} scan(s) on file — say **full breakdown** anytime for the heavier pass.`);
+    } else {
+        lines.push(`— ${fc} field(s), ${sc} scan(s) on file. Say “full breakdown” if you want the detailed engines.`);
+    }
 
     const out = lines.filter(Boolean).join("\n\n").trim();
     return softenOverclaimProse(out || "Ask a longer question when you want the full farm breakdown.");
 }
 
 /**
- * Grounded narrative from orchestrator results (deterministic prose + optional LLM preface).
+ * Task / intervention roll-up from saved snapshot only (no orchestrator).
+ * @param {string} question
+ * @param {object} snapshot
+ * @param {object | null} [companionProfile]
+ */
+export function composeOperationsSnapshotReply(question, snapshot, companionProfile = null) {
+    const compact = companionProfile?.expertiseLevel === "beginner";
+    const lines = [];
+    lines.push(
+        pickRotated("ops_snap_lead", [
+            "Here’s a quick ops read from what’s already saved — I skipped the full engine sweep for this turn.",
+            "Pulling straight from your task and intervention layer (lightweight pass):",
+            "Operational snapshot only — the heavier farm engines didn’t run a full merge here.",
+        ]),
+    );
+    lines.push("");
+    const ops = buildOperationsReplyLines(snapshot, { compact });
+    if (ops.length) {
+        for (const L of ops) lines.push(L);
+    } else {
+        lines.push(
+            pickRotated("ops_empty", [
+                "No open tasks or unread alerts on file from what I can see. If something’s still on your mind, ask in one sentence.",
+                "Nothing queued in tasks/alerts from the current snapshot — say what you’re trying to finish this week if you want ordering help.",
+                "Looks quiet on the operations board — mention a crop or block if you’re tracking work informally.",
+            ]),
+        );
+    }
+    lines.push("");
+    lines.push(
+        pickRotated("ops_snap_tail", [
+            "Want priorities against weather or pest pressure? Ask that next and I’ll run the full farm pass.",
+            "Say **full briefing** if you want recommendations merged with weather and scouting context.",
+            "If you need scenario or twin contrast, mention simulation or “what if” and I’ll bring that stage in.",
+        ]),
+    );
+    return softenOverclaimProse(lines.filter(Boolean).join("\n").trim());
+}
+
+/**
+ * Grounded narrative from orchestrator results (engine-backed deterministic assembly + local conversational bridge).
  */
 export function composeAssistantReply(
     question,
     orch,
-    { locale: _locale = "en", companionProfile = null, replyVerbosity = "full", routingReason = "" } = {},
+    {
+        locale: _locale = "en",
+        companionProfile = null,
+        replyVerbosity = "full",
+        routingReason = "",
+        flowSnapshot = null,
+    } = {},
 ) {
     if (!orch) return "";
     if (replyVerbosity === "minimal") {
@@ -177,15 +280,10 @@ export function composeAssistantReply(
     const q = String(question || "").trim();
     const lines = [];
     const { intents } = orch;
+    const bundle = inferIntentReplyBundles(q, intents, compact);
     const r = orch.results || {};
 
-    let llmTextEarly = r.llm && !r.llm.error && r.llm.text ? String(r.llm.text).trim() : "";
-    llmTextEarly = softenOverclaimProse(softenAlarmistProse(llmTextEarly, profile));
-    if (llmTextEarly && isLlmProxyConfigured()) {
-        return llmTextEarly;
-    }
-
-    if (profile?.expertiseLevel === "beginner" && !compact) {
+    if (profile?.expertiseLevel === "beginner" && !compact && !bundle.suppressBeginnerTone) {
         lines.push("I’ll stay practical—tell me if you want the deeper technical version.\n");
     }
 
@@ -201,18 +299,20 @@ export function composeAssistantReply(
         lines.push("");
     }
 
-    let llmText = r.llm && !r.llm.error && r.llm.text ? String(r.llm.text).trim() : "";
-    llmText = softenOverclaimProse(softenAlarmistProse(llmText, profile));
-    if (llmText) {
-        const head = lines.length ? lines.join("\n") + "\n\n" : "";
-        return softenOverclaimProse(head + llmText);
+    const bridge = buildConversationalBridge(q, orch, {
+        compact,
+        replyVerbosity,
+        slim: bundle.slimBridge,
+        avoidOpenerFingerprints: peekRecentAssistantOpenings(),
+        flowSnapshot,
+    });
+    if (bridge) {
+        lines.push(bridge);
+        lines.push("");
     }
 
-    if (isLlmProxyConfigured()) {
-        return "Could not get a reply from the AI backend. Confirm POST /v1/chat/grounded is deployed with GITHUB_TOKEN (Cloud Function secret or FastAPI .env) and reachable.";
-    }
-
-    const epEarly = !compact && profile?.episodeArchive?.length ? profile.episodeArchive[profile.episodeArchive.length - 1] : null;
+    const epEarly =
+        !compact && !bundle.skipEpisodePickup && profile?.episodeArchive?.length ? profile.episodeArchive[profile.episodeArchive.length - 1] : null;
     if (epEarly?.summary && profile?.expertiseLevel !== "beginner") {
         lines.push(`Picking up from earlier: ${epEarly.summary.slice(0, 220)}`);
         lines.push("");
@@ -311,7 +411,7 @@ export function composeAssistantReply(
         lines.push("");
     }
 
-    if ((r.environmental?.sensorDocCount || 0) > 0 && !compact) {
+    if ((r.environmental?.sensorDocCount || 0) > 0 && !compact && bundle.showSensorInventory) {
         lines.push(`Environmental records in your account: ${r.environmental.sensorDocCount} document(s).`);
         lines.push("");
     }
@@ -360,22 +460,24 @@ export function composeAssistantReply(
         lines.push("");
     }
 
-    const opsLines = buildOperationsReplyLines(orch.snapshot, { compact });
-    if (opsLines.length) {
+    const opsLines = buildOperationsReplyLines(orch.snapshot, {
+        compact: compact || bundle.slimOperationsFormatting,
+    });
+    if (opsLines.length && !bundle.omitFarmOpsLedger) {
         lines.push("Farm operations (you execute all field work; I only organize and interpret signals):");
         for (const L of opsLines) lines.push(L);
         lines.push("");
     }
 
-    const twinLines = !compact ? formatShallowTwinReplyLines(orch.twinBrief) : [];
+    const twinLines = !compact && bundle.includeTwin ? formatShallowTwinReplyLines(orch.twinBrief) : [];
     if (twinLines.length) {
         lines.push("Digital twin (simulated week contrast, not certainty):");
         for (const L of twinLines) lines.push(L);
         lines.push("");
     }
 
-    const learnNar = !compact && orch.learningNarrative && String(orch.learningNarrative).trim();
-    const kLines = !compact ? knowledgeLearningReplyLines(orch.knowledgeLearning) : [];
+    const learnNar = bundle.includeLearning && !compact && orch.learningNarrative && String(orch.learningNarrative).trim();
+    const kLines = bundle.includeLearning && !compact ? knowledgeLearningReplyLines(orch.knowledgeLearning) : [];
     if (learnNar || kLines.length) {
         lines.push("Learning / knowledge evolution:");
         lines.push(
@@ -390,12 +492,13 @@ export function composeAssistantReply(
 
     const rb = orch.snapshot?.regionalBriefing;
     if (
+        bundle.includeRegional &&
         rb &&
         String(rb).trim() &&
         (intents.disease || intents.pest || intents.weather || /\b(region|regional|network|outbreak)\b/i.test(q))
     ) {
         lines.push("Regional network context (anonymized coarse cells — inferred aggregates, not your exact farm):");
-        lines.push(String(rb).replace(/\s+/g, " ").trim().slice(0, compact ? 420 : 900));
+        lines.push(String(rb).replace(/\s+/g, " ").trim().slice(0, compact ? Math.min(bundle.regionalMaxChars, 420) : bundle.regionalMaxChars));
         lines.push("");
     }
 
@@ -440,7 +543,7 @@ export function composeAssistantReply(
         })
         .filter((x) => x.lab);
 
-    if (sortedFields.length && profile?.expertiseLevel !== "beginner" && !compact) {
+    if (sortedFields.length && profile?.expertiseLevel !== "beginner" && !compact && bundle.extraFieldRecall) {
         const ref = sortedFields[0];
         ctxLines.push(
             `If this reminds you of prior stress: ${ref.name || "A field"} recently showed **${ref.lab}** in your intelligence timeline — humidity and season matter for recurrence.`,
@@ -456,7 +559,7 @@ export function composeAssistantReply(
     }
 
     const fcs = orch.snapshot?.fieldContextStates;
-    if (Array.isArray(fcs) && fcs.length && !compact) {
+    if (Array.isArray(fcs) && fcs.length && !compact && bundle.extraFieldBlock) {
         const first = fcs[0];
         const lab = first.lastTopHypothesis || first.lastVisionLabels?.[0];
         if (lab || first.stabilityScore != null) {
@@ -480,13 +583,13 @@ export function composeAssistantReply(
         lines.push(`In plain terms: start with “${a0.title}” because ${a0.reasoning}`.slice(0, 320));
     }
 
-    if (!llmText && lines.filter(Boolean).length < 3 && !compact) {
+    if (lines.filter(Boolean).length < 3 && !compact && bundle.showClosingTip) {
         lines.push(
             "\nTip: Ask about irrigation timing, spray drift risk, pest scouting, or yield trends — I route each question through the relevant farm engine.",
         );
     }
 
-    if (!llmText && lines.filter(Boolean).length < 3 && compact) {
+    if (lines.filter(Boolean).length < 3 && compact) {
         lines.push("\nSay **more depth** anytime if you want the full engine pass.");
     }
 

@@ -24,6 +24,7 @@
     <title>Fields - AgriTech AI</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/design-tokens.css?v=1">
     <link rel="stylesheet" href="css/nav.css">
     <!-- MapLibre GL JS — WebGL, 60fps, free, no API key needed -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4/dist/maplibre-gl.css"/>
@@ -63,13 +64,14 @@
         }
 
         .app-layout {
-            min-height: 100vh;
-            max-width: 480px;
+            min-height: var(--layout-min-height-fill);
+            max-width: var(--layout-max-width);
             margin: 0 auto;
             position: relative;
             background: var(--bg-dark);
-            box-shadow: 0 0 50px rgba(0,0,0,0.8);
-            padding-bottom: 100px;
+            box-shadow: var(--shadow-shell);
+            padding-bottom: var(--layout-scroll-bottom-pad);
+            overflow-x: hidden;
         }
 
         /* Header */

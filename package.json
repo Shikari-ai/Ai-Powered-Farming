@@ -4,7 +4,6 @@
   "type": "module",
   "scripts": {
     "api": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-api.ps1",
-    "deploy:llm": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-llm.ps1",
     "test": "node .claude/lang-core-smoke.mjs",
     "test:lang": "node .claude/lang-core-smoke.mjs",
     "test:profile-panels": "node .claude/profile-panels-playwright.mjs",

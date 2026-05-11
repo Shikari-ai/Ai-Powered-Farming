@@ -1,4 +1,4 @@
-# Run the FastAPI backend (LLM chat + vision). Secrets live in server/.env only (never commit).
+# Run the FastAPI backend (vision + tools). Assistant chat is client-side.
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $server = Join-Path $root "server"
@@ -8,7 +8,7 @@ if (-not (Test-Path ".env")) {
     if (Test-Path ".env.example") {
         Copy-Item ".env.example" ".env"
     }
-    Write-Host "Created server/.env — add GITHUB_TOKEN for chat (GitHub Models)."
+    Write-Host "Created server/.env — add AGRI_YOLO_WEIGHTS etc. if using vision API."
 }
 
 $pythonExe = $null

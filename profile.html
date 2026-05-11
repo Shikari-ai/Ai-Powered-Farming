@@ -9,23 +9,25 @@
   <title>Profile – Smart Farming</title>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/design-tokens.css?v=1">
   <link rel="stylesheet" href="css/nav.css">
   <link rel="stylesheet" href="css/reliability.css">
   <style>
     :root{
-      --bg:#030609;--surface:#0A1118;--surface2:rgba(10,17,24,.7);
-      --primary:#10B981;--primary-glow:rgba(16,185,129,.35);
+      --bg:var(--color-bg-deep);--surface:var(--color-surface);--surface2:rgba(10,17,24,.7);
+      --primary:var(--color-primary);--primary-glow:rgba(var(--color-primary-rgb),.35);
       --yellow:#F59E0B;--blue:#3B82F6;--purple:#8B5CF6;--red:#EF4444;
-      --txt:#F8FAFC;--dim:#94A3B8;--border:rgba(255,255,255,.07);
+      --txt:var(--color-text);--dim:var(--color-text-muted);--border:rgba(255,255,255,.07);
+      --card:var(--surface);
     }
     *{margin:0;padding:0;box-sizing:border-box;font-family:'Outfit',sans-serif;-webkit-tap-highlight-color:transparent;}
     body{background:var(--bg);color:var(--txt);overflow:hidden;height:100dvh;}
 
     /* ── SHELL ── */
     .shell{
-      position:relative;max-width:480px;margin:0 auto;
+      position:relative;max-width:var(--layout-max-width);margin:0 auto;
       height:100dvh;overflow:hidden;
-      background:var(--bg);box-shadow:0 0 60px rgba(0,0,0,.9);
+      background:var(--bg);box-shadow:var(--shadow-shell);
     }
 
     /* ── SCREEN / PANEL LAYER ── */
@@ -237,7 +239,7 @@
     }
     .lang-picker-sheet{
       position:relative;z-index:1;
-      width:100%;max-width:480px;max-height:min(90dvh,720px);
+      width:100%;max-width:var(--layout-max-width);max-height:min(90dvh,720px);
       background:linear-gradient(180deg,#0f172a 0%,#0b1220 100%);
       border:1px solid rgba(148,163,184,.22);
       border-radius:20px 20px 0 0;
@@ -1240,7 +1242,7 @@
     <div id="logout-sheet" style="
       background:#0E1822;border:1px solid rgba(255,255,255,.08);
       border-radius:24px 24px 0 0;padding:24px 20px 36px;
-      width:100%;max-width:480px;
+      width:100%;max-width:var(--layout-max-width);
       transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);">
       <div style="width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.15);margin:0 auto 20px;"></div>
       <div style="text-align:center;margin-bottom:20px;">

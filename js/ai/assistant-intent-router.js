@@ -9,7 +9,11 @@ const AGRI_TOKEN =
     /\b(field|fields|farm|farms|crop|crops|scans?|pest|pests|disease|diseases|fungal|blight|rust|mildew|rot|aphid|thrips|nematode|irrigation|irrigat|spray|fungicide|pesticide|herbicide|rain|humidity|weather|soil|moisture|yield|harvest|acre|hectare|nitrogen|fertil|deficien|tomato|potato|wheat|rice|corn|maize|cotton|soy|canopy|ndvi|scouting)\b/i;
 
 const DEEP_PIPELINE =
-    /\b(simulat|simulation|digital\s*twin|\btwin\b|forecast|outbreak|epidemic|regional\s*network|\bgeo\b|geo-?intel|stress\s*map|learning\s*engine|calibration|deep\s*dive|full\s*analysis|risk\s*report|audit\s*trail|compare\s*scenarios|what\s*if)\b/i;
+    /\b(simulat|simulation|digital\s*twin|\btwin\b|counterfactual|scenario|stress\s*test|forecast|outbreak|epidemic|regional\s*network|\bgeo\b|geo-?intel|stress\s*map|learning\s*engine|calibration|deep\s*dive|full\s*analysis|risk\s*report|audit\s*trail|compare\s*scenarios|what\s*if)\b/i;
+
+/** Tasks / alerts / chores inventory — list-style, not “what should I spray”. */
+const OPS_INVENTORY =
+    /\b(my\s+)?open\s+tasks?\b|\btask\s+list\b|\bto-?dos?\b|\bwhat\s+tasks\b|\b(show|list)\s+(me\s+)?(my\s+)?tasks?\b|\brecent\s+interventions?\b|\b(my\s+)?interventions?\s+(logged|so\s+far|list|recorded)\b|\bunread\s+alerts?\b|\b(alerts?\s+pending|pending\s+alerts?)\b|\bwhat(?:'s|s|\s+is)\s+on\s+my\s+plate\b|\boperations?\s+snapshot\b|\bchore\s+list\b/i;
 
 /** User is asking for substantive reasoning, not a wave. */
 const SUBSTANTIVE =
@@ -50,6 +54,18 @@ function isPositiveFarmShort(text) {
     return true;
 }
 
+function isOperationalSnapshotOnly(text) {
+    const t = String(text || "").trim();
+    if (t.length > 200) return false;
+    if (SUBSTANTIVE.test(t) || DEEP_PIPELINE.test(t)) return false;
+    if (!OPS_INVENTORY.test(t)) return false;
+    if (/\b(should\s+i|recommend|best\s+way|how\s+do\s+i|optimize|prioritiz|schedule\s+the)\b/i.test(t)) return false;
+    const intents = detectIntents(t);
+    if (intents.disease || intents.pest || intents.yield) return false;
+    if (intents.weather && !/\b(alert|task|intervention|chore)\b/i.test(t)) return false;
+    return true;
+}
+
 function isVagueSymptomClarify(text) {
     const t = String(text || "").trim();
     if (t.length > 220) return false;
@@ -69,10 +85,58 @@ function isVagueSymptomClarify(text) {
     return true;
 }
 
+function normMicroText(raw) {
+    return raw
+        .trim()
+        .replace(/^[uh]+\s*[,.-]?\s*/i, "")
+        .replace(/[!.?…]+$/u, "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+/** Tiny thanks / ok / bye / nano-acks — no orchestrator, minimal polish only. */
+function isMicroSocialTurn(text) {
+    const raw = String(text || "").trim();
+    const t = normMicroText(raw);
+    const lower = raw.toLowerCase();
+    if (!t || raw.length > 92) return false;
+    if (DEEP_PIPELINE.test(raw) || SUBSTANTIVE.test(raw)) return false;
+    if (hasImageAttachedHint(raw)) return false;
+
+    const agriPleasantry =
+        (/^(thanks|thank\s*you|thx|ty)\b/.test(lower) && lower.length < 72) ||
+        (/^(sure|yeah|yep|yup|ok+)\b/i.test(lower) && !AGRI_TOKEN.test(lower));
+
+    if (AGRI_TOKEN.test(t) && !agriPleasantry && !/^nm\b|^no\s*[,.]?\s*worries|^np\b|^cheers\b/i.test(lower)) return false;
+
+    const oneLine = !/\n/.test(raw) && raw.length <= 92;
+
+    if (/^(thanks|thank\s*you|thx|ty|much\s+appreciated)\b/i.test(t) || t.includes("🙏")) {
+        return oneLine;
+    }
+    if (/^(bye|goodbye|cya|see\s*you|later|ttyl)\b/i.test(t)) return oneLine;
+    if (/^(ok{1,3}|okay|\bk\b|^k\.|cool|nice|great|perfect|awesome|sweet|rad)\b/i.test(t)) return oneLine;
+    if (/^(sure|righto|\byep\b|\byup\b|^ya\b|alright|roger)\b/i.test(t)) return oneLine;
+    if (/^(sounds?\s*good|got\s*it|makes\s+sense|\bi\s*hear\s*you|fair\s+enough|\bfair\b|^word\b)\b/i.test(t)) return oneLine;
+    if (/^(no\s+(problem|worries)|^np\b|^cheers\b|^nm\b|not\s+much\b)\b/i.test(t)) return oneLine;
+
+    const ackOnly =
+        (/^(thanks|thank|thx|ty)\s*[!.]*$/i.test(t) &&
+            (/weather|forecast|farm|crop|rain|spray\b/i.test(lower) === false ||
+                (/^(thanks|thank\s*you|thx|ty)\b/i.test(lower) && lower.length < 40))) ||
+        /^(yeah|yep)\s*[,.]?\s*(thanks|thx)$/i.test(t);
+
+    return !!ackOnly && oneLine && t.length <= 72;
+}
+
+function hasImageAttachedHint(text) {
+    return /\[(image|photo)\s+attached\]|\(\s*image\s+attached\s*\)/i.test(String(text || ""));
+}
+
 /**
  * @param {string} rawText
  * @param {{ hasImage?: boolean }} opts
- * @returns {{ mode: "casual" | "clarify" | "weather_quick" | "full", reason: string }}
+ * @returns {{ mode: "micro_social" | "casual" | "clarify" | "operations_quick" | "weather_quick" | "full", reason: string }}
  */
 export function classifyAssistantRouting(rawText, opts = {}) {
     const hasImage = !!opts.hasImage;
@@ -101,13 +165,21 @@ export function classifyAssistantRouting(rawText, opts = {}) {
         return { mode: "casual", reason: "positive_farm_checkin" };
     }
 
+    if (isMicroSocialTurn(text)) {
+        return { mode: "micro_social", reason: "micro_ack_or_social" };
+    }
+
     if (isVagueSymptomClarify(text)) {
         return { mode: "clarify", reason: "vague_symptom" };
     }
 
+    if (isOperationalSnapshotOnly(text)) {
+        return { mode: "operations_quick", reason: "ops_inventory_only" };
+    }
+
     if (AGRI_TOKEN.test(text) && !isCasualAgriculturalPleasantry(text)) {
         const intents = detectIntents(text);
-        const short = text.length <= 100;
+        const short = text.length <= 160;
         if (
             short &&
             intents.weather &&
@@ -115,7 +187,8 @@ export function classifyAssistantRouting(rawText, opts = {}) {
             !intents.pest &&
             !intents.yield &&
             !intents.scan &&
-            !intents.field
+            !intents.field &&
+            !intents.operations
         ) {
             return { mode: "weather_quick", reason: "short_weather_only" };
         }
@@ -135,11 +208,16 @@ export function classifyAssistantRouting(rawText, opts = {}) {
 
 /** “Thanks — weather looks good” still has agri token; keep conversational. */
 function isCasualAgriculturalPleasantry(text) {
-    const t = text.toLowerCase();
-    return /^(thanks|thank\s*you|thx|ty)\b/.test(t) && t.length < 72;
+    const t = text.toLowerCase().trim();
+    if (!/^(thanks|thank\s*you|thx|ty)\b/.test(t)) return false;
+    // Longer thanks still conversational unless they pivot into guidance questions.
+    if (/\?/.test(text) || /\b(why|how\s+(do|should|can)|what\s+should\s+i)\b/i.test(t)) return false;
+    return t.length < 128;
 }
 
 function isCasualMessage(raw) {
+    if (isMicroSocialTurn(raw)) return false;
+
     const t = raw.trim().replace(/[!.?…]+$/u, "").replace(/\s+/g, " ").trim();
     if (t.length > 88) return false;
     if (AGRI_TOKEN.test(t) && !isCasualAgriculturalPleasantry(raw)) return false;
@@ -150,13 +228,68 @@ function isCasualMessage(raw) {
     if (/^(ok{1,3}|okay|k\b|cool|nice|great|perfect|awesome|sweet)\b/i.test(t)) return true;
     if (/^(sure|yep|yeah|yup|righto|alright)\b/i.test(t)) return true;
     if (/^(sounds?\s*good|got\s*it|makes\s+sense)\b/i.test(t)) return true;
-    if (/^no\s*(problem|worries)|\bnp\b|^cheers\b/i.test(t)) return true;
+    if (/^no\s*(problem|worries)|\bnp\b|^cheers\b|^nm\b|not\s+much\b/i.test(t)) return true;
     if (/^how\s*(are|r)\s*(you|u)\b/i.test(t)) return true;
     if (/^(what'?s\s*up|wassup|sup\b)\b/i.test(t)) return true;
     if (/^(bye|goodbye|cya|see\s*you|later)\b/i.test(t)) return true;
     if (/^(lol|lmao|haha|ha{2,})\b/i.test(t)) return true;
 
     return false;
+}
+
+export function buildMicroSocialAssistantReply(text) {
+    const raw = String(text || "").trim();
+    const t = normMicroText(raw).toLowerCase();
+
+    if (/^(bye|goodbye|cya|see\s*you|later|ttyl)\b/.test(t)) {
+        return pickRotated("micro_bye", [
+            "Take care.",
+            "Later.",
+            "Catch you later.",
+            "Sounds good — bye for now.",
+            "All right — talk soon.",
+        ]);
+    }
+    if (/^(thanks|thank|thx|ty|much\s+appreciated)\b/.test(t) || t.includes("🙏")) {
+        return pickRotated("micro_thanks", [
+            "Anytime.",
+            "You got it.",
+            "Happy to help.",
+            "Glad it helped.",
+            "Of course.",
+            "Sure thing.",
+        ]);
+    }
+    if (/^(ok{1,3}|okay|\bk\b|^k\.|cool|nice|great|perfect|awesome|sweet|rad)\b/.test(t)) {
+        return pickRotated("micro_ok", [
+            "Sounds good.",
+            "Got it.",
+            "Cool.",
+            "Okay — I’m here.",
+            "Nice.",
+            "Right on.",
+        ]);
+    }
+    if (/^(sure|righto|yep|yup|ya\b|alright|roger)\b/.test(t)) {
+        return pickRotated("micro_sure", ["Got it.", "Okay.", "Roger that.", "Understood.", "On it."]);
+    }
+    if (/^(sounds?\s*good|makes\s+sense|got\s*it|\bi\s*hear\s*you|fair\s+enough|^fair\b|^word\b)\b/.test(t)) {
+        return pickRotated("micro_ack", ["Yep.", "Agreed.", "Makes sense.", "Copy that.", "Noted."]);
+    }
+    if (/^(no\s+(problem|worries)|^np\b|^cheers\b|^nm\b|not\s+much\b)\b/.test(t)) {
+        return pickRotated("micro_np", [
+            "Likewise.",
+            "All good.",
+            "Anytime.",
+            "Cheers.",
+            "Cool — here if you need anything.",
+        ]);
+    }
+    if (/^(yeah|yep)\s*[,.]?\s*(thanks|thx)\b/.test(t) || /^(thanks|thank|thx|ty)\s*[!.]*$/i.test(t)) {
+        return pickRotated("micro_thanks_short", ["Anytime.", "You bet.", "Happy to.", "Sure thing."]);
+    }
+
+    return pickRotated("micro_fallback", ["Sure thing.", "I’m here.", "Okay."]);
 }
 
 /**
@@ -192,55 +325,89 @@ export function buildCasualAssistantReply(text, ctx = {}) {
         ]);
     }
 
-    if (/^(bye|goodbye|cya|see\s*you)/.test(t)) {
+    if (/^(hi|hello|hey|yo|hiya|howdy|greetings)\b/i.test(t)) {
+        return pickRotated("greet_hi", [
+            "Hey — how’s it going?",
+            "Hi there.",
+            "Hey. What’s going on today?",
+            "Hello — good to see you here.",
+            "Hey — what’s on your mind?",
+        ]);
+    }
+
+    if (/^(what'?s\s*up|wassup|\bsup\b)\b/i.test(t)) {
+        return pickRotated("greet_sup", [
+            "Not much on my side — what’s up with you?",
+            "Hey — how are you doing?",
+            "All good here. What’s happening on your end?",
+        ]);
+    }
+
+    if (/^good\s*(morning|afternoon|evening|night|day)\b/.test(t)) {
+        return pickRotated("greet_day", [
+            "Hey — how’s it going?",
+            "Morning — hope you’re doing all right.",
+            "Hi — nice to connect.",
+            "Hey there — how’ve you been?",
+        ]);
+    }
+
+    if (/^how\s*(are|r)\s*(you|u)\b/.test(t)) {
+        return pickRotated("howru", [
+            "Doing well — how about you?",
+            "I’m good, thanks. What’s on your mind today?",
+            "All good here. How are things with you?",
+        ]);
+    }
+
+    if (/^(bye|goodbye|cya|see\s*you|later)\b/.test(t)) {
         return pickRotated("bye", [
-            "Take care out there — tap me when you’re back.",
-            "Later — good luck in the field today.",
-            "All the best — I’m around when you need a second read on things.",
+            "Take care — ping me anytime.",
+            "Later — talk soon.",
+            "Bye for now.",
         ]);
     }
     if (/^(thanks|thank|thx|ty)\b/.test(t) || t.includes("🙏")) {
         return pickRotated("thanks", [
             "Anytime.",
             "Glad I could help.",
-            "You’re welcome — shout if something changes.",
+            "You’re welcome.",
+            "Happy to help.",
         ]);
     }
-    if (/^how\s*(are|r)\s*(you|u)/.test(t)) {
-        return pickRotated("howru", [
-            "Doing well, thanks — how are things on your side?",
-            "All good here. What’s the farm looking like for you today?",
-            "I’m ready when you are — what’s on your mind?",
+
+    if (/^(ok{1,3}|okay|cool|nice|great|perfect|awesome|sweet)\b/.test(t)) {
+        return pickRotated("casual_ok", [
+            "Glad that works.",
+            "Cool — I’m here if you need anything else.",
+            "Nice — say the word if you want to go deeper.",
         ]);
     }
-    if (/^good\s*(morning|afternoon|evening|night|day)\b/.test(t)) {
-        return pickRotated("greet_day", [
-            "Hey — how’s it going out there?",
-            "Hi there. Want weather, pests, or something else today?",
-            "Morning/afternoon — what do you want to tackle first?",
-        ]);
-    }
-    if (/^(lol|haha|ha)/.test(t)) {
+
+    if (/^(lol|lmao|haha|ha{2,})\b/.test(t)) {
         return pickRotated("lol", [
-            "Ha — okay. Farm stuff whenever you’re ready.",
-            "Fair enough. Need anything practical on the crop?",
+            "Ha — okay.",
+            "Ha — fair.",
+            "Ha — I needed that.",
         ]);
     }
 
-    const onboard =
-        fc === 0 && sc === 0
-            ? " Add a field and save a scan when you can — I’ll hook answers to your real numbers."
-            : sc === 0
-              ? " A fresh scan will make tips a lot sharper."
-              : "";
+    const needsOnboard = (fc === 0 && sc === 0) || sc === 0;
+    const onboardHint = needsOnboard
+        ? pickRotated("casual_onboard", [
+              fc === 0 && sc === 0
+                  ? " When you add a field + save a scan, I can tie answers to your numbers."
+                  : " A quick scan later will make follow-ups sharper.",
+              "",
+              "",
+          ])
+        : "";
 
-    return (
-        pickRotated("open_chat", [
-            `Hey! How’s the farm today?${onboard}`,
-            `Hi — what do you want to look at?${onboard}`,
-            `What’s up? I can go light or deep on weather, pests, irrigation, or fields.${onboard}`,
-        ]) + pickRotated("open_tail", ["", " Keep it to one sentence if you like; I’ll match your pace."])
-    );
+    return pickRotated("open_chat", [
+        `Hey — how’s your day?${onboardHint}`,
+        `Hi. What do you want to dig into?${onboardHint}`,
+        `What’s up?${onboardHint ? (onboardHint.trim() ? `\n${onboardHint.trim()}` : "") : ""}`,
+    ]);
 }
 
 /**

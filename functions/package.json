@@ -1,6 +1,6 @@
 {
   "name": "agritech-functions",
-  "description": "HTTPS LLM chat (GitHub Models) for AgriTech assistant",
+  "description": "Optional Firebase HTTPS hooks for AgriTech (assistant is client-orchestrated)",
   "engines": {
     "node": "20"
   },

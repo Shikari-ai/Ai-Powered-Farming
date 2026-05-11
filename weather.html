@@ -27,21 +27,31 @@
   <title>Weather Intelligence - AgriTech AI</title>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/design-tokens.css?v=1">
   <style>
     :root {
-      --bg: #030609;
-      --surface: rgba(10, 17, 24, 0.72);
-      --border: rgba(255, 255, 255, 0.1);
-      --text: #f8fafc;
-      --dim: #94a3b8;
-      --primary: #10b981;
-      --warn: #f59e0b;
-      --danger: #ef4444;
-      --blue: #3b82f6;
+      --bg: var(--color-bg-deep);
+      --surface: var(--glass-bg-card);
+      --border: var(--color-border-medium);
+      --text: var(--color-text);
+      --dim: var(--color-text-muted);
+      --primary: var(--color-primary);
+      --warn: var(--color-warn);
+      --danger: var(--color-danger);
+      --blue: var(--color-blue);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Outfit", sans-serif; }
     body { background: var(--bg); color: var(--text); overflow-x: hidden; }
-    .app { min-height: 100vh; max-width: 480px; margin: 0 auto; position: relative; padding-bottom: 120px; background: #02070b; box-shadow: 0 0 50px rgba(0,0,0,.7); }
+    .app {
+      min-height: var(--layout-min-height-fill);
+      max-width: var(--layout-max-width);
+      margin: 0 auto;
+      position: relative;
+      padding-bottom: calc(var(--space-3xl) + env(safe-area-inset-bottom, 0px));
+      background: #02070b;
+      box-shadow: var(--shadow-shell);
+      overflow-x: hidden;
+    }
     .env {
       position: fixed; inset: 0;
       pointer-events: none;
@@ -104,7 +114,7 @@
     .header {
       position: static;
       display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 16px;
+      padding: calc(var(--space-lg) + env(safe-area-inset-top, 0px)) var(--layout-content-pad-x) var(--space-lg);
       background: transparent;
     }
     .icon-btn {
@@ -129,15 +139,15 @@
       padding: 8px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,.12);
       background: rgba(16,185,129,.15); color: var(--text); font-size: 12px; cursor: pointer;
     }
-    .content { padding: 14px 14px 0; display: flex; flex-direction: column; gap: 12px; }
+    .content { padding: var(--space-md) var(--layout-content-pad-x) 0; display: flex; flex-direction: column; gap: var(--space-md); }
     .hero {
       background: linear-gradient(140deg, rgba(59,130,246,.18), rgba(16,185,129,.08));
       border: 1px solid var(--border);
-      border-radius: 22px; padding: 18px;
-      backdrop-filter: blur(12px);
+      border-radius: var(--radius-xl); padding: var(--space-xl);
+      backdrop-filter: blur(var(--glass-blur-medium));
     }
     .hero-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-    .hero-temp { font-size: 54px; line-height: 1; font-weight: 300; }
+    .hero-temp { font-size: var(--font-hero-display); line-height: 1; font-weight: 300; }
     .hero-desc { font-size: 13px; color: rgba(255,255,255,.94); margin-top: 4px; }
     .hero-sub { font-size: 11px; color: var(--dim); margin-top: 5px; }
     .chip-row { display: flex; gap: 8px; overflow-x: auto; margin-top: 14px; padding-bottom: 2px; }
@@ -155,8 +165,8 @@
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 14px;
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
       backdrop-filter: blur(10px);
     }
     .card h3 { font-size: 13px; margin-bottom: 10px; color: rgba(255,255,255,.95); }
@@ -278,8 +288,85 @@
     .lic-coords-txt{font-size:10px;color:rgba(255,255,255,.28);font-family:monospace;}
     .lic-refresh-btn{display:flex;align-items:center;gap:5px;padding:7px 14px;border-radius:12px;border:none;background:rgba(10,132,255,.15);color:#4DABFF;font-size:12px;font-weight:600;font-family:'Outfit',sans-serif;cursor:pointer;transition:background .2s,transform .15s;}
     .lic-refresh-btn:active{transform:scale(.93);}
-    .lic-refresh-btn.spinning i{animation:spin360 .7s linear infinite;}
     @keyframes spin360{to{transform:rotate(360deg);}}
+
+    .loc-picker-overlay {
+      position: fixed; inset: 0; z-index: 1200;
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(6px);
+      display: flex; align-items: flex-end; justify-content: center;
+      padding: 12px;
+    }
+    .loc-picker-overlay.hidden { display: none !important; }
+    .loc-picker-panel {
+      width: 100%; max-width: var(--layout-max-width); max-height: 88vh; overflow: hidden;
+      display: flex; flex-direction: column;
+      background: rgba(12,18,24,.96);
+      border: 1px solid var(--border);
+      border-radius: 20px 20px 16px 16px;
+      box-shadow: 0 -8px 40px rgba(0,0,0,.45);
+    }
+    .loc-picker-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .loc-picker-hdr h2 { font-size: 15px; font-weight: 600; }
+    .loc-picker-hint { font-size: 11px; color: var(--dim); padding: 10px 16px 0; line-height: 1.45; }
+    .loc-picker-search {
+      margin: 12px 16px 8px;
+      width: calc(100% - 32px);
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.05);
+      color: var(--text);
+      font-size: 13px;
+    }
+    .loc-picker-status { font-size: 11px; color: var(--warn); padding: 0 16px; min-height: 16px; }
+    .loc-picker-results {
+      list-style: none; margin: 0 12px; padding: 0 0 8px;
+      max-height: 220px; overflow-y: auto;
+    }
+    .loc-picker-results li {
+      padding: 10px 12px; border-radius: 12px; cursor: pointer;
+      font-size: 12px; color: rgba(255,255,255,.88);
+      border: 1px solid transparent; margin-bottom: 4px;
+    }
+    .loc-picker-results li:hover { background: rgba(255,255,255,.06); }
+    .loc-picker-results li.is-selected { border-color: rgba(16,185,129,.45); background: rgba(16,185,129,.1); }
+    .loc-picker-results .sub { font-size: 10px; color: var(--dim); margin-top: 4px; line-height: 1.3; }
+    .loc-picker-row { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 16px; }
+    .loc-picker-secondary {
+      flex: 1; min-width: 120px;
+      padding: 10px 12px; border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+      font-size: 12px; cursor: pointer;
+    }
+    .loc-picker-actions { padding: 12px 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+    .loc-picker-primary {
+      width: 100%; padding: 12px;
+      border-radius: 14px; border: none;
+      background: linear-gradient(135deg, rgba(16,185,129,.9), rgba(59,130,246,.75));
+      color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .stars::before,
+      .rain::before,
+      .fog::before,
+      .storm::before,
+      .radar-ring,
+      .radar-dot,
+      .lic-place,
+      .lic-insight,
+      .lic-skeleton,
+      .gnss-isro-dot {
+        animation: none !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -299,7 +386,7 @@
         <p class="source-tag" id="data-source-line"></p>
       </div>
       <div style="display:flex; align-items:center; gap:8px;">
-        <button type="button" class="icon-btn" id="maps-btn" title="Open this GPS spot in your phone maps (Samsung Maps, Google Maps, …)"><i class="ri-map-pin-line"></i></button>
+        <button type="button" class="icon-btn" id="loc-picker-open" title="Set saved weather location (search or GPS)"><i class="ri-map-pin-line"></i></button>
         <button type="button" class="icon-btn" id="refresh-btn"><i class="ri-refresh-line"></i></button>
       </div>
     </header>
@@ -406,7 +493,28 @@
       </div>
     </main>
   </div>
-  <script type="module" src="js/weather.js?v=31"></script>
+
+  <div id="loc-picker-modal" class="loc-picker-overlay hidden" aria-hidden="true" role="dialog" aria-labelledby="loc-picker-title">
+    <div class="loc-picker-panel">
+      <div class="loc-picker-hdr">
+        <h2 id="loc-picker-title">Set weather location</h2>
+        <button type="button" class="icon-btn" id="loc-picker-close" aria-label="Close"><i class="ri-close-line"></i></button>
+      </div>
+      <p class="loc-picker-hint">Search a place or use GPS. Everything stays in this app — we do not open external map apps from here.</p>
+      <input type="search" class="loc-picker-search" id="loc-picker-search" placeholder="Village, city, district…" autocomplete="off" />
+      <div class="loc-picker-status" id="loc-picker-status"></div>
+      <ul class="loc-picker-results" id="loc-picker-results"></ul>
+      <div class="loc-picker-row">
+        <button type="button" class="loc-picker-secondary" id="loc-picker-gps">Use device GPS</button>
+        <button type="button" class="loc-picker-secondary" id="loc-picker-clear">Clear saved · use live GPS</button>
+      </div>
+      <div class="loc-picker-actions">
+        <button type="button" class="loc-picker-primary" id="loc-picker-apply">Save & refresh weather</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/weather.js?v=32"></script>
   <script type="module" src="js/interaction-engine.js?v=20"></script>
   <script type="module" src="js/weather-li.js?v=31"></script>
 </body>

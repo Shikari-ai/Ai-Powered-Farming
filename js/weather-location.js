@@ -80,6 +80,56 @@ export async function geocodePlaceName(placeLabel) {
   }
 }
 
+/**
+ * Multiple forward-geocode hits (Nominatim) for in-app search.
+ * @param {string} placeLabel
+ * @param {number} [limit]
+ */
+export async function searchPlacesNominatim(placeLabel, limit = 8) {
+  const raw = String(placeLabel || "").trim();
+  if (raw.length < 2 || isPlaceHintBlocked(raw)) return [];
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 7500);
+  try {
+    const queries = [`${raw}, India`, raw];
+    for (const q of queries) {
+      const url = `https://nominatim.openstreetmap.org/search?${new URLSearchParams({
+        format: "json",
+        limit: String(Math.min(10, Math.max(1, limit))),
+        q,
+      })}`;
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "SmartAgriAssistant/1.0 (https://agritech-4d1ba.web.app)",
+        },
+      });
+      if (!res.ok) continue;
+      const arr = await res.json();
+      if (!Array.isArray(arr) || !arr.length) continue;
+      const out = [];
+      for (const hit of arr) {
+        const lat = parseFloat(hit.lat);
+        const lon = parseFloat(hit.lon);
+        if (Number.isNaN(lat) || Number.isNaN(lon)) continue;
+        const shortLabel =
+          typeof hit.name === "string" && hit.name.length ? hit.name : raw;
+        const label =
+          typeof hit.display_name === "string" && hit.display_name.length
+            ? hit.display_name
+            : shortLabel;
+        out.push({ lat, lon, label, shortLabel });
+      }
+      return out;
+    }
+    return [];
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export const FALLBACK_LOC = {
   city: "Bhopal",
   district: "Bhopal",
@@ -142,11 +192,6 @@ export async function resolveLocationApprox() {
 
 /** Fresh GPS fix + Nominatim labels, else {@link FALLBACK_LOC}. */
 export async function resolveWeatherLocation() {
-  try {
-    localStorage.removeItem("agri_weather_loc_mode");
-    localStorage.removeItem("agri_weather_place");
-  } catch {}
-
   if (!isGeolocationSecureContext()) {
     return { ...FALLBACK_LOC, source: "insecure-context", accuracyM: null };
   }
@@ -205,4 +250,15 @@ export async function resolveWeatherLocation() {
     persistLocationDetails(loc);
     return loc;
   }
+}
+
+/**
+ * User-pinned anchor (see `geo/active-location.js`) overrides live GPS when set.
+ * @returns {Promise<object>}
+ */
+export async function resolveWeatherLocationRespectingPin() {
+  const { peekActiveWeatherLocation } = await import("./geo/active-location.js?v=1");
+  const pinned = peekActiveWeatherLocation();
+  if (pinned) return pinned;
+  return resolveWeatherLocation();
 }

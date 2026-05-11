@@ -114,17 +114,32 @@ export function getFlowSnapshot() {
  */
 
 /**
- * @param {{ routingMode: string, profile?: object | null, flow?: ReturnType<typeof getFlowSnapshot> }} opts
+ * @param {{ routingMode: string, profile?: object | null, flow?: ReturnType<typeof getFlowSnapshot>, userText?: string }} opts
  * @returns {'minimal'|'compact'|'full'}
  */
 export function resolveReplyVerbosity(opts) {
     const routingMode = opts.routingMode || "full";
     if (routingMode === "weather_quick") return "minimal";
+    if (routingMode === "operations_quick") return "compact";
     if (routingMode !== "full") return "full";
 
     const profile = opts.profile || {};
     const flow = opts.flow || getFlowSnapshot();
     const hinted = profile.flowHints;
+
+    const userTextTrim = String(opts.userText || "").trim();
+    if (userTextTrim) {
+        const wc = userTextTrim.split(/\s+/).filter(Boolean).length;
+        if (
+            userTextTrim.length < 104 &&
+            wc <= 12 &&
+            !flow.prefersDepth &&
+            !/\b(why|how\s+come|explain|simulate|forecast|scenario|digital\s+twin|stress\s+test)\b/i.test(userTextTrim)
+        ) {
+            return "compact";
+        }
+    }
+
     if (profile.explanationStyle === "concise" || hinted?.bias === "concise") return "compact";
     if (profile.explanationStyle === "detailed" || hinted?.bias === "deep") return "full";
     if (flow.prefersConcise && !flow.prefersDepth) return "compact";
@@ -179,7 +194,14 @@ export function flowVoiceHints(flow) {
  * @returns {"operational"|"thoughtful"|"balanced"|undefined}
  */
 export function streamRhythmPreference(flow, streamProfile) {
-    if (!flow || streamProfile === "casual" || streamProfile === "clarify" || streamProfile === "weather_quick") {
+    if (
+        !flow ||
+        streamProfile === "casual" ||
+        streamProfile === "micro_social" ||
+        streamProfile === "clarify" ||
+        streamProfile === "weather_quick" ||
+        streamProfile === "operations_quick"
+    ) {
         return undefined;
     }
     if (flow.urgencyLean || (flow.rapidFire && flow.emaUserLen < 68)) return "operational";

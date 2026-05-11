@@ -11,5 +11,8 @@ export function detectIntents(question) {
         yield: /\b(yield|harvest|ton|quintal|bushel|production)\b/.test(q),
         field: /\b(field|plot|acre|hectare)\b/.test(q),
         scan: /\b(scan|photo|image|picture|camera|leaf)\b/.test(q),
+        operations: /\b(task|tasks|todo|to-do|to\s*do|intervention|interventions|alert|alerts|chore|chores)\b/.test(
+            q,
+        ),
     };
 }

@@ -70,7 +70,7 @@ export function computePresencePlan(opts) {
     let base = 200;
     let voiceEnergy = "steady";
 
-    if (routingMode === "casual" || routingMode === "clarify") {
+    if (routingMode === "casual" || routingMode === "clarify" || routingMode === "micro_social") {
         voiceEnergy = "light";
         const brief = userText.trim().length < 42;
         if (/^(hi|hello|hey|yo|hiya|good\s+(morning|afternoon|evening))\b/i.test(userText.trim())) {
@@ -82,9 +82,13 @@ export function computePresencePlan(opts) {
         } else {
             base = randBetween(90, 240);
         }
-    } else if (routingMode === "weather_quick") {
+    } else if (routingMode === "weather_quick" || routingMode === "operations_quick") {
         voiceEnergy = "steady";
-        base = randBetween(130, 300);
+        if (routingMode === "weather_quick" && replyLength && replyLength < 420) {
+            base = randBetween(75, 180);
+        } else {
+            base = randBetween(115, 280);
+        }
     } else {
         voiceEnergy = "deliberate";
         base = randBetween(320, 640);
@@ -111,9 +115,13 @@ export function computePresencePlan(opts) {
         if (mood === "worry") streamLeadInMs *= 0.75;
         if (flow?.energy === "brisk") streamLeadInMs *= randBetween(0.62, 0.88);
         if (flow?.energy === "settled") streamLeadInMs *= randBetween(1.05, 1.28);
-    } else if (routingMode === "weather_quick") {
-        streamLeadInMs = randBetween(18, 85);
-    } else if (routingMode === "casual" || routingMode === "clarify") {
+    } else if (routingMode === "weather_quick" || routingMode === "operations_quick") {
+        if (routingMode === "weather_quick" && replyLength && replyLength < 400) {
+            streamLeadInMs = randBetween(6, 38);
+        } else {
+            streamLeadInMs = randBetween(16, 80);
+        }
+    } else if (routingMode === "casual" || routingMode === "clarify" || routingMode === "micro_social") {
         streamLeadInMs = randBetween(0, 45);
     }
 
@@ -137,10 +145,15 @@ export function sleep(ms) {
  */
 export function maybePresenceMemoryNudge(profile, ctx) {
     const routingMode = ctx.routingMode || "";
+
+    const lightSocialRouting = ["micro_social", "casual", "clarify", "operations_quick"];
+    if (lightSocialRouting.includes(routingMode)) return "";
+
     if (routingMode !== "full" && routingMode !== "weather_quick") return "";
-    if (ctx.flowSnapshot?.suppressAuxiliary && Math.random() < 0.72) return "";
-    if ((ctx.replyLength || 0) < 120) return "";
-    if (Math.random() > 0.36) return "";
+    if (routingMode === "weather_quick" && (ctx.replyLength || 0) < 360) return "";
+    if (ctx.flowSnapshot?.suppressAuxiliary && Math.random() < 0.9) return "";
+    if ((ctx.replyLength || 0) < 260) return "";
+    if (Math.random() > 0.16) return "";
 
     const p = profile || {};
     const topics = Array.isArray(p.lastTopics) ? p.lastTopics.filter(Boolean) : [];
@@ -152,7 +165,7 @@ export function maybePresenceMemoryNudge(profile, ctx) {
     const ns = nudgeState();
     const lastKind = ns.kind || "";
     const now = Date.now();
-    if (lastKind && typeof ns.at === "number" && now - ns.at < 45000 && Math.random() < 0.7) return "";
+    if (lastKind && typeof ns.at === "number" && now - ns.at < 180000 && Math.random() < 0.8) return "";
 
     const topic = topics[0] ? String(topics[0]).replace(/_/g, " ") : "";
     const field = (ctx.fields || []).find((f) => f && f.name)?.name || "";
@@ -163,20 +176,20 @@ export function maybePresenceMemoryNudge(profile, ctx) {
     if (topic && field) {
         pool.push({
             kind: "tf",
-            text: `If ${field} is still tilting toward ${topic} pressure, a dry-leaf scan usually tells the story quickly.`,
+            text: `If ${field} still feels like ${topic} pressure when you scout, a dry leaf glance often settles it.`,
         });
     }
     if (topic) {
         pool.push({
             kind: "t",
-            text: `Still on ${topic} — when you next scout, glance at lower canopy first; that’s where it often shows first.`,
+            text: `${topic}: lower canopy tends to reveal it first.`,
         });
     }
     if (recentEp?.summary && String(recentEp.summary).length > 12) {
-        const tail = String(recentEp.summary).replace(/\s+/g, " ").trim().slice(0, 72);
+        const tail = String(recentEp.summary).replace(/\s+/g, " ").trim().slice(0, 56);
         pool.push({
             kind: "e",
-            text: `Related to something you had open recently (${tail}) — only matters if that block is still on your mind.`,
+            text: `Tangent: (${tail}) — only if it’s still relevant.`,
         });
     }
 

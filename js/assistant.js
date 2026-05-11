@@ -18,13 +18,11 @@ import {
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { runAgriOrchestrator } from "./ai/orchestrator.js?v=66";
-import { attachSnapshotForReply, composeAssistantReply } from "./ai/assistant-reply.js?v=66";
-import { getAiConfig, isLlmProxyConfigured } from "./ai/config.js?v=66";
+import { runAgriOrchestrator } from "./ai/orchestrator.js?v=70";
+import { attachSnapshotForReply, composeAssistantReply, composeOperationsSnapshotReply } from "./ai/assistant-reply.js?v=69";
+import { getAiConfig } from "./ai/config.js?v=68";
 import {
   buildProactiveDigest,
-  compactMemoryForBundle,
-  buildCompanionDirectives,
   defaultCompanionProfile,
   mergeCompanionAfterTurn,
   normalizeCompanionProfile,
@@ -32,13 +30,21 @@ import {
 import { fetchRegionalBriefing } from "./network/regional-briefing.js";
 import {
   buildCasualAssistantReply,
+  buildMicroSocialAssistantReply,
   buildVagueSymptomReply,
   classifyAssistantRouting,
-} from "./ai/assistant-intent-router.js?v=51";
-import { detectConversationMood, polishFarmReportProse } from "./ai/conversation-naturals.js?v=48";
+} from "./ai/assistant-intent-router.js?v=52";
+import {
+  detectConversationMood,
+  polishFarmReportProse,
+  pushRecentAssistantOpening,
+} from "./ai/conversation-naturals.js?v=48";
+
 import { runAssistantTextStream } from "./ai/assistant-stream.js?v=48";
 import { computePresencePlan, maybePresenceMemoryNudge, sleep as presenceSleep } from "./ai/conversation-presence.js?v=48";
 import { getFlowSnapshot, recordFlowUserTurn, resolveReplyVerbosity, streamRhythmPreference } from "./ai/conversation-flow.js?v=48";
+
+const ROUTING_NO_ENGINE_LOG = /** @type {const} */ (["micro_social", "casual", "clarify", "operations_quick"]);
 
 function el(id) {
   return document.getElementById(id);
@@ -329,9 +335,10 @@ onAuthStateChanged(auth, (user) => {
 
   if (subEl) {
     const cfg = getAiConfig();
-    subEl.textContent = cfg.inferenceBaseUrl
-      ? `Agricultural intelligence • ${cfg.enginePackVersion} • vision API configured`
-      : `Agricultural intelligence • ${cfg.enginePackVersion} • live weather + your Firestore data`;
+    const dataHint = cfg.inferenceBaseUrl
+      ? "vision API + your farm data"
+      : "live weather + your Firestore data";
+    subEl.textContent = `On-device intelligence • ${dataHint}`;
   }
 
   fetchRegionalBriefing(db)
@@ -481,45 +488,34 @@ onAuthStateChanged(auth, (user) => {
       let orch = null;
       let reply = "";
 
-      const useLlm = isLlmProxyConfigured();
-
-      if (useLlm && (routing.mode === "casual" || routing.mode === "clarify")) {
-        const locale = getLang() || "en";
-        const { callLlmProxy } = await import("./ai/llm-proxy.js?v=66");
-        const companionBlock = companionProfile
-          ? {
-              memory: compactMemoryForBundle(companionProfile),
-              directives: buildCompanionDirectives(companionProfile, locale),
-            }
-          : null;
-        const cognitiveDirective =
-          routing.mode === "clarify"
-            ? "The user described something vague or worrying on the farm. Ask 1–2 focused clarifying questions (crop, location on plant, timing). Be calm and human; suggest a photo or saved scan when helpful. Never invent field measurements."
-            : "Casual check-in or greeting: respond warmly and naturally, like a knowledgeable farm advisor. One optional light next step is fine. Use only fieldCount and scanCount from EVIDENCE_JSON — never make up farm data.";
-        const bundle = {
-          turnKind: routing.mode,
-          reasoningDepth: 0,
-          cognitiveDirective,
-          fieldCount: fields.length,
-          scanCount: scans.length,
-          companion: companionBlock,
-          degradedMode: false,
-          degradedReasons: [],
-          reliabilityPolicy:
-            "Only use facts present in EVIDENCE_JSON. If counts are zero, say so kindly and suggest add field or scan.",
-        };
-        try {
-          const res = await callLlmProxy({ question: text, locale, bundle });
-          reply = String(res.text || "").trim();
-        } catch (e) {
-          reply = `AI request failed: ${String(e?.message || e).slice(0, 280)}`;
-        }
-        if (!reply) reply = "The model returned an empty reply. Try again shortly.";
+      if (routing.mode === "micro_social") {
+        reply = buildMicroSocialAssistantReply(text);
         orch = null;
-      } else if (!useLlm && routing.mode === "casual") {
+      } else if (routing.mode === "casual") {
         reply = buildCasualAssistantReply(text, { fieldCount: fields.length, scanCount: scans.length });
-      } else if (!useLlm && routing.mode === "clarify") {
+        orch = null;
+      } else if (routing.mode === "clarify") {
         reply = buildVagueSymptomReply(text, { fieldCount: fields.length, scanCount: scans.length });
+        orch = null;
+      } else if (routing.mode === "operations_quick") {
+        snapshot = {
+          userId: user.uid,
+          fields,
+          scans,
+          recs,
+          weatherLogs,
+          environmental,
+          fieldContextStates,
+          interventions: farmInterventions,
+          operationalTasks: farmOperationalTasks,
+          alerts: assistantAlerts,
+          locale: getLang() || "en",
+          companion: companionProfile,
+          regionalBriefing: "",
+          learningProfile: null,
+        };
+        reply = composeOperationsSnapshotReply(text, snapshot, companionProfile);
+        orch = null;
       } else {
         if (routing.mode !== "weather_quick" && !regionalBriefingText) {
           try {
@@ -552,28 +548,40 @@ onAuthStateChanged(auth, (user) => {
         });
         attachSnapshotForReply(orch, snapshot);
         const replyVerbosity =
-          routing.mode === "weather_quick" ? "minimal" : resolveReplyVerbosity({ routingMode: routing.mode, profile: companionProfile, flow: flowSnap });
+          routing.mode === "weather_quick"
+            ? "minimal"
+            : resolveReplyVerbosity({
+                routingMode: routing.mode,
+                profile: companionProfile,
+                flow: flowSnap,
+                userText: text,
+              });
         reply = composeAssistantReply(text || "[image]", orch, {
           locale: snapshot.locale,
           companionProfile,
           replyVerbosity,
           routingReason: routing.reason,
+          flowSnapshot: flowSnap,
         });
 
-        if (!reply && !useLlm) {
+        if (!reply) {
           reply = buildAssistantReply({ question: text, fields, scans, recs, weatherLogs });
         }
       }
 
-      if (!reply && useLlm && routing.mode !== "casual" && routing.mode !== "clarify") {
+      if (!reply) {
         reply =
-          "Could not build an AI reply. Deploy agriLlmChat with GITHUB_TOKEN, or point agri-llm-proxy at FastAPI POST /v1/chat/grounded.";
+          "I’m here — ask about a field, weather, pests, or your latest scan and I’ll route it through the farm engines.";
       }
 
       const mood = detectConversationMood(text);
-      if (!useLlm) {
-        reply = polishFarmReportProse(reply, { mood, routingMode: routing.mode });
-      }
+      const naturalMicroBeforePolish =
+        ROUTING_NO_ENGINE_LOG.includes(routing.mode);
+      reply = polishFarmReportProse(reply, {
+        mood,
+        routingMode: routing.mode,
+        naturalMicro: naturalMicroBeforePolish,
+      });
 
       const memNudge = maybePresenceMemoryNudge(companionProfile, {
         routingMode: routing.mode,
@@ -586,19 +594,28 @@ onAuthStateChanged(auth, (user) => {
         reply = `${reply.trimEnd()}\n\n${memNudge}`;
       }
 
+      const naturalMicro =
+        routing.mode === "micro_social" ||
+        routing.mode === "casual" ||
+        routing.mode === "clarify" ||
+        reply.trim().length < 100;
       try {
+        if (!naturalMicro && reply.trim().length > 96) pushRecentAssistantOpening(reply);
         const orchForMemory =
           orch ||
-          (useLlm && (routing.mode === "casual" || routing.mode === "clarify")
-            ? {
-                intents: {},
-                results: { llm: { engine: "llm", text: reply } },
-                enginePackVersion: "llm-chat",
-              }
-            : {
-                intents: {},
+          ({
+                intents: routing.mode === "operations_quick" ? { operations: true } : {},
                 results: {},
-                enginePackVersion: routing.mode === "clarify" ? "clarify-turn" : "casual-turn",
+                enginePackVersion:
+                  routing.mode === "clarify"
+                    ? "clarify-turn"
+                    : routing.mode === "casual"
+                      ? "casual-turn"
+                      : routing.mode === "micro_social"
+                        ? "micro-social-turn"
+                        : routing.mode === "operations_quick"
+                          ? "operations-turn"
+                          : "direct-turn",
               });
         const nextProfile = mergeCompanionAfterTurn(companionProfile, {
           userText: text,
@@ -617,7 +634,7 @@ onAuthStateChanged(auth, (user) => {
         console.warn("[assistant] companion memory:", memErr?.message || memErr);
       }
 
-      if (routing.mode !== "casual" && routing.mode !== "clarify") {
+      if (!ROUTING_NO_ENGINE_LOG.includes(routing.mode)) {
         await addDoc(collection(db, "ai_engine_runs"), {
           userId: user.uid,
           createdAt: serverTimestamp(),
@@ -702,7 +719,16 @@ onAuthStateChanged(auth, (user) => {
         createdAt: serverTimestamp(),
         replyTo: userMsgRef.id,
         enginePackVersion:
-          orch?.enginePackVersion || (routing.mode === "clarify" ? "clarify-turn" : routing.mode === "casual" ? "casual-turn" : ""),
+          orch?.enginePackVersion ||
+          (routing.mode === "clarify"
+            ? "clarify-turn"
+            : routing.mode === "casual"
+              ? "casual-turn"
+              : routing.mode === "micro_social"
+                ? "micro-social-turn"
+                : routing.mode === "operations_quick"
+                  ? "operations-turn"
+                  : ""),
         enginePreview: orch?.persistedPreview || null,
         routingMode: routing.mode,
         schemaVersion: 2,

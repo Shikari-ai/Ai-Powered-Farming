@@ -3,6 +3,8 @@ Smart Agri — AI inference API with real YOLOv8 inference path.
 
 Set AGRI_YOLO_WEIGHTS to a trained YOLOv8 .pt (Ultralytics) with your disease classes.
 Without weights the endpoint returns HTTP 503 — no simulated labels.
+
+No external conversational LLM endpoints — chat runs in the web client.
 """
 
 from __future__ import annotations
@@ -16,14 +18,11 @@ from typing import Any
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from inference.yolo_engine import YOLOVisionEngine
-from llm_github_models import grounded_farm_reply
 from ml_metadata import load_vision_metadata
 
-# Load server/.env (gitignored) — GITHUB_TOKEN, GITHUB_MODEL, etc.
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
 APP_NAME = "smart-agri-ai"
@@ -52,15 +51,6 @@ app.add_middleware(
 def health() -> dict[str, Any]:
     eng: YOLOVisionEngine = app.state.vision_engine
     w = os.environ.get("AGRI_YOLO_WEIGHTS", "")
-    _ght = bool(
-        (
-            os.environ.get("GITHUB_TOKEN")
-            or os.environ.get("GITHUB_MODELS_TOKEN")
-            or os.environ.get("GH_TOKEN")
-            or ""
-        ).strip()
-    )
-    _ghmodel = (os.environ.get("GITHUB_MODEL") or "openai/gpt-4o-mini").strip()
     return {
         "ok": True,
         "service": APP_NAME,
@@ -68,11 +58,9 @@ def health() -> dict[str, Any]:
         "weights_configured": bool(w),
         "load_error": eng.load_error,
         "imgsz": eng.imgsz if eng.ok else int(os.environ.get("AGRI_YOLO_IMGSZ", "640")),
-        "llm": {
-            "provider": "llm",
-            "token_configured": _ght,
-            "model": _ghmodel,
-            "configured": _ght,
+        "conversational_llm": {
+            "enabled": False,
+            "note": "Assistant uses client-side orchestration; this API serves vision and tools only.",
         },
     }
 
@@ -144,42 +132,3 @@ async def vision_disease(
 
     out["model_version"] = os.path.basename(eng.weights) if eng.weights else "unknown"
     return out
-
-
-class GroundedChatBody(BaseModel):
-    """Grounded chat request. evidenceBundle may include a \"companion\" object
-    with personalized farmer memory/directives when the client runs adaptive UI."""
-
-    question: str
-    locale: str = "en"
-    evidenceBundle: dict[str, Any] = Field(default_factory=dict)
-
-
-@app.post("/v1/chat/grounded")
-async def chat_grounded(body: GroundedChatBody) -> dict[str, Any]:
-    """
-    Grounded agricultural Q&A (evidenceBundle JSON in system context).
-    Requires GITHUB_TOKEN (or GITHUB_MODELS_TOKEN / GH_TOKEN) with GitHub Models access.
-    """
-
-    def _run() -> dict[str, Any]:
-        return grounded_farm_reply(
-            question=body.question,
-            locale=body.locale,
-            evidence_bundle=dict(body.evidenceBundle or {}),
-        )
-
-    try:
-        return await run_in_threadpool(_run)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=503,
-            detail=str(e),
-        ) from e
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e)) from e
-    except Exception as e:
-        raise HTTPException(
-            status_code=502,
-            detail=f"LLM request failed: {e}",
-        ) from e

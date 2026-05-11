@@ -11,6 +11,7 @@ import {
   collection, query, where, onSnapshot, orderBy, limit,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { resolveLocationApprox } from "./weather-location.js";
+import { peekActiveWeatherLocation } from "./geo/active-location.js?v=1";
 import { runLocationIntelligence, CATEGORIES } from "./location-intelligence.js";
 import { NAVIC_GPS_OPTIONS, detectGNSSSource, navicBadgeHTML } from "./navic.js";
 import { getActiveBasemapDescriptor, getNdviTileLayerConfig } from "./geo/satellite-providers.js";
@@ -745,6 +746,10 @@ onAuthStateChanged(auth, async (user) => {
     const ipD = await ip.json();
     if (ipD.lat) initCenter = [ipD.lon, ipD.lat];
   } catch (_) {}
+  const pinnedWx = peekActiveWeatherLocation();
+  if (pinnedWx && typeof pinnedWx.lat === "number" && typeof pinnedWx.lon === "number") {
+    initCenter = [pinnedWx.lon, pinnedWx.lat];
+  }
 
   initMap(initCenter);
   bindLayerToggles();

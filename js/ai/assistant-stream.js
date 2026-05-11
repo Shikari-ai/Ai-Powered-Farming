@@ -11,7 +11,13 @@ function randBetween(min, max) {
 
 /** @param {string} fullText @param {string} streamProfile */
 export function detectRhythmTone(fullText, streamProfile) {
-    if (streamProfile === "casual" || streamProfile === "clarify") return "casual";
+    if (
+        streamProfile === "casual" ||
+        streamProfile === "clarify" ||
+        streamProfile === "micro_social" ||
+        streamProfile === "operations_quick"
+    )
+        return "casual";
     const t = String(fullText || "").toLowerCase();
     if (/\b(urgent|alert|unread alerts|critical risk|asap|immediately|take action now|imminent)\b/.test(t)) return "operational";
     if (
@@ -69,10 +75,18 @@ export function buildRevealBatches(fullText, streamProfile, rhythmTone = "balanc
     const units = tokenizeStreamUnits(fullText);
     const batches = [];
     let buf = "";
+    const nw = nonWsLen(fullText);
 
     const nextTarget = () => {
-        if (streamProfile === "casual" || streamProfile === "clarify") return randBetween(18, 38);
-        if (streamProfile === "weather_quick") return randBetween(15, 32);
+        if (streamProfile === "casual" || streamProfile === "clarify") {
+            if (nw < 320) return randBetween(12, 26);
+            return randBetween(18, 38);
+        }
+        if (streamProfile === "micro_social") return randBetween(10, 24);
+        if (streamProfile === "operations_quick") {
+            return nw < 620 ? randBetween(14, 28) : randBetween(18, 36);
+        }
+        if (streamProfile === "weather_quick") return nw < 540 ? randBetween(10, 22) : randBetween(15, 32);
         if (rhythmTone === "operational") return randBetween(24, 48);
         if (rhythmTone === "thoughtful") return randBetween(9, 22);
         return randBetween(14, 30);
@@ -111,10 +125,10 @@ export function buildRevealBatches(fullText, streamProfile, rhythmTone = "balanc
 function baseBatchMs(streamProfile, rhythmTone) {
     let lo = 12;
     let hi = 22;
-    if (streamProfile === "casual" || streamProfile === "clarify") {
+    if (streamProfile === "casual" || streamProfile === "clarify" || streamProfile === "micro_social") {
         lo = 9;
         hi = 16;
-    } else if (streamProfile === "weather_quick") {
+    } else if (streamProfile === "weather_quick" || streamProfile === "operations_quick") {
         lo = 8;
         hi = 14;
     } else if (rhythmTone === "thoughtful") {
@@ -133,8 +147,9 @@ function baseBatchMs(streamProfile, rhythmTone) {
  * @param {string} rhythmTone
  * @param {number} batchIndex
  * @param {number} totalBatches
+ * @param {number} nwTotal non-whitespace len of entire reply (for pacing)
  */
-function delayAfterBatch(batch, streamProfile, rhythmTone, batchIndex, totalBatches) {
+function delayAfterBatch(batch, streamProfile, rhythmTone, batchIndex, totalBatches, nwTotal = 999999) {
     if (!batch) return 0;
     const trimmed = batch.trim();
     const last = trimmed[trimmed.length - 1] || "";
@@ -178,7 +193,13 @@ function delayAfterBatch(batch, streamProfile, rhythmTone, batchIndex, totalBatc
     if (rhythmTone === "thoughtful") extra *= randBetween(1.05, 1.22);
     if (rhythmTone === "operational") extra *= randBetween(0.9, 1.05);
 
-    return (base + charCost) * jitter * easeOut + extra;
+    let dur = (base + charCost) * jitter * easeOut + extra;
+    const shortEngineReply =
+        (streamProfile === "weather_quick" || streamProfile === "micro_social") && totalBatches < 12;
+    const shortSocialLike = nwTotal < 380 && ["casual", "clarify", "micro_social", "operations_quick"].includes(streamProfile);
+    if (shortEngineReply || shortSocialLike) dur *= randBetween(0.72, 0.94);
+
+    return dur;
 }
 
 function escapeHtml(s) {
@@ -256,6 +277,7 @@ export function runAssistantTextStream(opts) {
     const caretEl = textHost.querySelector(".stream-caret");
     const rhythmTone = rhythmToneOpt || detectRhythmTone(fullText, streamProfile);
     const batches = buildRevealBatches(fullText, streamProfile, rhythmTone);
+    const nwTotal = nonWsLen(fullText);
 
     const root =
         (getScrollRoot && textHost && getScrollRoot(textHost)) ||
@@ -364,7 +386,7 @@ export function runAssistantTextStream(opts) {
             if (idx >= batches.length) {
                 timer = setTimeout(
                     step,
-                    Math.max(8, Math.round(delayAfterBatch(batch, streamProfile, rhythmTone, idx - 1, batches.length) * 0.34)),
+                    Math.max(8, Math.round(delayAfterBatch(batch, streamProfile, rhythmTone, idx - 1, batches.length, nwTotal) * 0.34)),
                 );
                 return;
             }
@@ -372,8 +394,8 @@ export function runAssistantTextStream(opts) {
             const next = batches[idx] || "";
             const pauseMul =
                 /[.!?]$/.test(batch.trimEnd()) ? randBetween(1.08, 1.28) : /[,;:]$/.test(batch.trimEnd()) ? randBetween(1.02, 1.12) : 1;
-            const d1 = delayAfterBatch(batch, streamProfile, rhythmTone, idx - 1, batches.length);
-            const d2 = next ? delayAfterBatch(next, streamProfile, rhythmTone, idx, batches.length) * 0.22 : 0;
+            const d1 = delayAfterBatch(batch, streamProfile, rhythmTone, idx - 1, batches.length, nwTotal);
+            const d2 = next ? delayAfterBatch(next, streamProfile, rhythmTone, idx, batches.length, nwTotal) * 0.22 : 0;
             const delay = Math.max(8, Math.round((d1 + d2) * pauseMul));
 
             timer = setTimeout(step, fastForwardRequested ? 0 : delay);

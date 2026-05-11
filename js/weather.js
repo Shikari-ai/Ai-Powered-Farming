@@ -2,14 +2,30 @@ import "./auth-session.js?v=32";
 import "./i18n.js";
 import { auth, db } from "./auth.js?v=32";
 import { doc, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { openDeviceMaps } from "./maps-link.js";
-import { resolveWeatherLocation, resolveLocationApprox } from "./weather-location.js";
+import {
+  clearActiveLocation,
+  peekActiveWeatherLocation,
+  setActiveLocation,
+  startActiveLocationRemoteSync,
+  subscribeActiveLocation,
+} from "./geo/active-location.js?v=1";
+import {
+  isGeolocationSecureContext,
+  resolveWeatherLocation,
+  resolveLocationApprox,
+  searchPlacesNominatim,
+} from "./weather-location.js";
+import { NAVIC_GPS_WEATHER, detectGNSSSource } from "./navic.js";
 
 const STORAGE_IMD_KEY = "agri_imd_api_key";
 const STORAGE_IMD_PROXY = "agri_imd_proxy";
 
-/** Last location used for this weather view (for “open in maps”). */
+/** Last location used for this weather view. */
 let lastWeatherLoc = null;
+/** @type {null | { lat: number, lon: number, label: string, shortLabel: string }} */
+let pendingPickerPlace = null;
+let searchHits = [];
+let searchDebounce = null;
 
 const qs = (id) => document.getElementById(id);
 
@@ -451,6 +467,10 @@ function setLocationLines(loc) {
     let tag = "";
     if (loc.source === "insecure-context") tag = " · not a secure page (needs HTTPS)";
     else if (loc.source === "fallback") tag = " · GPS off — approximate area";
+    else if (loc.source === "ip") tag = " · approximate (IP region)";
+    else if (loc.source === "manual-pin") tag = " · saved place";
+    else if (loc.source === "field-anchor") tag = " · saved field";
+    else if (loc.source === "gps-pinned") tag = " · saved GPS fix";
     else if (typeof loc.accuracyM === "number" && Number.isFinite(loc.accuracyM))
       tag = ` · GPS ±${Math.round(loc.accuracyM)} m`;
     coordEl.textContent = `${ns} · ${ew}${tag}`;
@@ -468,12 +488,16 @@ function setSourceLine(imdOk, hasImdCreds, loc) {
   } else {
     base = "Forecast: Open‑Meteo high-res grid at this lat/lon · optional IMD below";
   }
-  const locBit =
-    loc?.source === "insecure-context"
-      ? " · Location: need HTTPS for GPS"
-      : loc?.source === "fallback"
-        ? " · Location: GPS blocked — fallback"
-        : " · Location: device GPS";
+  const locBit = (() => {
+    const s = loc?.source;
+    if (s === "insecure-context") return " · Location: need HTTPS for GPS";
+    if (s === "fallback") return " · Location: GPS blocked — fallback";
+    if (s === "ip") return " · Location: approximate (IP)";
+    if (s === "manual-pin") return " · Location: saved (search)";
+    if (s === "field-anchor") return " · Location: saved field";
+    if (s === "gps-pinned") return " · Location: saved GPS";
+    return " · Location: live GPS";
+  })();
   el.textContent = base + locBit;
 }
 
@@ -615,6 +639,12 @@ async function renderWeatherForLoc(loc) {
 }
 
 async function loadWeather() {
+  const pinned = peekActiveWeatherLocation();
+  if (pinned) {
+    await renderWeatherForLoc(pinned).catch((e) => console.error(e));
+    return;
+  }
+
   let gpsWon = false;
 
   // Phase 1 — IP region weather, instant (~0.5s), no permission needed
@@ -623,7 +653,7 @@ async function loadWeather() {
     await renderWeatherForLoc({ ...loc, source: "ip" }).catch(() => {});
   }).catch(() => {});
 
-  // Phase 2 — exact GPS, upgrades when ready (up to 3s)
+  // Phase 2 — exact GPS, upgrades when ready (up to ~15s)
   try {
     const loc = await resolveWeatherLocation();
     if (loc.source !== "fallback" && loc.source !== "insecure-context") {
@@ -635,19 +665,172 @@ async function loadWeather() {
   }
 }
 
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function setPickerStatus(msg, warn = true) {
+  const el = qs("loc-picker-status");
+  if (!el) return;
+  el.textContent = msg || "";
+  el.style.color = warn ? "var(--warn)" : "var(--dim)";
+}
+
+function openLocationPicker() {
+  const m = qs("loc-picker-modal");
+  if (!m) return;
+  pendingPickerPlace = null;
+  searchHits = [];
+  const inp = qs("loc-picker-search");
+  if (inp) inp.value = "";
+  const list = qs("loc-picker-results");
+  if (list) list.innerHTML = "";
+  setPickerStatus("", false);
+  m.classList.remove("hidden");
+  m.setAttribute("aria-hidden", "false");
+}
+
+function closeLocationPicker() {
+  const m = qs("loc-picker-modal");
+  if (!m) return;
+  m.classList.add("hidden");
+  m.setAttribute("aria-hidden", "true");
+}
+
+async function runPlaceSearch(q) {
+  const list = qs("loc-picker-results");
+  if (!list) return;
+  const query = String(q || "").trim();
+  if (query.length < 2) {
+    list.innerHTML = "";
+    return;
+  }
+  setPickerStatus("Searching…", false);
+  try {
+    searchHits = await searchPlacesNominatim(query, 8);
+    pendingPickerPlace = null;
+    if (!searchHits.length) {
+      list.innerHTML = "";
+      setPickerStatus("No matches. Try a nearby town.");
+      return;
+    }
+    list.innerHTML = searchHits
+      .map(
+        (h, i) => `
+      <li data-idx="${i}">
+        <div>${escapeHtml(h.shortLabel)}</div>
+        <div class="sub">${escapeHtml(h.label)}</div>
+      </li>`,
+      )
+      .join("");
+    list.querySelectorAll("li").forEach((li) => {
+      li.addEventListener("click", () => {
+        list.querySelectorAll("li").forEach((x) => x.classList.remove("is-selected"));
+        li.classList.add("is-selected");
+        const idx = Number(li.getAttribute("data-idx"));
+        pendingPickerPlace = searchHits[idx] || null;
+      });
+    });
+    setPickerStatus("", false);
+  } catch {
+    setPickerStatus("Search failed. Check your connection.");
+  }
+}
+
+async function pickerUseDeviceGps() {
+  if (!isGeolocationSecureContext()) {
+    setPickerStatus("Serve this app over HTTPS to use GPS.");
+    return;
+  }
+  setPickerStatus("Requesting GPS…", false);
+  try {
+    const pos = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, NAVIC_GPS_WEATHER);
+    });
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+    const accuracyM = typeof pos.coords.accuracy === "number" ? pos.coords.accuracy : null;
+    const gnssSource = detectGNSSSource(lat, lon, accuracyM);
+    let city = "Local Area";
+    let district = "";
+    let state = "";
+    let country = "";
+    try {
+      const rg = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
+        { headers: { Accept: "application/json" } },
+      );
+      const data = await rg.json();
+      const a = data.address || {};
+      city = a.city || a.town || a.village || a.county || a.suburb || city;
+      district = a.state_district || a.county || "";
+      state = a.state || "";
+      country = a.country || "";
+    } catch {
+      /* keep defaults */
+    }
+    const label = [city, district, state].filter(Boolean).join(", ") || `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+    await setActiveLocation({
+      lat,
+      lon,
+      label,
+      source: "gps",
+      city,
+      district,
+      state,
+      country,
+      accuracyM,
+      gnssSource,
+    });
+    closeLocationPicker();
+  } catch {
+    setPickerStatus("GPS unavailable. Check browser permissions.");
+  }
+}
+
+function bindLocationPicker() {
+  qs("loc-picker-open")?.addEventListener("click", openLocationPicker);
+  qs("loc-picker-close")?.addEventListener("click", closeLocationPicker);
+  qs("loc-picker-modal")?.addEventListener("click", (e) => {
+    if (e.target === qs("loc-picker-modal")) closeLocationPicker();
+  });
+  qs("loc-picker-gps")?.addEventListener("click", () => pickerUseDeviceGps().catch(console.error));
+  qs("loc-picker-clear")?.addEventListener("click", async () => {
+    await clearActiveLocation();
+    closeLocationPicker();
+  });
+  qs("loc-picker-apply")?.addEventListener("click", async () => {
+    if (!pendingPickerPlace) {
+      setPickerStatus("Select a place from the list below.");
+      return;
+    }
+    const h = pendingPickerPlace;
+    const parts = h.label.split(",").map((x) => x.trim());
+    await setActiveLocation({
+      lat: h.lat,
+      lon: h.lon,
+      label: h.label,
+      source: "manual",
+      city: parts[0] || h.shortLabel,
+      district: parts[1] || "",
+      state: parts[2] || "",
+    });
+    closeLocationPicker();
+  });
+  const searchIn = qs("loc-picker-search");
+  searchIn?.addEventListener("input", () => {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => runPlaceSearch(searchIn.value), 400);
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   bindImdSetup();
-  qs("maps-btn")?.addEventListener("click", () => {
-    const loc = lastWeatherLoc;
-    if (!loc || typeof loc.lat !== "number" || typeof loc.lon !== "number") return;
-    const label = [loc.city, loc.state || loc.district].filter(Boolean).join(", ") || "Weather location";
-    openDeviceMaps(loc.lat, loc.lon, label);
+  bindLocationPicker();
+  startActiveLocationRemoteSync();
+  subscribeActiveLocation(() => {
+    loadWeather().catch(console.error);
   });
   const btn = qs("refresh-btn");
   btn?.addEventListener("click", () => loadWeather().catch(console.error));
-  loadWeather().catch((e) => {
-    console.error(e);
-    const d = qs("cur-desc");
-    if (d) d.textContent = "Unable to load weather right now";
-  });
 });

@@ -43,6 +43,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="css/design-tokens.css?v=1">
   <link rel="stylesheet" href="css/nav.css?v=20">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -61,11 +62,11 @@
     img { display: block; max-width: 100%; }
 
     :root {
-      --bg: #070C09;
+      --bg: var(--color-bg-farm);
       --bg2: #0B1410;
       --card: rgba(255,255,255,0.04);
       --card-border: rgba(255,255,255,0.08);
-      --primary: #10B981;
+      --primary: var(--color-primary);
       --primary-glow: rgba(16,185,129,0.3);
       --primary-dim: rgba(16,185,129,0.12);
       --blue: #38BDF8;
@@ -220,7 +221,7 @@
       flex: 1;
       min-height: 0;
       overflow-y: auto; overflow-x: hidden;
-      padding: 0 16px 100px;
+      padding: 0 var(--layout-content-pad-x) var(--layout-scroll-bottom-pad);
       -webkit-overflow-scrolling: touch;
       scroll-behavior: smooth;
       overscroll-behavior-y: contain;

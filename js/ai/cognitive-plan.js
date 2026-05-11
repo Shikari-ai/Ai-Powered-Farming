@@ -5,7 +5,10 @@
 
 /** Same family as assistant-intent-router “deep” cues. */
 const DEEP_PIPELINE =
-    /\b(simulat|simulation|digital\s*twin|\btwin\b|forecast|outbreak|epidemic|regional\s*network|\bgeo\b|geo-?intel|stress\s*map|learning\s*engine|calibration|deep\s*dive|full\s*analysis|risk\s*report|audit\s*trail|compare\s*scenarios|what\s*if)\b/i;
+    /\b(simulat|simulation|digital\s*twin|\btwin\b|counterfactual|scenario|stress\s*test|forecast|outbreak|epidemic|regional\s*network|\bgeo\b|geo-?intel|stress\s*map|learning\s*engine|calibration|deep\s*dive|full\s*analysis|risk\s*report|audit\s*trail|compare\s*scenarios|what\s*if)\b/i;
+
+const OPS_PRIORITIZE =
+    /\b(priorit|what\s+should\s+i\s+do\s+first|order\s+of\s+work|sequence\s+my|tackle\s+first)\b/i;
 
 const SUBSTANTIVE = /\b(why|how\s+(do|does|can|should|much|long)|explain|what\s+(causes|is\s+the\s+best|should\s+i)|recommend|priorit|troubleshoot|diagnos|symptom|treatment|dose|rate\s*of)\b/i;
 
@@ -47,7 +50,7 @@ export function planForWeatherQuick() {
     };
 }
 
-const INTENT_KEYS = ["weather", "pest", "disease", "yellow", "yield", "field", "scan"];
+const INTENT_KEYS = ["weather", "pest", "disease", "yellow", "yield", "field", "scan", "operations"];
 
 /**
  * @param {object} opts
@@ -77,8 +80,10 @@ export function buildCognitivePlan(opts) {
 
     const deepQ = DEEP_PIPELINE.test(q) || /\b(regional|outbreak|network|epidemic\s+curve)\b/i.test(q);
     const substantive = SUBSTANTIVE.test(q.toLowerCase());
+    const opsPrioritize = OPS_PRIORITIZE.test(q) && (intents.operations || /\b(task|intervention|spray|scout)\b/i.test(q));
 
     if (deepQ) depth = 3;
+    else if (opsPrioritize) depth = Math.max(depth, 2);
     else if (substantive && (intents.disease || intents.pest || intents.yield)) depth = Math.max(depth, 2);
     else if (intents.yield && q.length > 40) depth = Math.max(depth, 2);
     else if ((intents.disease || intents.pest) && q.length > 72) depth = Math.max(depth, 2);
@@ -105,6 +110,10 @@ export function buildCognitivePlan(opts) {
         learningDigest: depth >= 2,
         regionalBriefMaxChars: depth >= 3 ? 1400 : depth >= 2 ? 720 : 360,
     };
+
+    if (opsPrioritize && !deepQ) {
+        stages.twinBrief = false;
+    }
 
     /** @type {LlmTier} */
     let llmTier = "off";

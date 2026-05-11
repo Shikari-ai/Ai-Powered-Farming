@@ -833,6 +833,13 @@ function closeWeatherDetails() {
 async function loadHomeWeather() {
     try {
         const mod = await import('./weather-location.js');
+        const { peekActiveWeatherLocation } = await import('./geo/active-location.js?v=1');
+        const pinned = peekActiveWeatherLocation();
+        if (pinned) {
+            await updateWeatherForLocation(pinned.city, pinned.lat, pinned.lon);
+            return;
+        }
+
         let gpsWon = false;
 
         // Phase 1 — IP-based region, instant, no permission prompt
@@ -873,6 +880,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Support both new premium card id ("wcard") and legacy id ("weather-card")
     const weatherCard = document.getElementById("wcard") || document.getElementById("weather-card");
     if (weatherCard) {
+        import('./geo/active-location.js?v=1').then((m) => m.startActiveLocationRemoteSync()).catch(() => {});
         // Start weather immediately — no modal, no auth wait
         loadHomeWeather();
     }

@@ -1,4 +1,4 @@
-import { getAiConfig, isLlmProxyConfigured } from "./config.js?v=66";
+import { getAiConfig } from "./config.js?v=68";
 import { detectIntents } from "./detect-intents.js";
 import { buildFarmerContext, tsToMs } from "./farmer-context.js";
 import { runWeatherIntelligence } from "./engines/weather-intelligence.js";
@@ -12,8 +12,8 @@ import {
     extractNamedPlaceHint,
     geocodePlaceName,
 } from "../weather-location.js?v=60";
+import { peekActiveWeatherLocation } from "../geo/active-location.js?v=1";
 import { buildRichVisionContextBundle } from "./vision-context.js?v=34";
-import { compactMemoryForBundle, buildCompanionDirectives } from "./companion-memory.js?v=48";
 import { buildVisionReliability } from "./reliability/core.js";
 import { getDegradedState } from "./system-health.js";
 import { shallowTwinForBundle } from "../twin/assistant-twin-brief.js";
@@ -43,9 +43,15 @@ async function resolveGeoForAI(ctx, question = "") {
         }
     }
 
+    const pinned = peekActiveWeatherLocation();
+    if (pinned && typeof pinned.lat === "number" && typeof pinned.lon === "number") {
+        return { lat: pinned.lat, lon: pinned.lon, city: pinned.city || "" };
+    }
     const w = ctx.latestWeatherLog;
-    if (w && typeof w.lat === "number" && typeof w.lon === "number") {
-        return { lat: w.lat, lon: w.lon, city: w.city || "" };
+    const wLat = typeof w?.geo?.lat === "number" ? w.geo.lat : w?.lat;
+    const wLon = typeof w?.geo?.lon === "number" ? w.geo.lon : w?.lon;
+    if (w && typeof wLat === "number" && typeof wLon === "number") {
+        return { lat: wLat, lon: wLon, city: w.city || "" };
     }
     try {
         const loc = await resolveWeatherLocation();
@@ -73,9 +79,17 @@ function shallowForFirestore(obj, maxDepth, d = 0) {
  * @param {string} question
  * @param {{ userId: string, fields: any[], scans: any[], recs: any[], weatherLogs: any[], environmental?: any[] }} snapshot
  * @param {{ imageBlob?: Blob|null }} media
+ * @param {{
+ *   routingMode?: "full" | "weather_quick",
+ *   lightweight?: boolean,
+ *   flowSnapshot?: import("./conversation-flow.js").FlowSnapshot | null,
+ *   cognitivePlan?: import("./cognitive-plan.js").CognitivePlan,
+ * }} [opts]
  */
 export async function runAgriOrchestrator(question, snapshot, media = {}, opts = {}) {
-    const routingMode = opts.routingMode === "weather_quick" ? "weather_quick" : "full";
+    /** `lightweight` uses the same stage skips as `weather_quick` (effective path is reflected in returned `routingMode`). */
+    const routingMode =
+        opts.routingMode === "weather_quick" || opts.lightweight === true ? "weather_quick" : "full";
     const cfg = getAiConfig();
     const ctx = buildFarmerContext(snapshot);
     const intents = detectIntents(question);
@@ -262,118 +276,6 @@ export async function runAgriOrchestrator(question, snapshot, media = {}, opts =
         };
         recIntel = results.recommendations;
     }
-
-    let llmIntel = null;
-    const regionalCap = stages.regionalBriefMaxChars || 0;
-    const narrCap =
-        cognitivePlan.llmTier === "rich"
-            ? 1100
-            : routingMode === "weather_quick"
-              ? 520
-              : cognitivePlan.llmTier === "standard"
-                ? 680
-                : 600;
-
-    if (isLlmProxyConfigured()) {
-        try {
-            const { callLlmProxy } = await import("./llm-proxy.js?v=66");
-            const companionBlock = snapshot.companion
-                ? {
-                      memory: compactMemoryForBundle(snapshot.companion),
-                      directives: buildCompanionDirectives(snapshot.companion, snapshot.locale || "en"),
-                  }
-                : null;
-
-            const opsHeavy = cognitivePlan.llmTier === "rich";
-            const cognitiveDirective =
-                routingMode === "weather_quick"
-                    ? "Weather-focused turn: give a clear, friendly forecast-style readout from the evidence — practical next steps if relevant. Sound like a person, not a ticket bot."
-                    : cognitivePlan.llmTier === "rich"
-                      ? "Deep-dive turn: connect signals, name uncertainties, separate observed vs inferred vs predicted. Thorough but readable."
-                      : cognitivePlan.llmTier === "standard"
-                        ? "Balanced turn: clear actionable guidance with evidence-backed bullets or short sections when helpful."
-                        : "Practical farm answer: warm, specific, and useful — answer first, evidence second.";
-
-            llmIntel = await callLlmProxy({
-                question,
-                locale: snapshot.locale || "en",
-                bundle: shallowForFirestore(
-                    {
-                        intents,
-                        cognitiveLayer: cognitivePlan.layer,
-                        reasoningDepth: cognitivePlan.reasoningDepth,
-                        cognitiveDirective,
-                        weatherIntel,
-                        pestIntel,
-                        envIntel,
-                        recIntel,
-                        yieldIntel,
-                        visionIntel,
-                        companion: companionBlock,
-                        regionalNetworkBrief:
-                            regionalCap > 0 && snapshot.regionalBriefing
-                                ? String(snapshot.regionalBriefing).slice(0, regionalCap)
-                                : null,
-                        cognitiveVerificationChecks: cognitiveVerification.checks,
-                        degradedMode: degraded.degraded,
-                        degradedReasons: degraded.reasons,
-                        reliabilityPolicy:
-                            "Only cite facts present in evidenceBundle. Label observed vs inferred vs predicted. " +
-                            "Never guarantee outcomes. If evidence is weak, say so and recommend field verification. " +
-                            "Avoid catastrophic or panic language. Never imply autonomous field execution—you advise only; " +
-                            "humans apply treatments.",
-                        farmOperations: opsHeavy
-                            ? shallowForFirestore(
-                                  {
-                                      openTasks: (snapshot.operationalTasks || [])
-                                          .filter((t) => t.status === "open")
-                                          .slice(0, 8)
-                                          .map((t) => ({
-                                              title: String(t.title || "").slice(0, 140),
-                                              priority: t.priority || "normal",
-                                              fieldId: t.fieldId || null,
-                                          })),
-                                      recentInterventions: (snapshot.interventions || []).slice(0, 6).map((i) => ({
-                                          type: i.interventionType,
-                                          fieldId: i.fieldId,
-                                          performedAtMs: tsToMs(i.performedAt),
-                                      })),
-                                      unreadAlerts: (snapshot.alerts || []).filter((a) => !a.readAt).length,
-                                  },
-                                  3,
-                              )
-                            : shallowForFirestore(
-                                  {
-                                      openTasks: (snapshot.operationalTasks || [])
-                                          .filter((t) => t.status === "open")
-                                          .slice(0, 4)
-                                          .map((t) => ({
-                                              title: String(t.title || "").slice(0, 120),
-                                              priority: t.priority || "normal",
-                                              fieldId: t.fieldId || null,
-                                          })),
-                                      recentInterventions: (snapshot.interventions || []).slice(0, 3).map((i) => ({
-                                          type: i.interventionType,
-                                          fieldId: i.fieldId,
-                                          performedAtMs: tsToMs(i.performedAt),
-                                      })),
-                                      unreadAlerts: (snapshot.alerts || []).filter((a) => !a.readAt).length,
-                                  },
-                                  3,
-                              ),
-                        digitalTwin: shallowForFirestore(twinBrief, 3),
-                        knowledgeLearning: knowledgeLearning ? shallowForFirestore(knowledgeLearning, 2) : null,
-                        learningNarrativePreview: learningNarrative ? String(learningNarrative).slice(0, narrCap) : null,
-                    },
-                    4
-                ),
-            });
-        } catch (e) {
-            llmIntel = { engine: "llm", error: true, message: e.message };
-        }
-    }
-
-    results.llm = llmIntel;
 
     const mergedHints = [...(degraded.hints || [])];
     for (const n of cognitiveVerification.notes || []) {
