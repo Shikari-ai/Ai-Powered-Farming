@@ -30,8 +30,8 @@ import {
   KNOWLEDGE_MEMORY_CAP,
   mergeKnowledgeEntries,
 } from "./ai/assistant-knowledge-memory.js?v=1";
-import { shouldUseWebAssistedResearch } from "./ai/web-research-policy.js?v=3";
-import { fetchPublicAgriBrief, formatWebResearchAppend } from "./ai/web-research-client.js?v=3";
+import { computeTurnConfidence, shouldUseWebAssistedResearch } from "./ai/web-research-policy.js?v=4";
+import { fetchPublicAgriBrief, formatWebResearchAppend } from "./ai/web-research-client.js?v=4";
 import {
   buildProactiveDigest,
   defaultCompanionProfile,
@@ -608,6 +608,12 @@ onAuthStateChanged(auth, (user) => {
         learnedMemoryHits = cfgKmMem.assistantKnowledgeMemoryEnabled
           ? findRelevantKnowledgeMemory(knowledgeMemoryEntries, text, { limit: 2, minScore: 0.16 })
           : [];
+        orch.turnConfidence = computeTurnConfidence({
+          question: text,
+          routingMode: routing.mode,
+          orch,
+          memoryHits: learnedMemoryHits,
+        });
         const replyVerbosity =
           routing.mode === "weather_quick"
             ? "minimal"
@@ -640,6 +646,7 @@ onAuthStateChanged(auth, (user) => {
             routingMode: routing.mode,
             orch,
             memoryHits: learnedMemoryHits,
+            precomputedConfidence: orch.turnConfidence,
           });
           if (wr.use) {
             webResearchMeta = wr;

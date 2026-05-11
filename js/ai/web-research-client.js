@@ -48,9 +48,21 @@ export async function fetchPublicAgriBrief(query, opts = {}) {
 
 /**
  * @param {{ source: string, title: string, url: string, summary: string }} brief
- * @param {{ reasons?: string[] }} [_meta]
+ * @param {{ reasons?: string[], seamless?: boolean }} [meta]
  */
-export function formatWebResearchAppend(brief, _meta = {}) {
+export function formatWebResearchAppend(brief, meta = {}) {
+    const seamless = meta.seamless !== false;
+    const body = trimToWords(brief.summary, seamless ? 640 : 720);
+    if (seamless) {
+        const intro = pickRotated("web_research_seamless", [
+            "Here’s a compact public-reference angle that sits alongside your farm data — not a verdict on your field:",
+            "I pulled a short, well-traveled overview so we’re not guessing in a vacuum — still treat it as orientation:",
+            "A quick neutral summary from open references rounds this out; your local advisory chain still wins on specifics:",
+        ]);
+        const tail =
+            "If this touches rules, prices, or safety, cross-check an official notice or agronomist — I’m not sourcing live government portals here.";
+        return `${intro}\n\n${body}\n\n**${brief.title}** · ${brief.url}\n\n${tail}`;
+    }
     const intro = pickRotated("web_research_intro", [
         "I don’t have enough on-device confidence for that narrow point, so I checked a short public reference and here’s the gist:",
         "Internal signals here are thin for that specific ask, so I pulled a quick public summary to orient you:",
@@ -58,7 +70,6 @@ export function formatWebResearchAppend(brief, _meta = {}) {
     ]);
     const tail =
         "Treat this as general background, not a field diagnosis or legal advice — verify with your local extension office, official circulars, or a qualified agronomist.";
-    const body = trimToWords(brief.summary, 720);
     return `${intro}\n\n${body}\n\nSource (${brief.source}): **${brief.title}** — ${brief.url}\n\n${tail}`;
 }
 
