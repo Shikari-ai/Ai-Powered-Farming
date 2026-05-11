@@ -910,31 +910,97 @@ function mountFieldsPage(user) {
       data: { type: "FeatureCollection", features: [] },
     });
 
-    // Polygon fill
+    // Polygon fill — neon-tinted, more visible on satellite
     map.addLayer({ id: "fms-poly-fill", type: "fill", source: "fms-drawing",
-      filter: ["==", "$type", "Polygon"],
-      paint: { "fill-color": "#4DABFF", "fill-opacity": 0.2 },
+      filter: ["all", ["==", "$type", "Polygon"], ["!=", ["get", "kind"], "closing"]],
+      paint: { "fill-color": "#39ff14", "fill-opacity": 0.18 },
     });
-    // Lines (polyline + polygon outline)
+
+    // Outer line "glow" halo — drawn under the main stroke so it pops on imagery
+    map.addLayer({ id: "fms-line-glow", type: "line", source: "fms-drawing",
+      filter: ["all", ["in", "$type", "LineString", "Polygon"], ["!=", ["get", "kind"], "closing"]],
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: {
+        "line-color": "#39ff14",
+        "line-width": 9,
+        "line-opacity": 0.22,
+        "line-blur": 4,
+      },
+    });
+
+    // Main connecting line (solid, bright)
     map.addLayer({ id: "fms-line", type: "line", source: "fms-drawing",
-      filter: ["in", "$type", "LineString", "Polygon"],
-      paint: { "line-color": "#0A84FF", "line-width": 2.5, "line-opacity": 0.9 },
+      filter: ["all", ["in", "$type", "LineString", "Polygon"], ["!=", ["get", "kind"], "closing"]],
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: {
+        "line-color": "#39ff14",
+        "line-width": 3.5,
+        "line-opacity": 0.95,
+      },
     });
-    // Corner circles
+
+    // Closing-ring preview (dashed) — drawn from last point back to first
+    // before the polygon is finalized at 3+ corners. Visualizes the close.
+    map.addLayer({ id: "fms-line-closing", type: "line", source: "fms-drawing",
+      filter: ["==", ["get", "kind"], "closing"],
+      layout: { "line-cap": "round" },
+      paint: {
+        "line-color": "#39ff14",
+        "line-width": 2.5,
+        "line-opacity": 0.6,
+        "line-dasharray": [1.6, 1.6],
+      },
+    });
+
+    // Corner halo (soft outer ring)
+    map.addLayer({ id: "fms-dots-halo", type: "circle", source: "fms-drawing",
+      filter: ["==", "$type", "Point"],
+      paint: {
+        "circle-radius": 18,
+        "circle-color": "#39ff14",
+        "circle-opacity": 0.18,
+        "circle-blur": 0.4,
+      },
+    });
+
+    // First corner gets a slightly larger, brighter ring to mark the start
+    map.addLayer({ id: "fms-dots-first-ring", type: "circle", source: "fms-drawing",
+      filter: ["all", ["==", "$type", "Point"], ["==", ["get", "first"], true]],
+      paint: {
+        "circle-radius": 14,
+        "circle-color": "rgba(0,0,0,0)",
+        "circle-stroke-color": "#39ff14",
+        "circle-stroke-width": 2,
+        "circle-stroke-opacity": 0.7,
+      },
+    });
+
+    // Corner circles — bigger, neon-green, white inner border
     map.addLayer({ id: "fms-dots", type: "circle", source: "fms-drawing",
       filter: ["==", "$type", "Point"],
-      paint: { "circle-radius": 8, "circle-color": "#0A84FF",
-               "circle-stroke-color": "#fff", "circle-stroke-width": 2.5 },
+      paint: {
+        "circle-radius": 10,
+        "circle-color": "#39ff14",
+        "circle-stroke-color": "#0a1410",
+        "circle-stroke-width": 2.5,
+      },
     });
+
     // Corner number labels
     map.addLayer({ id: "fms-labels", type: "symbol", source: "fms-drawing",
       filter: ["==", "$type", "Point"],
       layout: {
         "text-field": ["get", "label"],
-        "text-size": 11, "text-anchor": "center",
+        "text-size": 12,
+        "text-anchor": "center",
         "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        "text-allow-overlap": true,
       },
-      paint: { "text-color": "#fff", "text-halo-color": "#0A84FF", "text-halo-width": 1 },
+      paint: {
+        "text-color": "#0a1410",
+        "text-halo-color": "#39ff14",
+        "text-halo-width": 1.2,
+      },
     });
 
     // GPS accuracy circle layer
@@ -942,10 +1008,10 @@ function mountFieldsPage(user) {
       data: { type: "FeatureCollection", features: [] },
     });
     map.addLayer({ id: "fms-gps-fill", type: "fill", source: "fms-gps-acc",
-      paint: { "fill-color": "#0A84FF", "fill-opacity": 0.08 },
+      paint: { "fill-color": "#39ff14", "fill-opacity": 0.07 },
     });
     map.addLayer({ id: "fms-gps-ring", type: "line", source: "fms-gps-acc",
-      paint: { "line-color": "#0A84FF", "line-width": 1.2, "line-opacity": 0.5 },
+      paint: { "line-color": "#39ff14", "line-width": 1.2, "line-opacity": 0.45 },
     });
   }
 
@@ -1014,33 +1080,45 @@ function mountFieldsPage(user) {
 
     const features = [];
 
-    // Corner points
+    // Corner points — first one gets a special marker (start of polygon)
     drawingPoints.forEach(([lat, lng], i) => {
       features.push({
         type: "Feature",
         geometry: { type: "Point", coordinates: [lng, lat] },
-        properties: { label: String(i + 1) },
+        properties: { label: String(i + 1), first: i === 0 },
       });
     });
 
-    // Connecting line
+    // Connecting line (sequential corners as user taps)
     if (drawingPoints.length >= 2) {
       features.push({
         type: "Feature",
         geometry: { type: "LineString",
           coordinates: drawingPoints.map(([lat, lng]) => [lng, lat]) },
-        properties: {},
+        properties: { kind: "edge" },
       });
     }
 
-    // Closed polygon
+    // Dashed closing-ring preview from the last point back to the first.
+    // Shows up from 2 points onward so users can see how the polygon will close.
+    if (drawingPoints.length >= 2) {
+      const first = drawingPoints[0];
+      const last = drawingPoints[drawingPoints.length - 1];
+      features.push({
+        type: "Feature",
+        geometry: { type: "LineString", coordinates: [[last[1], last[0]], [first[1], first[0]]] },
+        properties: { kind: "closing" },
+      });
+    }
+
+    // Closed polygon fill
     if (drawingPoints.length >= 3) {
       const ring = [...drawingPoints.map(([lat, lng]) => [lng, lat])];
       ring.push(ring[0]); // close ring
       features.push({
         type: "Feature",
         geometry: { type: "Polygon", coordinates: [ring] },
-        properties: {},
+        properties: { kind: "fill" },
       });
       const acres = sqMetersToAcres(polygonAreaSqM(drawingPoints));
       if (el("field-area")) el("field-area").value = acres.toFixed(2);
