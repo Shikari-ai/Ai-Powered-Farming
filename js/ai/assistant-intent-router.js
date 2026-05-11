@@ -1,11 +1,14 @@
 /**
  * Lightweight intent / complexity router for the assistant (heuristics only — no LLM).
  * Gates full agricultural orchestration so greetings stay human and cheap.
+ *
+ * Conversational goals (uncertainty, follow-ups, tone): see `assistant-training-principles.js`.
+ * Symptom heuristics rotate phrasing: `symptom-training-corpus.js` (behavioral intent, not fixed scripts).
  */
 import { detectIntents } from "./detect-intents.js";
 import { pickRotated } from "./conversation-naturals.js?v=48";
 import { farmContextEmptyLead } from "./epistemic-policy.js?v=2";
-import { matchSymptomTrainingReply } from "./symptom-training-corpus.js?v=73";
+import { matchSymptomTrainingReply } from "./symptom-training-corpus.js?v=74";
 
 const AGRI_TOKEN =
     /\b(field|fields|farm|farms|crop|crops|scans?|pest|pests|disease|diseases|fungal|blight|rust|mildew|rot|aphid|thrips|nematode|irrigation|irrigat|spray|fungicide|pesticide|herbicide|rain|humidity|weather|soil|moisture|yield|harvest|acre|hectare|nitrogen|fertil|deficien|tomatoes?|potatoes?|wheat|rice|corn|maize|cotton|soy|canopy|ndvi|scouting)\b/i;
