@@ -793,6 +793,22 @@ onAuthStateChanged(auth, (user) => {
         }
       }
 
+      if (
+        getAiConfig().webResearchEnabled !== false &&
+        !orch &&
+        String(text || "").trim().length > 14 &&
+        !/^(hi|hello|hey|thanks|thank you|thx|ok|okay|bye|goodbye)\b/i.test(String(text || "").trim())
+      ) {
+        try {
+          const brief = await fetchPublicAgriBrief(text, { signal: streamAbort.signal });
+          if (brief?.summary) {
+            reply = `${String(reply || "").trimEnd()}\n\n${formatWebResearchAppend(brief, { seamless: true })}`;
+          }
+        } catch (e) {
+          console.warn("[assistant] fallback web lookup:", e?.message || e);
+        }
+      }
+
       if (!reply) {
         reply =
           "I’m here — ask about a field, weather, pests, or your latest scan and I’ll route it through the farm engines.";
