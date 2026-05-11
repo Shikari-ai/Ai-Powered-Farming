@@ -205,6 +205,83 @@ function isFutureWeatherQuery(text) {
     );
 }
 
+/**
+ * Pick the right horizon for a forecast question and format it as a single
+ * natural-language line backed by Open-Meteo daily data. Returns "" if no
+ * forecast data is available (caller decides whether to fall back).
+ *
+ * @param {string} question — the user's raw question
+ * @param {Array<{date:string|null, tMaxC:number|null, tMinC:number|null, precipMm:number|null, precipProbMax:number|null}>} forecast — 5-day daily forecast from weather engine
+ * @param {string} city — city label for the lead phrase
+ */
+function formatForecastForQuestion(question, forecast, city) {
+    const t = String(question || "").toLowerCase();
+    if (!Array.isArray(forecast) || forecast.length === 0) return "";
+
+    const fmt = (d) => {
+        if (!d) return "";
+        const parts = [];
+        if (d.tMaxC != null && d.tMinC != null) parts.push(`${Math.round(d.tMaxC)}/${Math.round(d.tMinC)}°C`);
+        else if (d.tMaxC != null) parts.push(`high ${Math.round(d.tMaxC)}°C`);
+        if (d.precipMm != null) {
+            const p = d.precipProbMax != null ? ` (${Math.round(d.precipProbMax)}%)` : "";
+            if (d.precipMm < 0.3) parts.push(`no rain${p}`);
+            else if (d.precipMm < 2) parts.push(`light rain ~${d.precipMm.toFixed(1)}mm${p}`);
+            else if (d.precipMm < 10) parts.push(`rain ~${d.precipMm.toFixed(1)}mm${p}`);
+            else parts.push(`heavy rain ~${d.precipMm.toFixed(0)}mm${p}`);
+        }
+        return parts.join(", ");
+    };
+
+    const dayLabel = (idx) => (idx === 0 ? "Today" : idx === 1 ? "Tomorrow" : forecast[idx]?.date || `Day ${idx + 1}`);
+
+    // "Tomorrow / tonight / tmrw" → just index 1
+    if (/\b(tomorrow|tmrw|next\s+day)\b/.test(t)) {
+        const tom = forecast[1];
+        if (!tom) return "";
+        return `Tomorrow in ${city}: ${fmt(tom)}.`;
+    }
+
+    // "Tonight" — use today + tomorrow morning hint
+    if (/\btonight\b/.test(t)) {
+        const today = forecast[0];
+        if (!today) return "";
+        return `Tonight in ${city} (rest of today): ${fmt(today)}.`;
+    }
+
+    // "This week", "next 3 days", "next few days", "coming days", "upcoming" — 3-day or 5-day rollup
+    if (/\b(this\s+week|next\s+few\s+days|coming\s+days|upcoming|forecast)\b/.test(t)) {
+        const horizon = /\b(this\s+week)\b/.test(t) ? Math.min(5, forecast.length) : Math.min(3, forecast.length);
+        const rows = [];
+        for (let i = 0; i < horizon; i++) {
+            const f = fmt(forecast[i]);
+            if (!f) continue;
+            rows.push(`• ${dayLabel(i)}: ${f}`);
+        }
+        if (!rows.length) return "";
+        return `${horizon}-day outlook for ${city}:\n${rows.join("\n")}`;
+    }
+
+    // "Next 3 days" / "next N days"
+    const nMatch = t.match(/next\s+(\d+)\s+days?/);
+    if (nMatch) {
+        const n = Math.min(5, Math.max(1, parseInt(nMatch[1], 10)));
+        const rows = [];
+        for (let i = 0; i < n && i < forecast.length; i++) {
+            const f = fmt(forecast[i]);
+            if (!f) continue;
+            rows.push(`• ${dayLabel(i)}: ${f}`);
+        }
+        if (!rows.length) return "";
+        return `${n}-day outlook for ${city}:\n${rows.join("\n")}`;
+    }
+
+    // Generic future / "will it rain" — answer about tomorrow.
+    const tom = forecast[1];
+    if (!tom) return "";
+    return `Tomorrow in ${city}: ${fmt(tom)}.`;
+}
+
 function composeMinimalAgriReply(question, orch, profile, extra = {}) {
     const q = String(question || "").trim();
     const lines = [];
@@ -262,9 +339,8 @@ function composeMinimalAgriReply(question, orch, profile, extra = {}) {
         }
         lines.push(one);
         if (futureAsk) {
-            lines.push(
-                "I’m reading current conditions here — open the Weather tab for the 10‑day forecast and rain probability.",
-            );
+            const fcLine = formatForecastForQuestion(q, rd.forecastDaily || [], city);
+            if (fcLine) lines.push(fcLine);
         }
     } else if (r.weatherIntelligence?.error) {
         lines.push("Weather didn’t refresh — try the Weather page when you’re online.");
@@ -548,12 +624,11 @@ export function composeAssistantReply(
                 `Couldn’t resolve “${orch.geo.namedQuery}” on the map — the numbers below are for **${orch.geo?.city || "your saved location"}** (pinned / last sync / fallback), not that name.`,
             );
         }
-        if (futureAsk) {
-            lines.push(
-                "Heads-up: these are **current** readings — for tomorrow / multi-day rain probability, open the Weather tab.",
-            );
-        }
         const rd = w.readings || {};
+        if (futureAsk) {
+            const fcLine = formatForecastForQuestion(q, rd.forecastDaily || [], orch.geo?.city || "your location");
+            if (fcLine) lines.push(fcLine);
+        }
         // "Live bundle @" is engineering jargon — rewrite as natural prose.
         const cityLabel = orch.geo?.city || "your location";
         lines.push(
