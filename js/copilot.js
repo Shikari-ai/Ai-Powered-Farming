@@ -1,7 +1,7 @@
 /**
  * Realtime multimodal copilot: camera (non-blocking) + throttled vision + voice (Web Speech API).
  */
-import "./auth-session.js?v=32";
+import "./auth-session.js?v=33";
 import { auth, db } from "./auth.js?v=32";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {

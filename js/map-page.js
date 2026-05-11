@@ -3,7 +3,7 @@
  * MapLibre GL + Firestore fields + GPS + Overpass nearby + Weather
  */
 
-import "./auth-session.js?v=32";
+import "./auth-session.js?v=33";
 import "./i18n.js?v=6";
 import { auth, db } from "./auth.js?v=32";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -12,7 +12,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { resolveLocationApprox } from "./weather-location.js";
 import { peekActiveWeatherLocation } from "./geo/active-location.js?v=1";
-import { runLocationIntelligence, CATEGORIES } from "./location-intelligence.js";
+import { runLocationIntelligence, CATEGORIES } from "./location-intelligence.js?v=2";
 import { NAVIC_GPS_OPTIONS, detectGNSSSource, navicBadgeHTML } from "./navic.js";
 import { getActiveBasemapDescriptor, getNdviTileLayerConfig } from "./geo/satellite-providers.js";
 import {
@@ -732,6 +732,21 @@ async function loadMapWeather(lat, lng) {
   }
 }
 
+function createTimeoutSignal(ms) {
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+    try {
+      return AbortSignal.timeout(ms);
+    } catch (_) {}
+  }
+  const c = new AbortController();
+  setTimeout(() => {
+    try {
+      c.abort();
+    } catch (_) {}
+  }, ms);
+  return c.signal;
+}
+
 /* ══════════════════════════════════════════════
    MAIN BOOT
 ══════════════════════════════════════════════ */
@@ -742,7 +757,7 @@ onAuthStateChanged(auth, async (user) => {
   /* ── 1. Quick IP location → init map immediately ── */
   let initCenter = [78.9629, 22.5937]; // India fallback [lng, lat]
   try {
-    const ip = await fetch("https://ip-api.com/json/?fields=lat,lon", { signal: AbortSignal.timeout(3000) });
+    const ip = await fetch("https://ip-api.com/json/?fields=lat,lon", { signal: createTimeoutSignal(3000) });
     const ipD = await ip.json();
     if (ipD.lat) initCenter = [ipD.lon, ipD.lat];
   } catch (_) {}

@@ -153,9 +153,22 @@ function lockChrome() {
   document.body?.classList.add("agri-auth-locked");
 }
 
+/** Slower phones / spotty mobile data often need more than 14s for Firebase token I/O. */
+function idTokenValidationBudgetMs() {
+  try {
+    const c = navigator.connection;
+    if (!c) return 24_000;
+    if (c.saveData) return 36_000;
+    const t = String(c.effectiveType || "").toLowerCase();
+    if (t === "slow-2g" || t === "2g") return 36_000;
+    if (t === "3g") return 28_000;
+  } catch (_) {}
+  return 24_000;
+}
+
 async function validateIdToken(user, forceRefresh) {
   if (!user) throw new Error("no-user");
-  const ms = 14_000;
+  const ms = idTokenValidationBudgetMs();
   const tokenTask = user.getIdToken(forceRefresh);
   const timeout = new Promise((_, rej) => {
     setTimeout(() => rej(new Error("auth-timeout")), ms);
@@ -288,8 +301,13 @@ async function runProtectedGate() {
       window.addEventListener("online", () => location.reload(), { once: true });
       return;
     }
-    await forceSessionEnd("invalid-token");
-    return;
+    try {
+      await new Promise((r) => setTimeout(r, 600));
+      await validateIdToken(user, true);
+    } catch (_) {
+      await forceSessionEnd("invalid-token");
+      return;
+    }
   }
 
   attachRealtimeGuards();

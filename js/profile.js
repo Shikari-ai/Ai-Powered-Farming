@@ -1,4 +1,4 @@
-import { isProfilePanelE2ELocal } from "./auth-session.js?v=32";
+import { isProfilePanelE2ELocal } from "./auth-session.js?v=33";
 import { auth, db, storage, logoutUser } from "./auth.js?v=32";
 import { LANGUAGES, setLanguage, getLang } from "./i18n.js?v=6";
 import { getDiagnosticsLines } from "./ai/system-health.js";

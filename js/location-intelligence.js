@@ -29,6 +29,21 @@ const OVERPASS_ENDPOINTS = [
 ];
 let _overpassIdx = 0;
 
+function createTimeoutSignal(ms) {
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+    try {
+      return AbortSignal.timeout(ms);
+    } catch (_) {}
+  }
+  const c = new AbortController();
+  setTimeout(() => {
+    try {
+      c.abort();
+    } catch (_) {}
+  }, ms);
+  return c.signal;
+}
+
 async function fetchOverpass(query) {
   for (let i = 0; i < OVERPASS_ENDPOINTS.length; i++) {
     const url = OVERPASS_ENDPOINTS[(_overpassIdx + i) % OVERPASS_ENDPOINTS.length];
@@ -37,7 +52,7 @@ async function fetchOverpass(query) {
         method: "POST",
         body: "data=" + encodeURIComponent(query),
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        signal: AbortSignal.timeout(20000),
+        signal: createTimeoutSignal(20000),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json();
@@ -219,11 +234,7 @@ let _cache = null;
 let liRunGen = 0;
 
 function ipFetchSignal(ms) {
-  try {
-    return AbortSignal.timeout(ms);
-  } catch {
-    return undefined;
-  }
+  return createTimeoutSignal(ms);
 }
 
 /**

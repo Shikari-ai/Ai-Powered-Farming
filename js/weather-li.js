@@ -6,7 +6,7 @@
 import { auth } from "./auth.js?v=32";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getActiveLocation, subscribeActiveLocation } from "./geo/active-location.js?v=1";
-import { runLocationIntelligence, CATEGORIES } from "./location-intelligence.js";
+import { runLocationIntelligence, CATEGORIES } from "./location-intelligence.js?v=2";
 import { navicBadgeHTML } from "./navic.js";
 
 const qs = (id) => document.getElementById(id);

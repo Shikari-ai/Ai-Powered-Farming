@@ -1,4 +1,4 @@
-import "./auth-session.js?v=32";
+import "./auth-session.js?v=33";
 import "./i18n.js";
 import { auth, db } from "./auth.js?v=32";
 import { doc, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -17,6 +17,22 @@ import {
   searchPlacesNominatim,
 } from "./weather-location.js";
 import { NAVIC_GPS_WEATHER, detectGNSSSource } from "./navic.js";
+
+/** Works on older mobile WebViews without AbortSignal.timeout. */
+function createTimeoutSignal(ms) {
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+    try {
+      return AbortSignal.timeout(ms);
+    } catch (_) {}
+  }
+  const c = new AbortController();
+  setTimeout(() => {
+    try {
+      c.abort();
+    } catch (_) {}
+  }, ms);
+  return c.signal;
+}
 
 const STORAGE_IMD_KEY = "agri_imd_api_key";
 const STORAGE_IMD_PROXY = "agri_imd_proxy";
@@ -204,7 +220,7 @@ async function fetchOpenMeteoForecastOnly(lat, lon) {
 async function fetchOpenMeteoAir(lat, lon) {
   try {
     const aqUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=pm2_5,pm10,ozone&timezone=auto`;
-    const aqRes = await fetch(aqUrl, { signal: AbortSignal.timeout(12_000) });
+    const aqRes = await fetch(aqUrl, { signal: createTimeoutSignal(12_000) });
     if (!aqRes.ok) return null;
     return await aqRes.json();
   } catch {
