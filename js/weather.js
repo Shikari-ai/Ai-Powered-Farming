@@ -206,19 +206,28 @@ function fetchImdCityForecastLocWithTimeout(lat, lon, ms = 12_000) {
 
 /** Fast path: single Open-Meteo forecast request (matches dashboard-style first paint). */
 async function fetchOpenMeteoForecastOnly(lat, lon) {
-  // Mobile cellular can stall fetches indefinitely. Without a timeout the
-  // entire page hangs in "Loading realtime weather..." until the network
-  // gives up — that's why the live audit saw it work on desktop and freeze
-  // on phone. Air quality already has a timeout (see fetchOpenMeteoAir);
-  // the forecast path missed it.
   const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,is_day,surface_pressure,visibility&hourly=temperature_2m,precipitation_probability,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max&timezone=auto&forecast_days=10`;
-  const fRes = await fetch(forecastUrl, { signal: createTimeoutSignal(12_000) });
-  if (!fRes.ok) throw new Error("Weather API unavailable");
-  const forecast = await fRes.json();
-  if (forecast?.error || !forecast?.current || !forecast?.hourly || !forecast?.daily) {
-    throw new Error(forecast?.reason || "Weather API returned an incomplete forecast");
-  }
-  return forecast;
+  const hardMs = 26_000;
+  return Promise.race([
+    (async () => {
+      const fRes = await fetch(forecastUrl, { signal: createTimeoutSignal(20_000) });
+      if (!fRes.ok) throw new Error("Weather API unavailable");
+      const parseRace = Promise.race([
+        fRes.json(),
+        new Promise((_, rej) => {
+          setTimeout(() => rej(new Error("weather-json-timeout")), 16_000);
+        }),
+      ]);
+      const forecast = await parseRace;
+      if (forecast?.error || !forecast?.current || !forecast?.hourly || !forecast?.daily) {
+        throw new Error(forecast?.reason || "Weather API returned an incomplete forecast");
+      }
+      return forecast;
+    })(),
+    new Promise((_, rej) => {
+      setTimeout(() => rej(new Error("open-meteo-hard-timeout")), hardMs);
+    }),
+  ]);
 }
 
 /** Deferred: air quality does not block hero / hourly / daily grid. */
@@ -687,7 +696,19 @@ async function renderWeatherForLoc(loc) {
   lastWeatherLoc = loc;
   setLocationLines(loc);
 
-  const forecast = await fetchOpenMeteoForecastOnly(loc.lat, loc.lon);
+  let forecast;
+  try {
+    forecast = await fetchOpenMeteoForecastOnly(loc.lat, loc.lon);
+  } catch (e) {
+    const curDesc = qs("cur-desc");
+    if (curDesc) {
+      curDesc.textContent =
+        e?.message === "open-meteo-hard-timeout" || e?.message === "weather-json-timeout"
+          ? "Forecast timed out — tap refresh"
+          : "Forecast unavailable — check connection, then refresh";
+    }
+    throw e;
+  }
   /* Neutral line until IMD attempt finishes (avoids flashing “IMD unavailable” while still loading). */
   setSourceLine(false, false, loc);
 
@@ -770,37 +791,57 @@ async function loadWeather() {
   const pinned = peekActiveWeatherLocation();
   if (pinned) {
     weatherLoadGen++;
-    await renderWeatherForLoc(pinned).catch((e) => console.error(e));
+    try {
+      await renderWeatherForLoc(pinned);
+    } catch (e) {
+      console.error("[weather] pinned render failed:", e);
+      try {
+        await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" });
+      } catch (_) {}
+    }
     return;
   }
 
-  const gen = ++weatherLoadGen;
+  const myGen = ++weatherLoadGen;
   let showed = false;
+
   try {
     const ipLoc = await resolveLocationApprox();
-    if (peekActiveWeatherLocation() || gen !== weatherLoadGen) return;
-    await renderWeatherForLoc({ ...ipLoc, source: "ip" });
-    showed = true;
+    if (peekActiveWeatherLocation() || myGen !== weatherLoadGen) return;
+    try {
+      await renderWeatherForLoc({ ...ipLoc, source: "ip" });
+      showed = true;
+    } catch (e) {
+      console.warn("[weather] IP + forecast failed:", e?.message || e);
+    }
   } catch (e) {
     console.warn("[weather] IP geo failed:", e?.message || e);
   }
 
-  resolveWeatherLocation()
-    .then(async (loc) => {
-      if (peekActiveWeatherLocation() || gen !== weatherLoadGen) return;
-      if (loc.source !== "fallback" && loc.source !== "insecure-context") {
+  if (peekActiveWeatherLocation() || myGen !== weatherLoadGen) return;
+
+  try {
+    const loc = await resolveWeatherLocation();
+    if (peekActiveWeatherLocation() || myGen !== weatherLoadGen) return;
+    if (loc.source !== "fallback" && loc.source !== "insecure-context") {
+      try {
         await renderWeatherForLoc(loc);
-      } else if (!showed) {
-        await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" });
+      } catch (e) {
+        console.warn("[weather] GPS + forecast failed:", e?.message || e);
+        if (!showed && myGen === weatherLoadGen && !peekActiveWeatherLocation()) {
+          await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" });
+        }
       }
-    })
-    .catch(async (e) => {
-      console.error("Weather GPS upgrade failed:", e);
-      if (peekActiveWeatherLocation() || gen !== weatherLoadGen) return;
-      if (!showed) {
-        await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" });
-      }
-    });
+    } else if (!showed) {
+      await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" });
+    }
+  } catch (e) {
+    console.error("[weather] GPS resolve failed:", e);
+    if (peekActiveWeatherLocation() || myGen !== weatherLoadGen) return;
+    if (!showed) {
+      await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" }).catch(() => {});
+    }
+  }
 }
 
 function escapeHtml(str) {

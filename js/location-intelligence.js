@@ -84,7 +84,10 @@ function fmtDist(m) {
 async function reverseGeocode(lat, lng) {
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
-    const res  = await fetch(url, { headers: { "Accept-Language": "en", "User-Agent": "SmartAgriApp/1.0" } });
+    const res = await fetch(url, {
+      headers: { "Accept-Language": "en", "User-Agent": "SmartAgriApp/1.0" },
+      signal: createTimeoutSignal(12_000),
+    });
     const data = await res.json();
     const a    = data.address || {};
     return {
@@ -180,15 +183,21 @@ async function fetchNearbyPlaces(lat, lng, radius = 2500) {
 
 /* ─── GPS: NavIC / ISRO + device coordinates ────────────────────── */
 function getCurrentPosition() {
-  return new Promise((resolve, reject) => {
-    if (!("geolocation" in navigator)) {
-      reject(new Error("Geolocation not supported"));
-      return;
-    }
-    // NAVIC_GPS_OPTIONS: enableHighAccuracy:true triggers NavIC on compatible
-    // Snapdragon 720G+ / Dimensity hardware when inside the coverage area.
-    navigator.geolocation.getCurrentPosition(resolve, reject, NAVIC_GPS_OPTIONS);
-  });
+  if (!("geolocation" in navigator)) {
+    return Promise.reject(new Error("Geolocation not supported"));
+  }
+  return Promise.race([
+    new Promise((resolve, reject) => {
+      try {
+        navigator.geolocation.getCurrentPosition(resolve, reject, NAVIC_GPS_OPTIONS);
+      } catch (e) {
+        reject(e);
+      }
+    }),
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("gps-hard-timeout")), 16_000);
+    }),
+  ]);
 }
 
 /* ─── Firestore sync ─────────────────────────────────────────────── */

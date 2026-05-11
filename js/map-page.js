@@ -12,7 +12,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { resolveLocationApprox } from "./weather-location.js";
 import { peekActiveWeatherLocation } from "./geo/active-location.js?v=1";
-import { runLocationIntelligence, CATEGORIES } from "./location-intelligence.js?v=2";
+import { runLocationIntelligence, CATEGORIES } from "./location-intelligence.js?v=3";
 import { NAVIC_GPS_OPTIONS, detectGNSSSource, navicBadgeHTML } from "./navic.js";
 import { getActiveBasemapDescriptor, getNdviTileLayerConfig } from "./geo/satellite-providers.js";
 import {
