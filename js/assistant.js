@@ -22,6 +22,7 @@ import {
 
 import { runAgriOrchestrator } from "./ai/orchestrator.js?v=73";
 import { attachSnapshotForReply, composeAssistantReply, composeOperationsSnapshotReply } from "./ai/assistant-reply.js?v=73";
+import { tryGeminiReply } from "./ai/gemini-client.js?v=1";
 import { getAiConfig } from "./ai/config.js?v=71";
 import {
   buildKnowledgeDocPayload,
@@ -610,7 +611,22 @@ onAuthStateChanged(auth, (user) => {
       /** @type {{ entry: any, score: number }[]} */
       let learnedMemoryHits = [];
 
-      if (routing.mode === "micro_social") {
+      // Gemini-first: for any non-trivial text turn (skip micro_social to keep
+      // tiny acks instant, skip image turns until the proxy handles vision).
+      // Failures fall through to the rule-based composer below.
+      if (routing.mode !== "micro_social" && !imageBlob) {
+        try {
+          const gReply = await tryGeminiReply(text, { fields, scans, weatherLogs }, chatMessages);
+          if (gReply) reply = gReply;
+        } catch (e) {
+          console.warn("[assistant] gemini path failed, using rule-based fallback:", e);
+        }
+      }
+
+      if (reply) {
+        // Gemini already produced a reply — skip the routing branches.
+        orch = null;
+      } else if (routing.mode === "micro_social") {
         reply = buildMicroSocialAssistantReply(text, { fieldCount: fields.length, scanCount: scans.length });
         orch = null;
       } else if (routing.mode === "casual") {
