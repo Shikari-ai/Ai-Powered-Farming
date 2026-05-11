@@ -396,20 +396,57 @@
         /* ── Search results dropdown ── */
         #fms-search-results {
             position: absolute; top: calc(100% + 6px); left: 0; right: 0;
-            background: rgba(255,255,255,0.98); border-radius: 16px; overflow: hidden;
-            z-index: 300; box-shadow: 0 12px 40px rgba(0,0,0,0.5);
-            display: none; max-height: 260px; overflow-y: auto;
+            background: linear-gradient(180deg, rgba(14,18,24,0.98), rgba(10,14,20,0.98));
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 18px; overflow: hidden;
+            z-index: 300; box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            display: none; max-height: 320px; overflow-y: auto;
         }
+        #fms-search-results::-webkit-scrollbar { width: 6px; }
+        #fms-search-results::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+        .fms-search-hdr {
+            display: flex; align-items: center; gap: 6px;
+            padding: 9px 14px 7px;
+            font-size: 10px; font-weight: 600; letter-spacing: 0.6px;
+            color: rgba(255,255,255,0.5); text-transform: uppercase;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.02);
+        }
+        .fms-search-hdr i { color: #39ff14; font-size: 12px; }
         .sr-item {
-            display: flex; align-items: flex-start; gap: 12px;
-            padding: 12px 16px; cursor: pointer;
-            border-bottom: 1px solid rgba(0,0,0,0.06); transition: background 0.15s;
+            display: flex; align-items: flex-start; gap: 11px;
+            padding: 11px 14px; cursor: pointer;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            transition: background 0.15s ease;
         }
         .sr-item:last-child { border-bottom: none; }
-        .sr-item:active, .sr-item.sr-focused { background: rgba(10,132,255,0.08); }
-        .sr-item i { color: #0A84FF; font-size: 18px; flex-shrink: 0; margin-top: 2px; }
-        .sr-name { font-size: 13.5px; color: #111; font-weight: 500; line-height: 1.3; }
-        .sr-addr { font-size: 11px; color: #888; margin-top: 2px; }
+        .sr-item:active, .sr-item.sr-focused { background: rgba(57,255,20,0.07); }
+        .sr-ico {
+            width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(10,132,255,0.14); color: #4DABFF;
+            font-size: 15px;
+        }
+        .sr-ico.cat-shop { background: rgba(251,191,36,0.14); color: #fbbf24; }
+        .sr-ico.cat-food { background: rgba(244,114,182,0.14); color: #f472b6; }
+        .sr-ico.cat-place { background: rgba(57,255,20,0.12); color: #39ff14; }
+        .sr-ico.cat-school { background: rgba(167,139,250,0.18); color: #a78bfa; }
+        .sr-ico.cat-health { background: rgba(248,113,113,0.16); color: #f87171; }
+        .sr-ico.cat-transit { background: rgba(34,211,238,0.16); color: #22d3ee; }
+        .sr-ico.cat-religion { background: rgba(253,224,71,0.14); color: #fde047; }
+        .sr-ico.cat-nature { background: rgba(74,222,128,0.14); color: #4ade80; }
+        .sr-ico.cat-farm { background: rgba(132,204,22,0.18); color: #84cc16; }
+        .sr-meta { flex: 1; min-width: 0; }
+        .sr-name { font-size: 13.5px; color: #fff; font-weight: 500; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sr-addr { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sr-type-pill {
+            font-size: 9px; font-weight: 600; letter-spacing: 0.4px;
+            text-transform: uppercase; color: rgba(255,255,255,0.55);
+            padding: 2px 7px; border-radius: 999px;
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.06);
+            margin-top: 4px; display: inline-block;
+        }
 
         /* ── Right-side FAB column ── */
         .fms-fab-col {
@@ -428,14 +465,73 @@
         .fms-fab:active { transform: scale(0.88); }
         .fms-fab.active { background: rgba(10,132,255,0.85); box-shadow: 0 4px 20px rgba(10,132,255,0.45); }
 
-        /* ── GPS accuracy badge ── */
+        /* ── NavIC + GPS telemetry card ── */
         .fms-gps-badge {
-            position: absolute; right: 72px; bottom: 218px; z-index: 30;
-            padding: 6px 12px; border-radius: 12px; font-size: 11px; font-weight: 500;
-            background: rgba(18,18,26,0.9); border: 1px solid rgba(255,255,255,0.1);
-            color: rgba(255,255,255,0.85); display: none; backdrop-filter: blur(10px);
-            box-shadow: 0 4px 14px rgba(0,0,0,0.4); white-space: nowrap;
+            position: absolute; right: 76px; bottom: 232px; z-index: 30;
+            min-width: 188px; max-width: 230px;
+            padding: 10px 12px 9px; border-radius: 14px;
+            font-size: 11px; font-weight: 500;
+            background: linear-gradient(180deg, rgba(18,22,32,0.94), rgba(10,14,22,0.94));
+            border: 1px solid rgba(57,255,20,0.18);
+            color: rgba(255,255,255,0.92); display: none;
+            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+            box-shadow: 0 6px 24px rgba(0,0,0,0.55), 0 0 0 1px rgba(57,255,20,0.04);
         }
+        .fms-gps-hdr {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 11.5px; font-weight: 600; color: #fff;
+            letter-spacing: 0.3px;
+        }
+        .fms-navic-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #39ff14; flex-shrink: 0;
+            box-shadow: 0 0 6px rgba(57,255,20,0.7), 0 0 0 3px rgba(57,255,20,0.18);
+            animation: navicPulse 2.2s ease-in-out infinite;
+        }
+        @keyframes navicPulse {
+            0%,100% { box-shadow: 0 0 6px rgba(57,255,20,0.7), 0 0 0 3px rgba(57,255,20,0.18); }
+            50% { box-shadow: 0 0 12px rgba(57,255,20,1), 0 0 0 6px rgba(57,255,20,0.06); }
+        }
+        .fms-gps-title { color: rgba(236,253,245,0.95); }
+        .fms-gps-acc-pill {
+            margin-left: auto;
+            padding: 2px 8px; border-radius: 999px;
+            background: rgba(57,255,20,0.12);
+            border: 1px solid rgba(57,255,20,0.25);
+            color: #39ff14; font-size: 10.5px; font-weight: 600;
+        }
+        .fms-gps-coords {
+            margin-top: 6px; font-family: 'SF Mono','Consolas',monospace;
+            font-size: 10px; color: rgba(255,255,255,0.6);
+            line-height: 1.4;
+        }
+        .fms-gps-coords:empty { display: none; }
+
+        /* ── 2D / 3D segmented view control ── */
+        .fms-view-seg {
+            display: inline-flex; padding: 3px;
+            background: rgba(18,18,26,0.92);
+            border-radius: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.08);
+            backdrop-filter: blur(16px);
+        }
+        .fms-view-opt {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 7px 12px; border: none; background: transparent;
+            color: rgba(255,255,255,0.65); font-size: 12px; font-weight: 600;
+            font-family: 'Outfit', sans-serif; cursor: pointer;
+            border-radius: 20px;
+            transition: background 0.18s ease, color 0.18s ease, transform 0.12s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .fms-view-opt:active { transform: scale(0.92); }
+        .fms-view-opt i { font-size: 14px; }
+        .fms-view-opt.active {
+            background: linear-gradient(135deg, rgba(10,132,255,0.95), rgba(10,132,255,0.7));
+            color: #fff;
+            box-shadow: 0 2px 10px rgba(10,132,255,0.45);
+        }
+        .fms-view-opt.active i { color: #fff; }
 
         /* ── Bottom sheet ── */
         .fms-bottom-sheet {
@@ -751,7 +847,7 @@
             <div class="fms-search-row" style="position:relative;">
                 <i class="ri-search-line fms-search-icon"></i>
                 <input class="fms-search-input" id="fms-search-input"
-                       placeholder="Search villages, stores, landmarks…" autocomplete="off"/>
+                       placeholder="Search villages, farms, shops, schools, landmarks…" autocomplete="off"/>
                 <button class="fms-search-clear" id="fms-search-clear" style="display:none;" type="button">
                     <i class="ri-close-line"></i>
                 </button>
@@ -767,13 +863,26 @@
 
         <!-- Right-side FABs (GPS + 3D, like Google Maps) -->
         <div class="fms-fab-col">
-            <button class="fms-fab" id="fms-gps-btn" title="My location"><i class="ri-crosshair-line"></i></button>
-            <button class="fms-fab" id="fms-3d-btn" title="Toggle 3D tilt"><i class="ri-landscape-line"></i></button>
+            <button class="fms-fab" id="fms-gps-btn" title="My location · NavIC + GPS"><i class="ri-crosshair-line"></i></button>
+            <!-- 2D / 3D segmented control -->
+            <div class="fms-view-seg" role="tablist" aria-label="Map view mode">
+                <button id="fms-2d-btn" class="fms-view-opt active" role="tab" aria-selected="true">
+                    <i class="ri-map-2-line"></i><span>2D</span>
+                </button>
+                <button id="fms-3d-btn" class="fms-view-opt" role="tab" aria-selected="false">
+                    <i class="ri-landscape-line"></i><span>3D</span>
+                </button>
+            </div>
         </div>
 
-        <!-- GPS accuracy badge -->
+        <!-- Location telemetry card (NavIC + GNSS multi-constellation) -->
         <div class="fms-gps-badge" id="fms-gps-badge">
-            <i class="ri-crosshair-2-line"></i> <span id="fms-accuracy-text">Locating…</span>
+            <div class="fms-gps-hdr">
+                <span class="fms-navic-dot"></span>
+                <span class="fms-gps-title">NavIC · GPS</span>
+                <span class="fms-gps-acc-pill" id="fms-accuracy-text">Locating…</span>
+            </div>
+            <div class="fms-gps-coords" id="fms-gps-coords"></div>
         </div>
 
         <!-- Bottom sheet -->
@@ -785,13 +894,13 @@
                 <button class="fms-chip" id="fms-undo-btn">↩&nbsp; Undo</button>
                 <button class="fms-chip danger" id="fms-clear-btn">🗑&nbsp; Clear All</button>
             </div>
-            <p class="fms-help-txt" id="fms-help-text">Tap the map to drop boundary corners · 3+ points needed</p>
+            <p class="fms-help-txt" id="fms-help-text">Tap map to drop a corner · tap a corner to remove it · 3+ points needed</p>
             <button class="fms-confirm-full-btn" id="fms-confirm-full-btn">✓&nbsp; Confirm Field Boundary</button>
         </div>
     </div>
     <!-- ════════════ END FULL-SCREEN MAP ════════════ -->
 
-    <script type="module" src="js/fields.js?v=34"></script>
+    <script type="module" src="js/fields.js?v=35"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>
