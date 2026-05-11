@@ -55,14 +55,69 @@
 
         .header {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 18px 20px;
-            position: static;
-            background: transparent;
+            padding: 14px 16px;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: linear-gradient(180deg, rgba(3, 6, 9, 0.92) 0%, rgba(3, 6, 9, 0.78) 100%);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
         }
-        .header-left { display: flex; gap: 12px; align-items: center; }
-        .icon-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--surface-glass); border: 1px solid var(--border-light); display:flex; align-items:center; justify-content:center; cursor:pointer; color: white; font-size: 18px; }
-        .title h2 { font-size: 18px; font-weight: 600; }
-        .title p { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+        .header-left { display: flex; gap: 12px; align-items: center; min-width: 0; flex: 1; }
+        .header-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .icon-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--surface-glass); border: 1px solid var(--border-light); display:flex; align-items:center; justify-content:center; cursor:pointer; color: white; font-size: 18px; flex-shrink: 0; -webkit-tap-highlight-color: transparent; }
+        .icon-btn:active { transform: scale(0.93); }
+        .title { min-width: 0; overflow: hidden; }
+        .title h2 { font-size: 18px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .title p { font-size: 11px; color: var(--text-dim); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* ── Model picker (header button + dropdown menu) ── */
+        .model-picker-btn {
+            width: auto !important;
+            border-radius: 999px !important;
+            padding: 0 12px 0 10px;
+            gap: 6px;
+            font-size: 15px !important;
+            transition: background 0.18s ease, border-color 0.18s ease;
+        }
+        .model-picker-btn:hover { background: rgba(16, 185, 129, 0.10); border-color: rgba(16, 185, 129, 0.35); }
+        .model-picker-btn[aria-expanded="true"] { background: rgba(16, 185, 129, 0.14); border-color: rgba(16, 185, 129, 0.50); }
+        .model-badge {
+            font-size: 9.5px; font-weight: 700; letter-spacing: 0.6px;
+            padding: 2px 7px; border-radius: 999px;
+            background: rgba(16, 185, 129, 0.18);
+            color: var(--primary);
+            border: 1px solid rgba(16, 185, 129, 0.28);
+        }
+        .model-menu {
+            position: absolute; top: 64px; right: 16px;
+            z-index: 60;
+            min-width: 270px; max-width: calc(100vw - 32px);
+            background: rgba(8, 12, 16, 0.96);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+            padding: 6px;
+            animation: modelMenuIn 0.14s ease-out;
+        }
+        @keyframes modelMenuIn { from { opacity: 0; transform: translateY(-6px) scale(0.97); } to { opacity: 1; transform: none; } }
+        .model-opt {
+            all: unset; cursor: pointer; box-sizing: border-box;
+            display: flex; align-items: center; gap: 11px;
+            width: 100%; padding: 10px 12px; border-radius: 11px;
+            transition: background 0.12s ease;
+        }
+        .model-opt:hover { background: rgba(16, 185, 129, 0.07); }
+        .model-opt > i:first-child { font-size: 18px; color: rgba(255,255,255,0.7); flex-shrink: 0; }
+        .model-opt-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+        .model-opt-meta strong { font-size: 13px; font-weight: 600; color: #fff; }
+        .model-opt-meta span { font-size: 11px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .model-opt-check { font-size: 16px; color: var(--primary); opacity: 0; flex-shrink: 0; }
+        .model-opt.is-selected { background: rgba(16, 185, 129, 0.10); }
+        .model-opt.is-selected .model-opt-check { opacity: 1; }
+        .model-opt.is-selected .model-opt-meta strong { color: var(--primary); }
 
         .chat-wrap { padding: var(--space-lg) var(--layout-content-pad-x) 0; overflow-x: hidden; }
         .empty { margin: 18px 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 18px; padding: 18px; text-align:center; }
@@ -70,7 +125,7 @@
         .empty p { font-size: 12px; color: var(--text-dim); margin-top: 10px; line-height: 1.45; }
         .empty .cta-row { display:flex; gap:10px; margin-top: 14px; }
 
-        .msg-list { display:flex; flex-direction:column; gap: 10px; padding-bottom: 140px; }
+        .msg-list { display:flex; flex-direction:column; gap: 10px; padding-bottom: 200px; }
         .msg { max-width: 85%; padding: var(--space-md) var(--space-lg); border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); }
         .msg.user { align-self: flex-end; background: rgba(16,185,129,0.10); border-color: rgba(16,185,129,0.25); }
         .msg.assistant { align-self: flex-start; }
@@ -185,10 +240,13 @@
             font-weight: 600;
         }
 
-        /* Layering: composer above bottom nav chrome — see css/design-tokens.css z-index notes */
+        /* Composer sits above bottom-nav AND above the raised .b-nav-scan circle
+           (which translates -24px up out of the nav). The scan circle's outer
+           ring extends ~16px further still, so the composer needs ~108px
+           clearance above the nav baseline to avoid overlapping. */
         .composer {
             position: fixed; left: 50%; transform: translateX(-50%);
-            bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+            bottom: calc(108px + env(safe-area-inset-bottom, 0px));
             width: 100%; max-width: var(--layout-max-width);
             padding: var(--space-sm) var(--space-lg);
             background: var(--glass-bg-composer);
@@ -244,7 +302,7 @@
         /* nav styles → css/nav.css */
     </style>
 </head>
-<body>
+<body class="assistant-page">
     <div class="app-layout">
         <div class="assistant-surface">
         <header class="header">
@@ -255,8 +313,35 @@
                     <p id="assistant-subtitle">Data-driven help for your farm</p>
                 </div>
             </div>
-            <div class="icon-btn" id="assistant-clear" title="Clear chat"><i class="ri-delete-bin-6-line"></i></div>
+            <div class="header-actions">
+                <button type="button" class="icon-btn model-picker-btn" id="ai-model-picker" title="Choose AI model" aria-haspopup="listbox" aria-expanded="false">
+                    <i class="ri-cpu-line"></i><span id="ai-model-badge" class="model-badge">AUTO</span>
+                </button>
+                <div class="icon-btn" id="assistant-clear" title="Clear chat" role="button"><i class="ri-delete-bin-6-line"></i></div>
+            </div>
         </header>
+        <div id="ai-model-menu" class="model-menu hidden" role="listbox" aria-label="AI model">
+            <button type="button" class="model-opt" data-model="auto">
+                <i class="ri-sparkling-line"></i>
+                <div class="model-opt-meta"><strong>Auto</strong><span>Cascade — Gemini → Groq → GPT-4o-mini</span></div>
+                <i class="ri-check-line model-opt-check"></i>
+            </button>
+            <button type="button" class="model-opt" data-model="gemini">
+                <i class="ri-google-fill"></i>
+                <div class="model-opt-meta"><strong>Gemini 2.5 Flash</strong><span>Google · multimodal · 1.5k/day</span></div>
+                <i class="ri-check-line model-opt-check"></i>
+            </button>
+            <button type="button" class="model-opt" data-model="groq">
+                <i class="ri-flashlight-fill"></i>
+                <div class="model-opt-meta"><strong>Llama 3.3 70B</strong><span>Groq · fastest · 14k/day</span></div>
+                <i class="ri-check-line model-opt-check"></i>
+            </button>
+            <button type="button" class="model-opt" data-model="github">
+                <i class="ri-github-fill"></i>
+                <div class="model-opt-meta"><strong>GPT-4o mini</strong><span>GitHub Models · best reasoning · 150/day</span></div>
+                <i class="ri-check-line model-opt-check"></i>
+            </button>
+        </div>
 
         <div class="chat-wrap">
             <div class="empty" id="assistant-empty">
@@ -314,7 +399,7 @@
         </a>
     </nav>
 
-    <script type="module" src="js/assistant.js?v=90"></script>
+    <script type="module" src="js/assistant.js?v=91"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>

@@ -22,7 +22,7 @@ import {
 
 import { runAgriOrchestrator } from "./ai/orchestrator.js?v=73";
 import { attachSnapshotForReply, composeAssistantReply, composeOperationsSnapshotReply } from "./ai/assistant-reply.js?v=73";
-import { tryGeminiReply } from "./ai/gemini-client.js?v=2";
+import { tryGeminiReply } from "./ai/gemini-client.js?v=3";
 import { getAiConfig } from "./ai/config.js?v=71";
 import {
   buildKnowledgeDocPayload,
@@ -288,6 +288,70 @@ onAuthStateChanged(auth, (user) => {
   const sendBtn = el("assistant-send");
   const clearBtn = el("assistant-clear");
   const subEl = el("assistant-subtitle");
+
+  // ── Model picker (user-controlled cascade override) ──
+  // Persists in localStorage. The value goes into every Gemini-client call
+  // as `forceProvider` so the val knows whether to honor a single model or
+  // run the default cascade. "auto" → cascade (default).
+  const MODEL_PREF_KEY = "agri_ai_model_pref";
+  function getModelPref() {
+    try {
+      const v = localStorage.getItem(MODEL_PREF_KEY);
+      if (v && ["auto", "gemini", "groq", "github"].includes(v)) return v;
+    } catch {}
+    return "auto";
+  }
+  function setModelPref(v) {
+    try { localStorage.setItem(MODEL_PREF_KEY, v); } catch {}
+  }
+  function reflectModelPref() {
+    const pref = getModelPref();
+    const badgeEl = document.getElementById("ai-model-badge");
+    if (badgeEl) {
+      badgeEl.textContent =
+        pref === "auto" ? "AUTO" :
+        pref === "gemini" ? "GEMINI" :
+        pref === "groq" ? "GROQ" :
+        pref === "github" ? "GPT-4o" : "AUTO";
+    }
+    document.querySelectorAll(".model-opt").forEach((b) => {
+      b.classList.toggle("is-selected", b.getAttribute("data-model") === pref);
+    });
+  }
+  reflectModelPref();
+  // Toggle the popover open/closed
+  const modelBtn = document.getElementById("ai-model-picker");
+  const modelMenu = document.getElementById("ai-model-menu");
+  const closeModelMenu = () => {
+    if (!modelMenu) return;
+    modelMenu.classList.add("hidden");
+    modelBtn?.setAttribute("aria-expanded", "false");
+    document.removeEventListener("click", onDocClickForModel, true);
+  };
+  function onDocClickForModel(e) {
+    if (!modelMenu || !modelBtn) return;
+    if (modelMenu.contains(e.target) || modelBtn.contains(e.target)) return;
+    closeModelMenu();
+  }
+  modelBtn?.addEventListener("click", () => {
+    if (!modelMenu) return;
+    const isOpen = !modelMenu.classList.contains("hidden");
+    if (isOpen) { closeModelMenu(); return; }
+    modelMenu.classList.remove("hidden");
+    modelBtn.setAttribute("aria-expanded", "true");
+    setTimeout(() => document.addEventListener("click", onDocClickForModel, true), 0);
+  });
+  modelMenu?.querySelectorAll(".model-opt").forEach((opt) => {
+    opt.addEventListener("click", () => {
+      const m = opt.getAttribute("data-model") || "auto";
+      setModelPref(m);
+      reflectModelPref();
+      closeModelMenu();
+    });
+  });
+
+  // Expose pref to the assistant-side request builder
+  window.__agriGetModelPref = getModelPref;
 
   let fields = [];
   let scans = [];

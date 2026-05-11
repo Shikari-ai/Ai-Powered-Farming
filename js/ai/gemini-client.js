@@ -29,10 +29,18 @@ export async function tryGeminiReply(question, snapshot, chatMessages) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
   try {
+    // Optional user-chosen model override (set via the header picker UI).
+    // "auto" or absent → cascade default; otherwise pin to a single provider.
+    let forceProvider = null;
+    try {
+      const v = typeof window !== "undefined" && typeof window.__agriGetModelPref === "function" ? window.__agriGetModelPref() : null;
+      if (v && v !== "auto") forceProvider = v;
+    } catch {}
+
     const res = await fetch(GEMINI_PROXY_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: q, farmContext, history }),
+      body: JSON.stringify({ question: q, farmContext, history, forceProvider }),
       signal: ctrl.signal,
     });
     clearTimeout(t);
