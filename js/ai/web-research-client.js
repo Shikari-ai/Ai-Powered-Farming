@@ -16,6 +16,70 @@ function trimToWords(s, max) {
     return (i > max * 0.55 ? cut.slice(0, i) : cut).trim() + "…";
 }
 
+const WEB_STOPWORDS = new Set([
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "to",
+    "of",
+    "in",
+    "on",
+    "for",
+    "with",
+    "is",
+    "are",
+    "was",
+    "were",
+    "be",
+    "what",
+    "who",
+    "does",
+    "do",
+    "me",
+    "my",
+    "about",
+    "only",
+    "india",
+    "agriculture",
+]);
+
+/**
+ * Keep only topically relevant public results.
+ * @param {string} query
+ * @param {string} title
+ * @param {string} summary
+ */
+function looksRelevantToQuery(query, title, summary) {
+    const q = String(query || "").toLowerCase();
+    const t = `${String(title || "").toLowerCase()} ${String(summary || "").toLowerCase()}`;
+    const tokens = q.match(/[a-z0-9]{3,}/g) || [];
+    const sig = tokens.filter((x) => !WEB_STOPWORDS.has(x));
+    if (!sig.length) return true;
+
+    // Preserve acronym intent (ICAR, MSP, etc.).
+    const acronyms = (String(query || "").match(/\b[A-Z]{2,}\b/g) || []).map((x) => x.toLowerCase());
+    const acronymAliases = {
+        msp: ["msp", "minimum support price"],
+        icar: ["icar", "indian council of agricultural research"],
+        imd: ["imd", "india meteorological department", "indian meteorological department"],
+    };
+    if (acronyms.length) {
+        const ok = acronyms.some((a) => {
+            const aliases = acronymAliases[a] || [a];
+            return aliases.some((alias) => t.includes(alias));
+        });
+        if (!ok) return false;
+    }
+
+    let hits = 0;
+    for (const tok of sig) {
+        if (t.includes(tok)) hits += 1;
+    }
+    return hits >= Math.min(2, sig.length);
+}
+
 /**
  * @param {string} query
  * @param {{ signal?: AbortSignal, maxSummaryChars?: number }} [opts]
@@ -42,6 +106,9 @@ export async function fetchPublicAgriBrief(query, opts = {}) {
     /** Last resort: anchor on ICAR / council wording when the user mentioned it. */
     if (/\bicar\b/i.test(q)) {
         wiki = await wikipediaSearchThenExtract("Indian Council of Agricultural Research", signal, maxSummaryChars);
+    }
+    if (!wiki?.summary && /\bmsp\b/i.test(q)) {
+        wiki = await wikipediaSearchThenExtract("Minimum Support Price India", signal, maxSummaryChars);
     }
     return wiki;
 }
@@ -88,12 +155,13 @@ async function tryDuckDuckGoInstant(q, signal) {
         const href = String(j.AbstractURL || "").trim();
         if (!text || !href) return null;
         const title = String(j.Heading || q).trim() || q;
-        return {
+        const out = {
             source: "DuckDuckGo instant answer",
             title,
             url: href,
             summary: text,
         };
+        return looksRelevantToQuery(q, out.title, out.summary) ? out : null;
     } catch {
         return null;
     }
@@ -132,12 +200,13 @@ async function wikipediaSearchThenExtract(q, signal, maxSummaryChars) {
         const extract = String(page.extract || "").trim();
         if (!extract) return null;
         const url = `https://en.wikipedia.org/wiki/${encodeURIComponent(String(page.title || title)).replace(/%20/g, "_")}`;
-        return {
+        const out = {
             source: "Wikipedia (intro extract)",
             title: String(page.title || title),
             url,
             summary: trimToWords(extract, maxSummaryChars),
         };
+        return looksRelevantToQuery(q, out.title, out.summary) ? out : null;
     } catch {
         return null;
     }

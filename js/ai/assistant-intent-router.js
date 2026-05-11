@@ -48,6 +48,10 @@ const SPECIFIC_SYMPTOM =
 const ACTION_REQUEST =
     /\b(give\s+me\s+\d+\s+(?:action|step|bullet)s?|next\s+24\s+hours|priority\s+list|what\s+should\s+i\s+do\s+first|step-?by-?step\s+plan|action\s+plan)\b/i;
 
+/** Conversational asks that should stay casual even if they contain farm tokens. */
+const SOCIAL_CASUAL_REQUEST =
+    /\b(joke|pun|make\s+me\s+laugh|cheer\s+me\s+up|rough\s+day|bad\s+day|stress(?:ed)?|how\s+are\s+you|what'?s\s+up|hows?\s+your\s+day)\b/i;
+
 function isOutcomeAffirmMicro(text) {
     const t = String(text || "").trim();
     if (t.length > 100) return false;
@@ -165,6 +169,10 @@ export function classifyAssistantRouting(rawText, opts = {}) {
 
     if (ACTION_REQUEST.test(text)) {
         return { mode: "full", reason: "explicit_action_request" };
+    }
+
+    if (SOCIAL_CASUAL_REQUEST.test(text) && !/\b(dose|spray|treatment|diagnos|disease|pest|irrigat|fertiliz)\b/i.test(text)) {
+        return { mode: "casual", reason: "social_casual_request" };
     }
 
     if (isNamedPlaceWeatherQuery(text)) {
@@ -455,8 +463,10 @@ export function buildCasualAssistantReply(text, ctx = {}) {
     }
 
     // "Tell me a joke" — own it, don't deflect.
-    if (/\b(tell|got|know)\s+(me\s+)?(a\s+)?(joke|pun|something\s+funny)\b/.test(t)
-        || /\bmake\s+me\s+laugh\b/.test(t)) {
+    if (/\b(joke|pun|something\s+funny)\b/.test(t)
+        || /\b(tell|got|know)\s+(me\s+)?(a\s+)?(joke|pun|something\s+funny)\b/.test(t)
+        || /\bmake\s+me\s+laugh\b/.test(t)
+        || /\bcheer\s+me\s+up\b/.test(t)) {
         return pickRotated("joke", [
             "Why did the tomato turn red? It saw the salad dressing.",
             "I told my soil a joke. Crickets. Literal ones — bad pest pressure that week.",

@@ -31,7 +31,7 @@ import {
   mergeKnowledgeEntries,
 } from "./ai/assistant-knowledge-memory.js?v=1";
 import { computeTurnConfidence, shouldUseWebAssistedResearch } from "./ai/web-research-policy.js?v=4";
-import { fetchPublicAgriBrief, formatWebResearchAppend } from "./ai/web-research-client.js?v=4";
+import { fetchPublicAgriBrief, formatWebResearchAppend } from "./ai/web-research-client.js?v=6";
 import {
   buildProactiveDigest,
   defaultCompanionProfile,
@@ -44,7 +44,7 @@ import {
   buildMicroSocialAssistantReply,
   buildVagueSymptomReply,
   classifyAssistantRouting,
-} from "./ai/assistant-intent-router.js?v=63";
+} from "./ai/assistant-intent-router.js?v=65";
 import {
   detectConversationMood,
   polishFarmReportProse,
@@ -56,6 +56,77 @@ import { computePresencePlan, maybePresenceMemoryNudge, sleep as presenceSleep }
 import { getFlowSnapshot, recordFlowUserTurn, resolveReplyVerbosity, streamRhythmPreference } from "./ai/conversation-flow.js?v=48";
 
 const ROUTING_NO_ENGINE_LOG = /** @type {const} */ (["micro_social", "casual", "clarify", "operations_quick"]);
+
+/** @param {string} text */
+function inferReplyFormatNeeds(text) {
+  const t = String(text || "");
+  const bullet = t.match(/\b(?:only\s+with\s+)?(\d+)\s+bullets?\b/i);
+  const step = !bullet ? t.match(/\b(?:only\s+with\s+)?(\d+)\s+steps?\b/i) : null;
+  return {
+    bulletCount: Number(bullet?.[1] || step?.[1] || 0) || 0,
+    oneParagraphOnly: /\bone\s+(?:professional\s+)?paragraph\s+only\b/i.test(t),
+  };
+}
+
+/** @param {string} text */
+function splitToPlainLines(text) {
+  return String(text || "")
+    .split(/\r?\n+/)
+    .map((s) => s.replace(/^[-*•]\s+/, "").trim())
+    .filter(Boolean);
+}
+
+/** @param {string} text */
+function compactParagraph(text) {
+  return String(text || "")
+    .replace(/\s*\n+\s*/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+/**
+ * Enforce explicit response-shape asks like "3 bullets" / "one paragraph only".
+ * @param {string} reply
+ * @param {{ bulletCount: number, oneParagraphOnly: boolean }} needs
+ */
+function enforceReplyShape(reply, needs) {
+  let out = String(reply || "").trim();
+  if (!out) return out;
+
+  if (needs.bulletCount > 0) {
+    const lines = splitToPlainLines(out);
+    const picked = lines.slice(0, needs.bulletCount).map((s) => `- ${s}`);
+    if (picked.length) out = picked.join("\n");
+  }
+  if (needs.oneParagraphOnly) {
+    out = compactParagraph(out);
+  }
+  return out;
+}
+
+/** @param {string} text */
+function buildNoDataActionFallback(text) {
+  const t = String(text || "").toLowerCase();
+  if (/\bblight|spot|fung|disease|yellow|leaf\b/.test(t)) {
+    return [
+      "- Scout 20-30 plants now and isolate the worst patches; remove heavily affected leaves and avoid overhead watering tonight.",
+      "- Keep canopy dry for 24h (morning-only irrigation, better airflow, no late spray unless label conditions are met).",
+      "- Run one tagged scan tomorrow morning and log spread trend; escalate to a local agronomist if incidence is rising.",
+    ].join("\n");
+  }
+  if (/\birrigat|drip|water|schedule\b/.test(t)) {
+    return [
+      "- Run short early-morning drip cycles (not noon), then verify moisture at 10-15 cm depth before adding another cycle.",
+      "- Split total water into 2-3 pulses to reduce stress and runoff; prioritize uniform wetting in root zone.",
+      "- Re-check by evening: if leaves still wilt after sunset, increase next-day total by a small increment (about 10-15%).",
+    ].join("\n");
+  }
+  return [
+    "- Start with a same-day field check and note the top 3 risks by severity.",
+    "- Execute the lowest-risk corrective step first and avoid stacking multiple interventions at once.",
+    "- Reassess in 24 hours and adjust using observed change, not assumptions.",
+  ].join("\n");
+}
 
 /** @param {Record<string, unknown>} o */
 function stripUndefinedForFirestore(o) {
@@ -821,36 +892,51 @@ onAuthStateChanged(auth, (user) => {
       }
 
       const rawUserText = String(text || "").trim();
+      const shapeNeeds = inferReplyFormatNeeds(rawUserText);
       const isGreetingOrAck = /^(hi|hello|hey|thanks|thank you|thx|ok|okay|bye|goodbye)\b/i.test(rawUserText);
+      const isSocialPrompt =
+        /\b(joke|pun|funny|laugh|cheer\s+me\s+up|rough\s+day|bad\s+day|how\s+are\s+you|what'?s\s+up|hows?\s+your\s+day)\b/i.test(
+          rawUserText,
+        );
       const isGenericOrchReply =
         !!orch &&
         /\bNo fields or scans are on file yet\b/i.test(String(reply || "")) &&
         !/\bIndian Council of Agricultural Research\b/i.test(String(reply || ""));
+      const wantsActionPlan =
+        /\b(action|steps?|bullet|plan|what\s+should\s+i\s+do|next\s+24\s+hours|irrigat|blight|pest|disease|schedule)\b/i.test(
+          rawUserText,
+        );
       const looksLikeGeneralKnowledgeAsk =
         /\b(full\s*form|what\s+does|what\s+is|who\s+is|define|meaning|history|policy|icar|imd|msp|subsidy|mandi)\b/i.test(
           rawUserText,
         );
-
-      if (
+      const webFallbackEligible =
         getAiConfig().webResearchEnabled !== false &&
         rawUserText.length > 14 &&
         !isGreetingOrAck &&
-        (!orch || (isGenericOrchReply && looksLikeGeneralKnowledgeAsk))
-      ) {
+        !isSocialPrompt &&
+        ((!orch && looksLikeGeneralKnowledgeAsk) || (isGenericOrchReply && looksLikeGeneralKnowledgeAsk));
+
+      if (webFallbackEligible) {
         try {
           const brief = await fetchPublicAgriBrief(text, { signal: streamAbort.signal });
           if (brief?.summary) {
-            reply = `${String(reply || "").trimEnd()}\n\n${formatWebResearchAppend(brief, { seamless: true })}`;
+            const webBlock = formatWebResearchAppend(brief, { seamless: true });
+            reply = isGenericOrchReply ? webBlock : `${String(reply || "").trimEnd()}\n\n${webBlock}`;
           }
         } catch (e) {
           console.warn("[assistant] fallback web lookup:", e?.message || e);
         }
+      }
+      if (isGenericOrchReply && wantsActionPlan && !looksLikeGeneralKnowledgeAsk) {
+        reply = buildNoDataActionFallback(rawUserText);
       }
 
       if (!reply) {
         reply =
           "I’m here — ask about a field, weather, pests, or your latest scan and I’ll route it through the farm engines.";
       }
+      reply = enforceReplyShape(reply, shapeNeeds);
 
       const mood = detectConversationMood(text);
       const naturalMicroBeforePolish =
