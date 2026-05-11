@@ -45,7 +45,10 @@ export async function geocodePlaceName(placeLabel) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 7500);
   try {
-    const queries = [`${raw}, India`, raw];
+    // Try the bare name first. "Tokyo, India" force-fuzzes to "Takyo" (an
+    // actual Indian village) and the user sees their city silently swapped.
+    // Only fall back to the India-biased query if the bare query found nothing.
+    const queries = [raw, `${raw}, India`];
     for (const q of queries) {
       const url = `https://nominatim.openstreetmap.org/search?${new URLSearchParams({
         format: "json",
@@ -66,11 +69,20 @@ export async function geocodePlaceName(placeLabel) {
       const lat = parseFloat(hit.lat);
       const lon = parseFloat(hit.lon);
       if (Number.isNaN(lat) || Number.isNaN(lon)) continue;
+      // Prefer the user's typed name when the result is a fuzzy / partial
+      // match — protects "Tokyo" from being renamed by OSM's first segment.
       let city = raw;
-      if (typeof hit.name === "string" && hit.name.length > 1 && hit.name.length < 56) {
+      if (typeof hit.display_name === "string") {
+        const first = hit.display_name.split(",")[0].trim();
+        const rawLower = raw.toLowerCase();
+        const firstLower = first.toLowerCase();
+        // Use OSM label only if it shares ≥3 leading chars with the user's
+        // typed city, or matches case-insensitively. Otherwise keep the user's.
+        if (firstLower === rawLower || firstLower.startsWith(rawLower.slice(0, 3))) {
+          city = first || raw;
+        }
+      } else if (typeof hit.name === "string" && hit.name.length > 1 && hit.name.length < 56) {
         city = hit.name;
-      } else if (typeof hit.display_name === "string") {
-        city = hit.display_name.split(",")[0].trim() || city;
       }
       return { lat, lon, city, source: "geocode" };
     }

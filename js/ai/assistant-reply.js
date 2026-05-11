@@ -152,14 +152,21 @@ function inferIntentReplyBundles(question, intents, compact) {
     const weatherOnlyLean =
         intents.weather && hits === 1 && !intents.pest && !intents.disease && !intents.operations && !intents.field;
 
+    // For "what's the weather in Mumbai?" — short, single-intent, weather-only.
+    // Live audit showed these getting a kitchen-sink reply with regional,
+    // account snapshot, onboarding nudge etc. Suppress all of that.
+    const slimContext = narrowTurn && weatherOnlyLean && !regionalCue;
+
     return {
         narrowTurn,
+        slimContext,
         slimBridge: narrowTurn || narrowerTurn,
         includeTwin: !narrowTurn && (broadCue || qlen > 218 || hits >= 2),
         includeLearning: !narrowTurn && (broadCue || qlen > 205 || hits >= 2),
         includeRegional:
-            !!(intents.disease || intents.pest || regionalCue) ||
-            (!(narrowTurn && weatherOnlyLean && !regionalCue) && intents.weather),
+            !slimContext &&
+            (!!(intents.disease || intents.pest || regionalCue) ||
+                (!(narrowTurn && weatherOnlyLean && !regionalCue) && intents.weather)),
         regionalMaxChars: narrowTurn ? Math.min(520, 760) : 900,
         skipEpisodePickup: narrowTurn,
         suppressBeginnerTone: narrowTurn,
@@ -171,6 +178,20 @@ function inferIntentReplyBundles(question, intents, compact) {
             narrowTurn && weatherOnlyLean && !intents.operations && !/\b(task|todo|alert|intervention)\b/i.test(ql),
         showClosingTip: !(narrowTurn && hits <= 1),
     };
+}
+
+/**
+ * The orchestrator only carries current weather. If the user asked about
+ * tomorrow / next few days / forecast, be honest: the readings are "now",
+ * point them at the Weather page for the multi-day forecast.
+ * @param {string} text
+ */
+function isFutureWeatherQuery(text) {
+    const t = String(text || "").toLowerCase();
+    if (!/\b(weather|rain|storm|hot|cold|humid|wind|temperature|temp)\b/.test(t)) return false;
+    return /\b(tomorrow|tonight|tmrw|next\s+day|next\s+few\s+days|coming\s+days|this\s+week|upcoming|forecast|going\s+to\s+(rain|storm)|will\s+(it|the\s+weather)\s+(rain|be|change)|gonna\s+rain)\b/.test(
+        t,
+    );
 }
 
 function composeMinimalAgriReply(question, orch, profile, extra = {}) {
@@ -199,11 +220,18 @@ function composeMinimalAgriReply(question, orch, profile, extra = {}) {
                 "You named a specific place — the quick readout follows your **saved farm weather anchor**, not an auto city lookup.",
             );
         }
-        let one = `Quick weather (${city}): ~${t}, ${h}.`;
+        const futureAsk = isFutureWeatherQuery(q);
+        const lead = futureAsk ? `Right now in ${city}` : `Quick weather (${city})`;
+        let one = `${lead}: ~${t}, ${h}.`;
         if (w.fungalDiseasePressure?.label) {
             one += ` Fungal pressure: ${w.fungalDiseasePressure.label}.`;
         }
         lines.push(one);
+        if (futureAsk) {
+            lines.push(
+                "I’m reading current conditions here — open the Weather tab for the 10‑day forecast and rain probability.",
+            );
+        }
     } else if (r.weatherIntelligence?.error) {
         lines.push("Weather didn’t refresh — try the Weather page when you’re online.");
     }
@@ -435,17 +463,25 @@ export function composeAssistantReply(
 
     if (r.weatherIntelligence && !r.weatherIntelligence.error) {
         const w = r.weatherIntelligence;
+        const futureAsk = isFutureWeatherQuery(q);
         lines.push("Weather intelligence:");
         if (routingReason === "named_place_weather_needs_full_context" && !compact) {
             lines.push(
                 "You asked about a named location — these readings follow your **farm’s saved weather anchor** (Open‑Meteo), not an automatic geocode of that city name.",
             );
         }
+        if (futureAsk) {
+            lines.push(
+                "Heads-up: these are **current** readings — for tomorrow / multi-day rain probability, open the Weather tab.",
+            );
+        }
         const rd = w.readings || {};
+        // "Live bundle @" is engineering jargon — rewrite as natural prose.
+        const cityLabel = orch.geo?.city || "your location";
         lines.push(
-            `Live bundle @ ${orch.geo?.city || "location"}: ` +
+            `Right now in ${cityLabel}: ` +
                 `${rd.temperatureC != null ? `${Math.round(rd.temperatureC)}°C` : "—"}, ` +
-                `${rd.humidityPct != null ? `${Math.round(rd.humidityPct)}% RH` : "—"}.`
+                `${rd.humidityPct != null ? `${Math.round(rd.humidityPct)}% RH` : "—"}.`,
         );
         if (w.fungalDiseasePressure) {
             lines.push(
@@ -545,7 +581,11 @@ export function composeAssistantReply(
     const ctxLines = [];
     const fc = orch.snapshot?.fields?.length ?? 0;
     const sc = orch.snapshot?.scans?.length ?? 0;
-    ctxLines.push(`Account snapshot: ${fc} field(s), ${sc} scan(s).`);
+    // Narrow weather-only turns shouldn't trail "Account snapshot: 0 field(s)
+    // 0 scan(s)" — it reads like an analytics dump for a casual question.
+    if (!bundle.slimContext) {
+        ctxLines.push(`Account snapshot: ${fc} field(s), ${sc} scan(s).`);
+    }
 
     const sortedFields = (orch.snapshot?.fieldContextStates || [])
         .map((s) => {
@@ -555,7 +595,7 @@ export function composeAssistantReply(
         })
         .filter((x) => x.lab);
 
-    if (sortedFields.length && profile?.expertiseLevel !== "beginner" && !compact && bundle.extraFieldRecall) {
+    if (sortedFields.length && profile?.expertiseLevel !== "beginner" && !compact && bundle.extraFieldRecall && !bundle.slimContext) {
         const ref = sortedFields[0];
         ctxLines.push(
             `If this reminds you of prior stress: ${ref.name || "A field"} recently showed **${ref.lab}** in your intelligence timeline — humidity and season matter for recurrence.`,
@@ -566,12 +606,13 @@ export function composeAssistantReply(
     if (latestScan) {
         const health = typeof latestScan.healthScore === "number" ? `${Math.round(latestScan.healthScore)}%` : "--";
         ctxLines.push(`Latest saved scan: ${latestScan.cropType || "crop"} • ${latestScan.diagnosis?.label || "logged"} • health ${health}.`);
-    } else {
+    } else if (!bundle.slimContext) {
+        // Onboarding nudge only when there's space — never on narrow turns.
         ctxLines.push("No scans yet — onboarding: run Scanner once to unlock disease/pest context in this assistant.");
     }
 
     const fcs = orch.snapshot?.fieldContextStates;
-    if (Array.isArray(fcs) && fcs.length && !compact && bundle.extraFieldBlock) {
+    if (Array.isArray(fcs) && fcs.length && !compact && bundle.extraFieldBlock && !bundle.slimContext) {
         const first = fcs[0];
         const lab = first.lastTopHypothesis || first.lastVisionLabels?.[0];
         if (lab || first.stabilityScore != null) {
