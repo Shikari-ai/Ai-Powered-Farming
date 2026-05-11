@@ -22,7 +22,7 @@ import {
 
 import { runAgriOrchestrator } from "./ai/orchestrator.js?v=73";
 import { attachSnapshotForReply, composeAssistantReply, composeOperationsSnapshotReply } from "./ai/assistant-reply.js?v=73";
-import { tryGeminiReply } from "./ai/gemini-client.js?v=1";
+import { tryGeminiReply } from "./ai/gemini-client.js?v=2";
 import { getAiConfig } from "./ai/config.js?v=71";
 import {
   buildKnowledgeDocPayload,

@@ -8,7 +8,10 @@
 const GEMINI_PROXY_URL =
   "https://harshwardhanparganiha--992de5aa4d5911f1849eee650bb23af1.web.val.run";
 
-const REQUEST_TIMEOUT_MS = 25000;
+// Keep this short — Val Town free tier returns 503 fast when overloaded.
+// A long wait here just delays the rule-based fallback. Healthy calls
+// complete in ~1-3s; cold starts in ~5s.
+const REQUEST_TIMEOUT_MS = 9000;
 
 /**
  * @param {string} question
