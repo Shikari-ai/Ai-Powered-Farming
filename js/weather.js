@@ -10,6 +10,7 @@ import {
   subscribeActiveLocation,
 } from "./geo/active-location.js?v=1";
 import {
+  FALLBACK_LOC,
   isGeolocationSecureContext,
   resolveWeatherLocation,
   resolveLocationApprox,
@@ -22,6 +23,8 @@ const STORAGE_IMD_PROXY = "agri_imd_proxy";
 
 /** Last location used for this weather view. */
 let lastWeatherLoc = null;
+/** Bumped when starting a new unpinned load or when switching to pinned — drops stale IP/GPS callbacks. */
+let weatherLoadGen = 0;
 /** @type {null | { lat: number, lon: number, label: string, shortLabel: string }} */
 let pendingPickerPlace = null;
 let searchHits = [];
@@ -182,6 +185,9 @@ async function fetchOpenMeteo(lat, lon) {
   const [fRes, aqRes] = await Promise.all([fetch(forecastUrl), fetch(aqUrl)]);
   if (!fRes.ok) throw new Error("Weather API unavailable");
   const forecast = await fRes.json();
+  if (forecast?.error || !forecast?.current || !forecast?.hourly || !forecast?.daily) {
+    throw new Error(forecast?.reason || "Weather API returned an incomplete forecast");
+  }
   const air = aqRes.ok ? await aqRes.json() : null;
   return { forecast, air };
 }
@@ -222,6 +228,10 @@ function applyEnvironment({ weatherCode, isDay }) {
 function renderHourly(hourly) {
   const list = qs("hourly-list");
   if (!list) return;
+  if (!hourly?.time?.length) {
+    list.innerHTML = `<div class="empty">Hourly forecast unavailable</div>`;
+    return;
+  }
   list.innerHTML = "";
   const nowIso = new Date().toISOString().slice(0, 13);
   let start = hourly.time.findIndex((t) => t.slice(0, 13) >= nowIso);
@@ -320,7 +330,7 @@ function renderInsights({ current, daily, pm25, soilMoisture, rainSoon, imdRow }
       });
     }
   }
-  if (current.relative_humidity_2m >= 80) {
+  if (typeof current.relative_humidity_2m === "number" && current.relative_humidity_2m >= 80) {
     items.push({
       cls: "warn",
       icon: "ri-virus-line",
@@ -568,21 +578,27 @@ async function renderWeatherForLoc(loc) {
   }
   if (curIcon) curIcon.innerHTML = `<i class="${weatherIcon(current.weather_code, current.is_day)}"></i>`;
 
-  qs("cur-hum").textContent = `${Math.round(current.relative_humidity_2m)}%`;
-  qs("cur-wind").textContent = `${Math.round(current.wind_speed_10m)} km/h`;
+  const curHum = qs("cur-hum");
+  const curWind = qs("cur-wind");
+  const curRain = qs("cur-rain");
+  const curUv = qs("cur-uv");
+  if (curHum) curHum.textContent = `${Math.round(current.relative_humidity_2m)}%`;
+  if (curWind) curWind.textContent = `${Math.round(current.wind_speed_10m)} km/h`;
   const rainNow = Array.isArray(hourly.precipitation_probability) ? Math.round(hourly.precipitation_probability[0]) : null;
-  qs("cur-rain").textContent = rainNow == null ? "--" : `${rainNow}%`;
-  qs("cur-uv").textContent = `${Math.round(daily.uv_index_max?.[0] || 0)}`;
+  if (curRain) curRain.textContent = rainNow == null ? "--" : `${rainNow}%`;
+  if (curUv) curUv.textContent = `${Math.round(daily.uv_index_max?.[0] || 0)}`;
 
   renderHourly(hourly);
   renderDays(imdSeries, daily);
 
   const vis = typeof current.visibility === "number" ? (current.visibility / 1000).toFixed(1) : "--";
-  qs("m-vis").textContent = `${vis}`;
+  const mVis = qs("m-vis");
+  if (mVis) mVis.textContent = `${vis}`;
 
   const aqH = air?.hourly || {};
   const pm25 = Array.isArray(aqH.pm2_5) ? aqH.pm2_5[0] : null;
-  qs("m-pm25").textContent = pm25 == null ? "--" : `${Math.round(pm25)}`;
+  const mPm = qs("m-pm25");
+  if (mPm) mPm.textContent = pm25 == null ? "--" : `${Math.round(pm25)}`;
   const aql = pm25Label(pm25);
   const aqiLabel = qs("m-aqi-label");
   if (aqiLabel) {
@@ -591,7 +607,8 @@ async function renderWeatherForLoc(loc) {
   }
 
   const hi = heatIndexC(current.temperature_2m, current.relative_humidity_2m);
-  qs("m-heat").textContent = hi == null ? "--" : `${Math.round(hi)}°`;
+  const mHeat = qs("m-heat");
+  if (mHeat) mHeat.textContent = hi == null ? "--" : `${Math.round(hi)}°`;
 
   const r3 = (hourly.precipitation_probability || []).slice(0, 3).reduce((a, b) => a + (b || 0), 0) / 3;
   const soilMoisture = Math.max(
@@ -603,7 +620,8 @@ async function renderWeatherForLoc(loc) {
       ),
     ),
   );
-  qs("m-soil").textContent = `${soilMoisture}%`;
+  const mSoil = qs("m-soil");
+  if (mSoil) mSoil.textContent = `${soilMoisture}%`;
 
   renderInsights({
     current,
@@ -641,28 +659,38 @@ async function renderWeatherForLoc(loc) {
 async function loadWeather() {
   const pinned = peekActiveWeatherLocation();
   if (pinned) {
+    weatherLoadGen++;
     await renderWeatherForLoc(pinned).catch((e) => console.error(e));
     return;
   }
 
-  let gpsWon = false;
-
-  // Phase 1 — IP region weather, instant (~0.5s), no permission needed
-  resolveLocationApprox().then(async (loc) => {
-    if (gpsWon) return;
-    await renderWeatherForLoc({ ...loc, source: "ip" }).catch(() => {});
-  }).catch(() => {});
-
-  // Phase 2 — exact GPS, upgrades when ready (up to ~15s)
+  const gen = ++weatherLoadGen;
+  let showed = false;
   try {
-    const loc = await resolveWeatherLocation();
-    if (loc.source !== "fallback" && loc.source !== "insecure-context") {
-      gpsWon = true;
-      await renderWeatherForLoc(loc);
-    }
+    const ipLoc = await resolveLocationApprox();
+    if (peekActiveWeatherLocation() || gen !== weatherLoadGen) return;
+    await renderWeatherForLoc({ ...ipLoc, source: "ip" });
+    showed = true;
   } catch (e) {
-    console.error("Weather GPS upgrade failed:", e);
+    console.warn("[weather] IP geo failed:", e?.message || e);
   }
+
+  resolveWeatherLocation()
+    .then(async (loc) => {
+      if (peekActiveWeatherLocation() || gen !== weatherLoadGen) return;
+      if (loc.source !== "fallback" && loc.source !== "insecure-context") {
+        await renderWeatherForLoc(loc);
+      } else if (!showed) {
+        await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" });
+      }
+    })
+    .catch(async (e) => {
+      console.error("Weather GPS upgrade failed:", e);
+      if (peekActiveWeatherLocation() || gen !== weatherLoadGen) return;
+      if (!showed) {
+        await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" });
+      }
+    });
 }
 
 function escapeHtml(str) {
@@ -824,7 +852,7 @@ function bindLocationPicker() {
   });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function initWeatherPage() {
   bindImdSetup();
   bindLocationPicker();
   startActiveLocationRemoteSync();
@@ -833,4 +861,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   const btn = qs("refresh-btn");
   btn?.addEventListener("click", () => loadWeather().catch(console.error));
-});
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initWeatherPage, { once: true });
+} else {
+  initWeatherPage();
+}

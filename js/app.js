@@ -287,6 +287,8 @@ function applyWcardTimeOfDay(wCard, phase, nowMs, sunriseIso, sunsetIso, isDayAp
 }
 
 let currentWeatherCache = null;
+/** Invalidates in-flight IP/GPS home weather when the user pins or reloads. */
+let homeWeatherLoadGen = 0;
 
 async function updateWeatherForLocation(city, lat, lon) {
     const weatherHeader = document.querySelector('.weather-header h3');
@@ -298,8 +300,14 @@ async function updateWeatherForLocation(city, lat, lon) {
     try {
         // Fetching real Meteorological Data (Current + Hourly + Daily) with Advanced Params
         const weatherResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,weather_code,surface_pressure,visibility,is_day&hourly=temperature_2m,precipitation_probability,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max&timezone=auto`);
+        if (!weatherResponse.ok) {
+            throw new Error(`Weather API HTTP ${weatherResponse.status}`);
+        }
         const weatherData = await weatherResponse.json();
-        
+        if (!weatherData || weatherData.error || !weatherData.current) {
+            throw new Error(weatherData?.reason || "Weather API returned no current conditions");
+        }
+
         currentWeatherCache = { city, data: weatherData };
         const current = weatherData.current;
         const desc = getWeatherDescription(current.weather_code);
@@ -829,43 +837,57 @@ function closeWeatherDetails() {
     document.getElementById('weather-details-modal').classList.add('hidden');
 }
 
-// Phase 1: IP region weather (~0.5s, no permission). Phase 2: upgrade to exact GPS when ready.
+// Phase 1: await IP geo (fast, reliable). Phase 2: upgrade with GPS when available. Fallback grid if both fail.
 async function loadHomeWeather() {
     try {
         const mod = await import('./weather-location.js');
         const { peekActiveWeatherLocation } = await import('./geo/active-location.js?v=1');
+        const { FALLBACK_LOC } = mod;
         const pinned = peekActiveWeatherLocation();
         if (pinned) {
+            homeWeatherLoadGen++;
             await updateWeatherForLocation(pinned.city, pinned.lat, pinned.lon);
             return;
         }
 
-        let gpsWon = false;
-
-        // Phase 1 — IP-based region, instant, no permission prompt
-        mod.resolveLocationApprox().then(async (loc) => {
-            if (gpsWon) return; // GPS already updated, skip
-            await updateWeatherForLocation(loc.city, loc.lat, loc.lon).catch(() => {});
-        }).catch(() => {});
-
-        // Phase 2 — exact GPS (runs in parallel, upgrades when ready)
-        const gpsLoc = await mod.resolveWeatherLocation().catch(() => null);
-        if (gpsLoc && gpsLoc.source !== "fallback" && gpsLoc.source !== "insecure-context") {
-            gpsWon = true;
-            mod.persistLocationDetails(gpsLoc);
-            await updateWeatherForLocation(gpsLoc.city, gpsLoc.lat, gpsLoc.lon);
-            // Sync exact location to Firestore (fire-and-forget)
-            import('./auth.js?v=32').then(({ auth, db }) => {
-                if (!auth.currentUser) return;
-                import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js').then(({ doc, setDoc, serverTimestamp }) => {
-                    setDoc(doc(db, "users", auth.currentUser.uid), {
-                        village: gpsLoc.city,
-                        locationDetails: { city: gpsLoc.city, lat: gpsLoc.lat, lon: gpsLoc.lon, source: gpsLoc.source },
-                        updatedAt: serverTimestamp(),
-                    }, { merge: true }).catch(() => {});
-                });
-            });
+        const gen = ++homeWeatherLoadGen;
+        let showed = false;
+        try {
+            const ipLoc = await mod.resolveLocationApprox();
+            if (peekActiveWeatherLocation() || gen !== homeWeatherLoadGen) return;
+            await updateWeatherForLocation(ipLoc.city, ipLoc.lat, ipLoc.lon);
+            showed = true;
+        } catch (e) {
+            console.warn("Home IP geo failed:", e?.message || e);
         }
+
+        mod.resolveWeatherLocation()
+            .then(async (gpsLoc) => {
+                if (peekActiveWeatherLocation() || gen !== homeWeatherLoadGen) return;
+                if (gpsLoc && gpsLoc.source !== "fallback" && gpsLoc.source !== "insecure-context") {
+                    mod.persistLocationDetails(gpsLoc);
+                    await updateWeatherForLocation(gpsLoc.city, gpsLoc.lat, gpsLoc.lon);
+                    import('./auth.js?v=32').then(({ auth, db }) => {
+                        if (!auth.currentUser) return;
+                        import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js').then(({ doc, setDoc, serverTimestamp }) => {
+                            setDoc(doc(db, "users", auth.currentUser.uid), {
+                                village: gpsLoc.city,
+                                locationDetails: { city: gpsLoc.city, lat: gpsLoc.lat, lon: gpsLoc.lon, source: gpsLoc.source },
+                                updatedAt: serverTimestamp(),
+                            }, { merge: true }).catch(() => {});
+                        });
+                    });
+                } else if (!showed) {
+                    await updateWeatherForLocation(FALLBACK_LOC.city, FALLBACK_LOC.lat, FALLBACK_LOC.lon);
+                }
+            })
+            .catch(async (e) => {
+                console.warn("Home GPS location failed:", e?.message || e);
+                if (peekActiveWeatherLocation() || gen !== homeWeatherLoadGen) return;
+                if (!showed) {
+                    await updateWeatherForLocation(FALLBACK_LOC.city, FALLBACK_LOC.lat, FALLBACK_LOC.lon);
+                }
+            });
     } catch (e) {
         console.warn("Home weather load failed:", e);
     }
