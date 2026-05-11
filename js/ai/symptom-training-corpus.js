@@ -9,13 +9,14 @@ import { farmContextEmptyLead } from "./epistemic-policy.js?v=2";
 /**
  * @param {string} id stable key for rotation bucket
  * @param {RegExp} re
- * @param {string} a
- * @param {string} [b]
+ * @param {...string} variants at least one string; duplicates last if only one
  * @returns {{ id: string, re: RegExp, variants: string[] }}
  */
-function v(id, re, a, b) {
-    const variants = b ? [a, b] : [a, a];
-    return { id, re, variants };
+function v(id, re, ...variants) {
+    const v0 = variants.filter((x) => typeof x === "string" && x.trim());
+    if (v0.length === 0) return { id, re, variants: [""] };
+    if (v0.length === 1) return { id, re, variants: [v0[0], v0[0]] };
+    return { id, re, variants: v0 };
 }
 
 /** @type {{ id: string, re: RegExp, variants: string[] }[]} */
@@ -547,6 +548,8 @@ const SYMPTOM_RULES = [
         /\b(improved|better)\b.*\b(airflow|air\s+flow|ventilation)|\b(airflow|air\s+flow)\b.*\b(increased|better)\b/i,
         "Better airflow can sometimes reduce moisture-related stress around leaves.",
         "Moving air dries canopies faster — did humidity drop or did you open canopy spacing?",
+        "Better airflow can reduce moisture buildup around leaves and improve plant comfort.",
+        "When the field perks up as air picks up, leaf wetness hours often drop — any canopy or row-spacing change?",
     ),
     v(
         "no_guesses_wanted",
@@ -631,6 +634,294 @@ const SYMPTOM_RULES = [
         /\b(condition|field)\b.*\b(chang(e|ing)|shifts?)\b.*\b(every\s+day|daily)|\bdaily\b.*\b(chang|shift)\b/i,
         "Rapid environmental shifts can create fluctuating stress behavior across crops.",
         "Day-to-day whiplash usually means unstable moisture or weather — any irrigation or rain yo-yo pattern?",
+    ),
+    v(
+        "softer_leaves",
+        /\bleaves?\b.*\b(getting\s+)?softer\b|\bsofter\b.*\bleaves?|\bsoft\s+leaves?\b/i,
+        "Soft leaves can sometimes appear when plants are under prolonged moisture or environmental stress.",
+        "A softer hand-feel can track with too much water, low oxygen roots, or long-run stress — any soggy lows?",
+    ),
+    v(
+        "weaker_after_cloudy",
+        /\b(weaker|weak)\b.*\bcloudy\b|\bcloudy\b.*\b(weather|days|spell)\b.*\b(weaker|weak|field)/i,
+        "Reduced sunlight for extended periods can sometimes slow plant vigor and recovery.",
+        "Gray stretches cut photosynthate — if it’s been dim for days, expect a flatter canopy until sun returns.",
+    ),
+    v(
+        "stem_color_change",
+        /\bstems?\b.*\b(chang(ing)?\s+color|discolor|colour)|\b(color|colour)\b.*\bstems?\b/i,
+        "Stem discoloration can have several causes. Is it localized or spreading across the field?",
+        "Stem tone shifts can be environmental, vascular, or injury — random plants or whole rows?",
+    ),
+    v(
+        "less_active_lately",
+        /\b(less\s+active|not\s+as\s+active|sluggish|low\s+energy)\b.*\b(lately|recent)|\b(seems?\s+less\s+active)\b/i,
+        "Lower vigor can happen after weather instability, moisture imbalance, or prolonged stress.",
+        "When the crop feels ‘quiet,’ stack weather swings + water + anything you changed in the last week.",
+    ),
+    v(
+        "strong_morning_weak_afternoon",
+        /\b(healthy|fine|good)\b.*\b(morning)\b.*\b(weak|worse|bad)\b.*\b(later|afternoon)|\b(morning)\b.*\b(healthy|fine)\b.*\b(afternoon)\b.*\b(weak|worse)/i,
+        "Heat and midday evaporation stress can sometimes cause that pattern.",
+        "AM perk + PM sag is classic transpiration load — does soil moisture hold, or does the block dry fast?",
+    ),
+    v(
+        "flowering_issues",
+        /\b(not\s+)?flowering\b.*\b(proper|right|well|normally)|\b(flowers?|bloom|blossom)\b.*\b(issue|problem|poor|off)\b/i,
+        "Flowering issues can sometimes relate to environmental stress or unstable growing conditions.",
+        "Reproductive stages hate stress + erratic moisture — any recent heat, cloud, or N shift around bloom?",
+    ),
+    v(
+        "areas_dry_faster",
+        /\b(areas?|parts?|zones?)\b.*\b(dry|dries)\b.*\b(faster|sooner|quickly)|\bdry\s+faster\b.*\b(field|patch)/i,
+        "Uneven drying patterns may point toward soil variation or irrigation inconsistency.",
+        "Fast-dry pockets often echo sandier soil, slope, or emitter flow — does it line up with terrain?",
+    ),
+    v(
+        "more_fragile",
+        /\b(more\s+)?fragile\b|\bfragility\b|\bbrittle\b.*\b(crop|plants?|canopy)\b/i,
+        "Fragility can appear when plants are stressed for extended periods.",
+        "Brittle feel can mean long-run stress or tissue desiccation — any mites, wind, or chem pass recently?",
+    ),
+    v(
+        "slow_recovery_positive",
+        /\b(slowly|gradually)\s+recover|\bthink\b.*\b(field|crop)\b.*\b(slowly\s+)?recover|\brecover(y|ing)\b.*\b(slow|gradual)\b.*\b(positive|good)/i,
+        "Gradual recovery is usually a positive sign, especially if stress conditions are stabilizing.",
+        "Slow but steady often beats a fake snap-back — are symptoms still worsening, or just lingering?",
+    ),
+    v(
+        "losing_shine",
+        /\b(los(e|ing)|lost)\b.*\b(shine|gloss|sheen)|\b(dull(er)?)\b.*\b(leaves?|canopy)\b/i,
+        "Reduced leaf vitality can sometimes appear during environmental or nutrient stress.",
+        "When gloss drops, check both moisture and feeding — any pale veins or mottling with it?",
+    ),
+    v(
+        "quick_change_temp_rise",
+        /\b(changed|shifted)\b.*\b(quickly|fast)\b.*\b(temp|temperature|heat)|\b(temp|temperature)\b.*\b(rise|rose|spike|jump)/i,
+        "Sudden temperature increases can stress plants faster than gradual seasonal changes.",
+        "A sharp heat ramp loads transpiration fast — did night lows also jump, or only daytime highs?",
+    ),
+    v(
+        "uneven_recovery_after_rain",
+        /\b(uneven|patchy)\b.*\brecover.*\b(rain|rainfall)|\brain\b.*\b(uneven|patchy)\b.*\brecover/i,
+        "Uneven drainage or soil conditions can affect recovery rates across the field.",
+        "Patchy bounce after rain screams drainage texture — do lows stay spongy while highs firm up?",
+    ),
+    v(
+        "symptoms_one_side",
+        /\b(one\s+side|near\s+one\s+side|one\s+edge)\b.*\b(field|plot)\b.*\b(symptom)|\b(symptom)\b.*\b(one\s+side|one\s+edge|half\s+the\s+field)/i,
+        "Localized patterns may reflect irrigation flow, soil variation, or environmental exposure.",
+        "One-sided patterns love spray drift, prevailing wind, or pivot overlap — any of those line up?",
+    ),
+    v(
+        "stiff_leaves",
+        /\bstiff(er|ness)?\b.*\bleaves?|\bleaves?\b.*\bstiff/i,
+        "Leaf stiffness can happen during dehydration or environmental stress conditions.",
+        "Rigid leaves can be drought defense or salt/osmotic stress — is tissue thick and waxy or papery?",
+    ),
+    v(
+        "greener_patches_only",
+        /\b(greener|more\s+green)\b.*\b(patches?|only|spots?)|\b(patchy)\b.*\b(green|greener)\b/i,
+        "Patchy vigor often suggests uneven moisture, nutrients, or soil structure.",
+        "Greener islands often sit where water or N lingers — any overlap with low spots or overlaps?",
+    ),
+    v(
+        "weaker_near_edges",
+        /\b(weaker|worse)\b.*\b(near\s+)?(edges?|headlands?|borders?)|\b(edges?)\b.*\b(weaker|worse|stressed)\b/i,
+        "Edge exposure to wind, heat, or runoff can sometimes create extra stress.",
+        "Headlands see wind, spray turns, and traffic — does the weak strip hug the boundary?",
+    ),
+    v(
+        "improved_after_temp_dropped",
+        /\b(improved|better)\b.*\b(temp(eratures?)?|heat)\b.*\b(dropped|fell|lowered|cool)|\b(temp|temperature)\b.*\b(dropped|fell)\b.*\b(improved|better)/i,
+        "Cooler conditions can reduce environmental pressure and help stabilize crop stress.",
+        "A break in heat load often steadies transpiration — did nights cool first, or days too?",
+    ),
+    v(
+        "different_from_last_season",
+        /\b(last\s+season|previous\s+season|year)\b.*\b(different|react|compare)|\b(react(ing|s)?)\b.*\b(different(ly)?)\b.*\b(last|than)/i,
+        "Seasonal weather variation alone can significantly change crop behavior.",
+        "Year-to-year shifts in rain/heat windows change stress timing — anything new in rotation or variety?",
+    ),
+    v(
+        "stress_building_gradually",
+        /\b(stress)\b.*\b(build(ing)?|accumulat|building\s+up|gradual)/i,
+        "Slow stress accumulation can sometimes be harder to notice early on.",
+        "Creep stress sneaks in with small daily misses on water or heat — when did you first sense a change?",
+    ),
+    v(
+        "thinner_leaves_after_heat",
+        /\b(thinner|thin)\b.*\bleaves?\b.*\b(heat|after\s+heat)|\bheat\b.*\b(thinner|thin)\b.*\bleaves?/i,
+        "Heat stress can affect leaf structure and moisture retention.",
+        "Heat-thinned blades often come with high VPD — did nights stay warm with low RH?",
+    ),
+    v(
+        "slower_after_heavy_rain",
+        /\b(slower|slow|sluggish)\b.*\b(heavy\s+rain|lots?\s+of\s+rain|prolonged\s+rain)|\bheavy\s+rain\b.*\b(slower|weak)/i,
+        "Excessive rainfall can temporarily weaken root activity and oxygen availability.",
+        "Saturated roots back off on uptake — any standing water or sour soil smell after the wet spell?",
+    ),
+    v(
+        "soil_cracking_fast",
+        /\b(soil|ground|surface)\b.*\b(crack|cracking)\b|\bcrack(ing)?\b.*\b(fast|quick|rapid|quickly)\b/i,
+        "Fast surface cracking often suggests rapid moisture loss or dry conditions.",
+        "Quick crusting usually means fast dry-down or fine texture — any wind + heat combo lately?",
+    ),
+    v(
+        "stress_after_irrigation_change",
+        /\b(stressed|stress)\b.*\b(irrigation|watering)\b.*\b(chang|changed|shift)|\b(irrigation|watering)\b.*\b(chang|changed).*\b(stress)/i,
+        "Crops can react noticeably to sudden watering schedule changes.",
+        "A schedule jolt changes wet/dry cycles roots expect — was the change big on frequency or depth?",
+    ),
+    v(
+        "unusual_color_variation",
+        /\bunusual\b.*\b(color|colour)\b.*\b(variation|variance|pattern|striping)/i,
+        "Color inconsistency can reflect environmental or nutritional imbalance.",
+        "Odd striping or mottling needs a second signal — any fert overlap, spray track, or sand streak?",
+    ),
+    v(
+        "responding_differently_after_treatment",
+        /\b(respond(ing|s)?)\b.*\b(different(ly)?|varies|varied)\b.*\b(treatment|spray)|\b(after\s+treatment)\b.*\b(different|varies)\b/i,
+        "Variation in response may reflect uneven stress levels or environmental differences.",
+        "Patchy response to the same pass often means coverage, stage, or underlying stress differs by zone.",
+    ),
+    v(
+        "stronger_before_humidity",
+        /\b(stronger|better|looked\s+stronger)\b.*\b(before)\b.*\b(humidity)|\b(humidity)\b.*\b(increased|rose|went\s+up)\b.*\b(weaker|worse|crop)/i,
+        "High humidity can increase environmental pressure on leaves and recovery processes.",
+        "If vigor slid as humidity climbed, leaf wetness hours and fungal risk deserve a look.",
+    ),
+    v(
+        "drooping_wet_soil",
+        /\bdroop(ing|y)?\b.*\b(despite|even\s+though|with)\b.*\b(wet|moist|soggy)\s+soil|\b(wet|moist)\s+soil\b.*\bdroop/i,
+        "Stress can still occur in overly wet conditions if roots struggle to function properly.",
+        "Wet + wilting screams roots/oxygen or vascular hit — any compaction, recent anaerobic stretch, or herbicide timing?",
+    ),
+    v(
+        "field_overheating",
+        /\b(overheat|overheating|too\s+hot|scorching)\b.*\b(field|crop|canopy)|\b(field|crop)\b.*\b(too\s+hot|overheat)/i,
+        "Excessive heat can affect moisture retention and plant stability quickly.",
+        "Heat overload raises VPD fast — any irrigation gaps on the hottest afternoons?",
+    ),
+    v(
+        "weaker_after_windy",
+        /\b(weaker|worse|beat\s+up)\b.*\b(windy|wind)\b|\b(wind(y)?\s+days?)\b.*\b(weaker|stress)/i,
+        "Wind can increase water loss and physical stress on plants.",
+        "Windy stretches strip leaf water and sandblast tissue — did damage hug exposed rows?",
+    ),
+    v(
+        "sensitive_to_weather_swings",
+        /\b(react|reacts|reacting)\b.*\b(strongly|a\s+lot)\b.*\b(weather|rain|heat)|\b(highly|very)\s+sensitive\b.*\b(weather|changes)\b/i,
+        "Some crops are highly sensitive to sudden environmental variation.",
+        "Weather-reactive canopies need steadier water timing — any big ET swings without matching irrigation?",
+    ),
+    v(
+        "uneven_leaf_size",
+        /\b(leaves?|leaf)\b.*\b(uneven|different)\b.*\b(size|sizes)|\b(uneven)\b.*\b(leaf\s+size|growth)\b/i,
+        "Uneven growth can sometimes reflect inconsistent environmental conditions.",
+        "Mixed leaf sizes often echo patchy water/N or pest pressure — random or row-structured?",
+    ),
+    v(
+        "improved_reduced_irrigation",
+        /\b(improved|better)\b.*\b(reduc(ing|ed)|less)\b.*\b(irrigation|watering)|\b(cut\s+back)\b.*\b(water|irrigation).*\b(better|improved)/i,
+        "That may suggest excess moisture was contributing to stress.",
+        "If dialing water back helped, wet feet or hypoxia may have been in play — any low spots that stayed spongy?",
+    ),
+    v(
+        "stress_humid_streak",
+        /\b(humid|humidity)\b.*\b(consecutive|several|many)\b.*\b(days)|\b(more\s+stress)\b.*\b(humid)/i,
+        "Persistent humidity can increase environmental pressure over time.",
+        "Humid runs stack leaf wetness — are mornings still damp when the sun hits?",
+    ),
+    v(
+        "weaker_after_standing_water",
+        /\b(weaker|worse)\b.*\b(standing\s+water|ponding)|\b(standing\s+water|ponding)\b.*\b(weaker|after)/i,
+        "Extended water exposure can affect root oxygen and plant stability.",
+        "After ponding, roots need air time — how long until the surface firms and color steadies?",
+    ),
+    v(
+        "healthier_sunlight_returned",
+        /\b(healthier|better|improved)\b.*\b(sun(light)?|sunshine)\b|\b(sun(light)?|sunshine)\b.*\b(returned|came\s+back|more)\b/i,
+        "Better sunlight conditions can improve vigor and recovery activity.",
+        "More photons usually lift carbohydrate flow — did the gray spell break suddenly or gradually?",
+    ),
+    v(
+        "environmental_pressure",
+        /\b(under\s+)?environmental\s+pressure\b|\b(environment)\b.*\b(pressure|stress)\b.*\b(crop|field)/i,
+        "Weather and moisture conditions can absolutely create visible stress responses.",
+        "Environmental load stacks heat + water + humidity — which of those moved most this week?",
+    ),
+    v(
+        "one_corner_struggling",
+        /\b(one\s+corner|single\s+corner|corner\s+only)\b.*\b(struggl|weak|bad)|\b(struggl)\b.*\b(one\s+corner)\b/i,
+        "Localized issues often point toward soil, drainage, or irrigation differences.",
+        "One-corner pain often maps to a dead sprinkler, low head, or wet pocket — does it match a map quirk?",
+    ),
+    v(
+        "curl_downward",
+        /\b(curl(ing)?|cup(ing)?)\b.*\b(downward|downwards|down)\b|\bdownward\b.*\bcurl/i,
+        "Downward curling can happen during moisture imbalance or environmental stress.",
+        "Down-roll can conserve water under VPD — compare soil moisture to leaf feel morning vs afternoon.",
+    ),
+    v(
+        "condition_changes_afternoon",
+        /\b(condition|crop|field)\b.*\b(chang|shift)\b.*\b(every\s+)?afternoon|\bafternoon\b.*\b(chang|different)\b.*\b(each\s+)?day/i,
+        "Heat load and evaporation stress tend to peak later in the day.",
+        "If the field story resets each PM, look at irrigation catch-up vs peak ET — are sets ending too early?",
+    ),
+    v(
+        "inconsistent_recovery_patterns",
+        /\b(inconsistent|patchy|uneven)\b.*\brecover(y|ing|ed)?\b.*\b(pattern|across)|\brecover(y|ing)\b.*\b(inconsistent|uneven)\b/i,
+        "Uneven recovery is common when conditions vary across the field.",
+        "Zebra recovery usually echoes soil/water — does better ground track elevation or pivot overlap?",
+    ),
+    v(
+        "weaker_repeated_rain",
+        /\b(weaker|worse|stress)\b.*\b(repeated|multiple|several)\b.*\b(rain|rainfall)|\b(rain)\b.*\b(again\s+and\s+again|keeps?\s+coming)\b/i,
+        "Repeated rainfall can increase prolonged stress around roots and leaves.",
+        "Back-to-back wet cycles keep tissues wet — any lesions or root smell after the last spell?",
+    ),
+    v(
+        "symptoms_irrigation_timing",
+        /\b(symptom)\b.*\b(irrigation|watering)\b.*\b(timing|schedule)\b|\b(irrigation|watering)\b.*\b(timing)\b.*\b(symptom|after)/i,
+        "Watering schedule shifts can sometimes affect crop stability noticeably.",
+        "If symptoms track a timer change, compare set length vs ET and infiltration — any runoff after sets?",
+    ),
+    v(
+        "stressed_still_after_treatment",
+        /\b(still)\b.*\b(stressed|bad|off)\b.*\b(treatment|spray)|\b(after\s+treatment)\b.*\b(still\s+stressed|still\s+looks)/i,
+        "That may mean either recovery is still ongoing or the root stress remains unresolved.",
+        "Persistent stress post-treatment needs a second lens: wrong target, coverage, or the driver still active?",
+    ),
+    v(
+        "losing_leaf_structure",
+        /\b(los(e|ing)|lost)\b.*\b(structure|turgor|rigidity)|\b(weakening)\b.*\b(leaf|leaves)\b.*\b(structure)/i,
+        "Weakening leaf structure can happen under prolonged environmental strain.",
+        "Structure loss often pairs with chronic moisture or nutrient drain — any stippling or edge burn too?",
+    ),
+    v(
+        "sensitive_this_season",
+        /\b(sensitive|touchy)\b.*\b(this\s+season|season)|\b(this\s+season)\b.*\b(sensitive|stress)\b/i,
+        "Environmental variability this season may be increasing crop stress responses.",
+        "A touchy season usually stacks odd weather — compare this year’s rain/heat curve to last.",
+    ),
+    v(
+        "improved_drainage_cleared",
+        /\b(improved|better)\b.*\b(drainage)\b|\b(drainage)\b.*\b(cleared|opened|fixed|improved)\b/i,
+        "Better drainage can reduce prolonged moisture stress significantly.",
+        "When water finally moves, roots breathe — did low spots firm up before you saw color lift?",
+    ),
+    v(
+        "different_from_nearby_fields",
+        /\b(nearby|neighbor(u)?ring|adjacent)\b.*\b(fields?)\b|\b(different(ly)?)\b.*\b(than|from)\b.*\b(nearby|neighbor)/i,
+        "Field-specific conditions like soil, irrigation, or microclimate can create different outcomes.",
+        "If neighbors look better, microclimate, soil, or water timing usually differs — any obvious contrast?",
+    ),
+    v(
+        "trying_not_overreact",
+        /\b(trying\s+not\s+to|don'?t\s+want\s+to)\s+overreact|\bnot\s+overreact/i,
+        "That’s a good approach. Careful observation usually leads to better decisions than rushing conclusions.",
+        "Measured beats panicked — note one symptom photo + one soil moisture read, then decide the next step.",
     ),
 ];
 
