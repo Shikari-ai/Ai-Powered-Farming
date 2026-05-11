@@ -4,6 +4,8 @@
  */
 import { detectIntents } from "./detect-intents.js";
 import { pickRotated } from "./conversation-naturals.js?v=48";
+import { farmContextEmptyLead } from "./epistemic-policy.js?v=2";
+import { matchSymptomTrainingReply } from "./symptom-training-corpus.js?v=73";
 
 const AGRI_TOKEN =
     /\b(field|fields|farm|farms|crop|crops|scans?|pest|pests|disease|diseases|fungal|blight|rust|mildew|rot|aphid|thrips|nematode|irrigation|irrigat|spray|fungicide|pesticide|herbicide|rain|humidity|weather|soil|moisture|yield|harvest|acre|hectare|nitrogen|fertil|deficien|tomatoes?|potatoes?|wheat|rice|corn|maize|cotton|soy|canopy|ndvi|scouting)\b/i;
@@ -237,59 +239,78 @@ function isCasualMessage(raw) {
     return false;
 }
 
-export function buildMicroSocialAssistantReply(text) {
+export function buildMicroSocialAssistantReply(text, ctx = {}) {
     const raw = String(text || "").trim();
     const t = normMicroText(raw).toLowerCase();
+    const fc = typeof ctx.fieldCount === "number" ? ctx.fieldCount : 0;
+    const sc = typeof ctx.scanCount === "number" ? ctx.scanCount : 0;
+
+    const thinFarmNote = () =>
+        fc === 0 && sc === 0 && AGRI_TOKEN.test(raw)
+            ? " " +
+              pickRotated("micro_thin_data", [
+                  "(No fields or scans on file—I’m keeping this generic.)",
+                  "(I don’t have saved farm snapshots yet—take that as general reassurance.)",
+              ])
+            : "";
 
     if (/^(bye|goodbye|cya|see\s*you|later|ttyl)\b/.test(t)) {
-        return pickRotated("micro_bye", [
-            "Take care.",
-            "Later.",
-            "Catch you later.",
-            "Sounds good — bye for now.",
-            "All right — talk soon.",
-        ]);
+        return (
+            pickRotated("micro_bye", [
+                "Take care.",
+                "Later.",
+                "Catch you later.",
+                "Sounds good — bye for now.",
+                "All right — talk soon.",
+            ]) + thinFarmNote()
+        );
     }
     if (/^(thanks|thank|thx|ty|much\s+appreciated)\b/.test(t) || t.includes("🙏")) {
-        return pickRotated("micro_thanks", [
-            "Anytime.",
-            "You got it.",
-            "Happy to help.",
-            "Glad it helped.",
-            "Of course.",
-            "Sure thing.",
-        ]);
+        return (
+            pickRotated("micro_thanks", [
+                "Anytime.",
+                "You got it.",
+                "Happy to help.",
+                "Glad it helped.",
+                "Of course.",
+                "Sure thing.",
+            ]) + thinFarmNote()
+        );
     }
     if (/^(ok{1,3}|okay|\bk\b|^k\.|cool|nice|great|perfect|awesome|sweet|rad)\b/.test(t)) {
-        return pickRotated("micro_ok", [
-            "Sounds good.",
-            "Got it.",
-            "Cool.",
-            "Okay — I’m here.",
-            "Nice.",
-            "Right on.",
-        ]);
+        return (
+            pickRotated("micro_ok", [
+                "Sounds good.",
+                "Got it.",
+                "Cool.",
+                "Okay — I’m here.",
+                "Nice.",
+                "Right on.",
+            ]) + thinFarmNote()
+        );
     }
     if (/^(sure|righto|yep|yup|ya\b|alright|roger)\b/.test(t)) {
-        return pickRotated("micro_sure", ["Got it.", "Okay.", "Roger that.", "Understood.", "On it."]);
+        return pickRotated("micro_sure", ["Got it.", "Okay.", "Roger that.", "Understood.", "On it."]) + thinFarmNote();
     }
     if (/^(sounds?\s*good|makes\s+sense|got\s*it|\bi\s*hear\s*you|fair\s+enough|^fair\b|^word\b)\b/.test(t)) {
-        return pickRotated("micro_ack", ["Yep.", "Agreed.", "Makes sense.", "Copy that.", "Noted."]);
+        return pickRotated("micro_ack", ["Yep.", "Agreed.", "Makes sense.", "Copy that.", "Noted."]) + thinFarmNote();
     }
     if (/^(no\s+(problem|worries)|^np\b|^cheers\b|^nm\b|not\s+much\b)\b/.test(t)) {
-        return pickRotated("micro_np", [
-            "Likewise.",
-            "All good.",
-            "Anytime.",
-            "Cheers.",
-            "Cool — here if you need anything.",
-        ]);
+        return (
+            pickRotated("micro_np", [
+                "Likewise.",
+                "All good.",
+                "Anytime.",
+                "Cheers.",
+                "Cool — here if you need anything.",
+            ]) + thinFarmNote()
+        );
     }
     if (/^(yeah|yep)\s*[,.]?\s*(thanks|thx)\b/.test(t) || /^(thanks|thank|thx|ty)\s*[!.]*$/i.test(t)) {
-        return pickRotated("micro_thanks_short", ["Anytime.", "You bet.", "Happy to.", "Sure thing."]);
+        return pickRotated("micro_thanks_short", ["Anytime.", "You bet.", "Happy to.", "Sure thing."]) + thinFarmNote();
     }
 
-    return pickRotated("micro_fallback", ["Sure thing.", "I’m here.", "Okay."]);
+    return pickRotated("micro_fallback", ["Sure thing.", "I’m here.", "Okay."]) + thinFarmNote();
 }
 
 /**
@@ -317,6 +338,13 @@ export function buildCasualAssistantReply(text, ctx = {}) {
     }
 
     if (POSITIVE_CHECKIN.test(t) && AGRI_TOKEN.test(t) && t.length < 200) {
+        if (fc === 0 && sc === 0) {
+            return pickRotated("pos_farm_thin", [
+                "That’s great to hear—I don’t have fields or scans on file yet, so I’m cheering from general patterns only.",
+                "Nice progress. Without saved farm snapshots I can’t tie it to your rows, but glad things look better.",
+                "Love hearing that. Add a field + scan when you can so follow-ups stay specific.",
+            ]);
+        }
         return pickRotated("pos_farm", [
             "That’s great to hear — sounds like things are moving in a good direction.",
             "Nice — glad it’s looking better out there.",
@@ -416,11 +444,16 @@ export function buildCasualAssistantReply(text, ctx = {}) {
  * @param {{ fieldCount?: number, scanCount?: number }} ctx
  */
 export function buildVagueSymptomReply(text, ctx = {}) {
+    const trained = matchSymptomTrainingReply(text, ctx);
+    if (trained) return trained;
+
     const sc = typeof ctx.scanCount === "number" ? ctx.scanCount : 0;
     const photoHint = sc ? "If you have a clear leaf photo, attach it next — that helps a lot." : "A saved scan or a clear leaf photo makes the next step much easier.";
-    return pickRotated("vague_sym", [
+    const lead = farmContextEmptyLead(ctx);
+    const body = pickRotated("vague_sym", [
         `Hmm — what are you noticing exactly? Yellowing, spots, wilting, holes, or something else? ${photoHint}`,
         `Got it. Can you narrow it down — color change, texture, pattern on the leaf, or spread in the row? ${photoHint}`,
         `Tell me a bit more about “off”: where on the plant, how fast it showed up, and the crop? ${photoHint}`,
     ]);
+    return lead ? `${lead}${body}` : body;
 }

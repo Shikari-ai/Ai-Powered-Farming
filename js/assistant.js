@@ -19,7 +19,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import { runAgriOrchestrator } from "./ai/orchestrator.js?v=71";
-import { attachSnapshotForReply, composeAssistantReply, composeOperationsSnapshotReply } from "./ai/assistant-reply.js?v=69";
+import { attachSnapshotForReply, composeAssistantReply, composeOperationsSnapshotReply } from "./ai/assistant-reply.js?v=70";
 import { getAiConfig } from "./ai/config.js?v=69";
 import {
   buildProactiveDigest,
@@ -33,7 +33,7 @@ import {
   buildMicroSocialAssistantReply,
   buildVagueSymptomReply,
   classifyAssistantRouting,
-} from "./ai/assistant-intent-router.js?v=53";
+} from "./ai/assistant-intent-router.js?v=55";
 import {
   detectConversationMood,
   polishFarmReportProse,
@@ -489,7 +489,7 @@ onAuthStateChanged(auth, (user) => {
       let reply = "";
 
       if (routing.mode === "micro_social") {
-        reply = buildMicroSocialAssistantReply(text);
+        reply = buildMicroSocialAssistantReply(text, { fieldCount: fields.length, scanCount: scans.length });
         orch = null;
       } else if (routing.mode === "casual") {
         reply = buildCasualAssistantReply(text, { fieldCount: fields.length, scanCount: scans.length });

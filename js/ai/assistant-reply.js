@@ -1,5 +1,11 @@
 import { tsToMs } from "./farmer-context.js?v=34";
 import { softenOverclaimProse } from "./reliability/core.js";
+import {
+    allowDefiniteDiseaseClaims,
+    buildUncertaintyPreamble,
+    EPISTEMIC_PHRASES,
+    shouldFrameActionsProvisional,
+} from "./epistemic-policy.js?v=2";
 import { buildConversationalBridge } from "./internal-conversational-bridge.js?v=69";
 import { peekRecentAssistantOpenings, pickRotated } from "./conversation-naturals.js?v=48";
 import { summarizeOperationsAnalytics } from "../ops/effectiveness.js";
@@ -181,6 +187,10 @@ function composeMinimalAgriReply(question, orch, profile, extra = {}) {
     if (Array.isArray(orch.degradedHints) && orch.degradedHints.length) {
         lines.push(softenAlarmistProse("Note: " + orch.degradedHints.slice(0, 2).join(" "), profile));
     }
+    const minimalPre = buildUncertaintyPreamble({ snapshot: orch.snapshot, orch, question: q });
+    if (minimalPre) {
+        lines.push(minimalPre);
+    }
     if (r.weatherIntelligence && !r.weatherIntelligence.error) {
         const w = r.weatherIntelligence;
         const rd = w.readings || {};
@@ -214,7 +224,9 @@ function composeMinimalAgriReply(question, orch, profile, extra = {}) {
     }
 
     const out = lines.filter(Boolean).join("\n\n").trim();
-    return softenOverclaimProse(out || "Ask a longer question when you want the full farm breakdown.");
+    return softenOverclaimProse(out || "Ask a longer question when you want the full farm breakdown.", {
+        allowDefiniteDisease: allowDefiniteDiseaseClaims(orch),
+    });
 }
 
 /**
@@ -254,7 +266,7 @@ export function composeOperationsSnapshotReply(question, snapshot, companionProf
             "If you need scenario or twin contrast, mention simulation or “what if” and I’ll bring that stage in.",
         ]),
     );
-    return softenOverclaimProse(lines.filter(Boolean).join("\n").trim());
+    return softenOverclaimProse(lines.filter(Boolean).join("\n").trim(), { allowDefiniteDisease: false });
 }
 
 /**
@@ -299,6 +311,16 @@ export function composeAssistantReply(
         lines.push("");
     }
 
+    const uncertaintyPreamble = buildUncertaintyPreamble({
+        snapshot: orch.snapshot,
+        orch,
+        question: q,
+    });
+    if (uncertaintyPreamble) {
+        lines.push(uncertaintyPreamble);
+        lines.push("");
+    }
+
     const bridge = buildConversationalBridge(q, orch, {
         compact,
         replyVerbosity,
@@ -328,9 +350,17 @@ export function composeAssistantReply(
             if (hl.length) lines.push(`Logged symptoms: ${hl.join(", ")}.`);
             lines.push("");
         } else {
-            lines.push(
-                "No vision-model or saved scan diagnosis yet. Use Scanner to log symptoms, or deploy the `/v1/vision/disease` service for image labels."
-            );
+            const hl = latest?.observedSymptoms || latest?.selectedSymptoms || [];
+            if (Array.isArray(hl) && hl.length) {
+                lines.push(`Logged symptoms on the latest saved scan (no diagnosis label yet): ${hl.join(", ")}.`);
+                lines.push(
+                    "Use Scanner or vision when you want a named hypothesis—below stays environmental and advisory.",
+                );
+            } else {
+                lines.push(
+                    "No vision-model or saved scan diagnosis yet. Use Scanner to log symptoms, or deploy the `/v1/vision/disease` service for image labels.",
+                );
+            }
             lines.push("");
         }
     }
@@ -515,7 +545,8 @@ export function composeAssistantReply(
     }
 
     if (r.recommendations?.actions?.length) {
-        lines.push("Prioritized actions:");
+        const prov = shouldFrameActionsProvisional(orch, orch.snapshot);
+        lines.push(prov ? EPISTEMIC_PHRASES.provisionalActionsHeader : "Prioritized actions:");
         const maxA = compact ? 2 : profile?.explanationStyle === "concise" ? 2 : 4;
         for (const a of r.recommendations.actions.slice(0, maxA)) {
             const c =
@@ -593,7 +624,9 @@ export function composeAssistantReply(
         lines.push("\nSay **more depth** anytime if you want the full engine pass.");
     }
 
-    return softenOverclaimProse(lines.filter(Boolean).join("\n").trim());
+    return softenOverclaimProse(lines.filter(Boolean).join("\n").trim(), {
+        allowDefiniteDisease: allowDefiniteDiseaseClaims(orch),
+    });
 }
 
 /**
