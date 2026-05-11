@@ -281,6 +281,27 @@ onAuthStateChanged(auth, (user) => {
   const listEl = el("assistant-messages");
   document.body.classList.add("assistant-page");
 
+  // ── Mobile keyboard: keep fixed header pinned to the visible top ──
+  // On iOS Safari (and older Android browsers) when the keyboard opens,
+  // the layout viewport stays full-height but the *visual* viewport
+  // shrinks. A `position: fixed; top: 0` element then sits at the top
+  // of the (now-hidden) layout viewport — out of the user's view. Use
+  // VisualViewport.offsetTop to glue the header to whatever the user
+  // can actually see, and `--vv-offset-top` so other fixed elements
+  // can pin to it too if needed.
+  const headerEl = document.querySelector("header.header");
+  const vv = window.visualViewport;
+  if (headerEl && vv) {
+    const sync = () => {
+      const top = Math.max(0, Math.round(vv.offsetTop));
+      headerEl.style.top = top + "px";
+      document.documentElement.style.setProperty("--vv-offset-top", top + "px");
+    };
+    vv.addEventListener("resize", sync);
+    vv.addEventListener("scroll", sync);
+    sync();
+  }
+
   const emptyEl = el("assistant-empty");
   const inputEl = el("assistant-input");
   inputEl?.addEventListener("focus", () => document.body.classList.add("assistant-composer-focus"));

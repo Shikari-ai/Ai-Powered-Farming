@@ -20,7 +20,12 @@
       if (head) head.insertBefore(b, head.firstChild);
     })();
     </script>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- interactive-widget=resizes-content tells Chrome/Edge on Android to
+         shrink the layout viewport when the on-screen keyboard opens, so
+         position:fixed top:0 elements stay anchored to the visible top
+         instead of getting hidden behind the keyboard. iOS Safari ignores
+         this and falls back to the VisualViewport JS handler in assistant.js. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
     <!-- Optional: self-hosted vision API -->
     <!-- <meta name="agri-inference-url" content="https://your-yolo-host"> -->
     <title>AI Assistant - AgriTech AI</title>
@@ -425,7 +430,7 @@
         </a>
     </nav>
 
-    <script type="module" src="js/assistant.js?v=93"></script>
+    <script type="module" src="js/assistant.js?v=94"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>
