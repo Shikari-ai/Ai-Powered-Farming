@@ -398,7 +398,8 @@ function mountFieldsPage(user) {
         );
       }
     } else {
-      centerOnGPSHighAccuracy(true);
+      // Silent (no toast) first-fix attempt; uses NavIC + GPS via the OS
+      startNavicWatch(true);
     }
 
     updateFmsPointsLabel();
