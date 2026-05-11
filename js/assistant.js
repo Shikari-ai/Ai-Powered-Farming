@@ -60,10 +60,12 @@ const ROUTING_NO_ENGINE_LOG = /** @type {const} */ (["micro_social", "casual", "
 /** @param {string} text */
 function inferReplyFormatNeeds(text) {
   const t = String(text || "");
-  const bullet = t.match(/\b(?:only\s+with\s+)?(\d+)\s+bullets?\b/i);
-  const step = !bullet ? t.match(/\b(?:only\s+with\s+)?(\d+)\s+steps?\b/i) : null;
+  const bullet = t.match(/\b(?:only\s+with\s+|exactly\s+)?(\d+)(?:\s+\w+){0,2}\s+(?:bullets?|points?|actions?)\b/i);
+  const step = !bullet ? t.match(/\b(?:only\s+with\s+|exactly\s+)?(\d+)\s+steps?\b/i) : null;
+  const sentence = t.match(/\b(?:exactly|only)\s+(\d+)\s+sentences?\b/i);
   return {
     bulletCount: Number(bullet?.[1] || step?.[1] || 0) || 0,
+    sentenceCount: Number(sentence?.[1] || 0) || 0,
     oneParagraphOnly: /\bone\s+(?:professional\s+)?paragraph\s+only\b/i.test(t),
   };
 }
@@ -84,10 +86,17 @@ function compactParagraph(text) {
     .trim();
 }
 
+/** @param {string} text */
+function splitSentences(text) {
+  return String(text || "")
+    .replace(/\s+/g, " ")
+    .match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((s) => s.trim()).filter(Boolean) || [];
+}
+
 /**
  * Enforce explicit response-shape asks like "3 bullets" / "one paragraph only".
  * @param {string} reply
- * @param {{ bulletCount: number, oneParagraphOnly: boolean }} needs
+ * @param {{ bulletCount: number, sentenceCount: number, oneParagraphOnly: boolean }} needs
  */
 function enforceReplyShape(reply, needs) {
   let out = String(reply || "").trim();
@@ -95,8 +104,18 @@ function enforceReplyShape(reply, needs) {
 
   if (needs.bulletCount > 0) {
     const lines = splitToPlainLines(out);
+    while (lines.length < needs.bulletCount) {
+      lines.push("Re-check conditions in 24 hours and adjust the plan based on field observations.");
+    }
     const picked = lines.slice(0, needs.bulletCount).map((s) => `- ${s}`);
     if (picked.length) out = picked.join("\n");
+  }
+  if (needs.sentenceCount > 0) {
+    const parts = splitSentences(out);
+    while (parts.length < needs.sentenceCount) {
+      parts.push("Verify with local advisory guidance before operational rollout.");
+    }
+    out = parts.slice(0, needs.sentenceCount).join(" ");
   }
   if (needs.oneParagraphOnly) {
     out = compactParagraph(out);
@@ -126,6 +145,18 @@ function buildNoDataActionFallback(text) {
     "- Execute the lowest-risk corrective step first and avoid stacking multiple interventions at once.",
     "- Reassess in 24 hours and adjust using observed change, not assumptions.",
   ].join("\n");
+}
+
+/** @param {string} text */
+function buildKnownAgriDefinitionReply(text) {
+  const t = String(text || "").toLowerCase();
+  if (/\b(what\s+is|full\s*form\s+of)\s+icar\b|\bicar\b.*\b(what|full\s*form)\b/.test(t)) {
+    return "ICAR stands for Indian Council of Agricultural Research. It is India’s apex public agricultural research and education network under the Department of Agricultural Research and Education, Ministry of Agriculture.";
+  }
+  if (/\b(what\s+is|full\s*form\s+of)\s+msp\b|\bmsp\b.*\b(what|full\s*form)\b/.test(t)) {
+    return "MSP stands for Minimum Support Price. It is a government-announced floor price for selected crops to protect farmers from sharp post-harvest price declines and support predictable farm income.";
+  }
+  return "";
 }
 
 /** @param {Record<string, unknown>} o */
@@ -701,6 +732,7 @@ onAuthStateChanged(auth, (user) => {
       paintChat();
 
       const routing = classifyAssistantRouting(text, { hasImage: !!imageBlob });
+      const knownDefReply = !imageBlob ? buildKnownAgriDefinitionReply(text) : "";
 
       let snapshot = null;
       let orch = null;
@@ -708,7 +740,10 @@ onAuthStateChanged(auth, (user) => {
       /** @type {{ entry: any, score: number }[]} */
       let learnedMemoryHits = [];
 
-      if (routing.mode === "micro_social") {
+      if (knownDefReply) {
+        reply = knownDefReply;
+        orch = null;
+      } else if (routing.mode === "micro_social") {
         reply = buildMicroSocialAssistantReply(text, { fieldCount: fields.length, scanCount: scans.length });
         orch = null;
       } else if (routing.mode === "casual") {
@@ -957,6 +992,8 @@ onAuthStateChanged(auth, (user) => {
       if (memNudge) {
         reply = `${reply.trimEnd()}\n\n${memNudge}`;
       }
+      // Re-apply strict shape after style/nudge transforms so exact counts persist.
+      reply = enforceReplyShape(reply, shapeNeeds);
 
       const naturalMicro =
         routing.mode === "micro_social" ||
@@ -1011,8 +1048,8 @@ onAuthStateChanged(auth, (user) => {
               userId: user.uid,
               createdAt: serverTimestamp(),
               replyTo: userMsgRef.id,
-              enginePackVersion: orch?.enginePackVersion,
-              intents: orch?.intents,
+              enginePackVersion: orch?.enginePackVersion || "direct-turn",
+              intents: orch?.intents || null,
               preview: orch?.persistedPreview || null,
               geo: safeGeo,
               routingMode: orch?.routingMode || "full",
