@@ -16,7 +16,7 @@ import {
 import { attachPremiumCamera } from "./camera-engine.js";
 import { startLiveDiseaseScan } from "./scanner-live-vision.js?v=35";
 import { buildRichVisionContextBundle } from "./ai/vision-context.js?v=34";
-import { getAiConfig } from "./ai/config.js?v=68";
+import { getAiConfig } from "./ai/config.js?v=69";
 import { normalizeCompanionProfile } from "./ai/companion-memory.js?v=35";
 import { createCopilotVoice } from "./copilot-voice.js";
 import {

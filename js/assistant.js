@@ -20,7 +20,7 @@ import {
 
 import { runAgriOrchestrator } from "./ai/orchestrator.js?v=70";
 import { attachSnapshotForReply, composeAssistantReply, composeOperationsSnapshotReply } from "./ai/assistant-reply.js?v=69";
-import { getAiConfig } from "./ai/config.js?v=68";
+import { getAiConfig } from "./ai/config.js?v=69";
 import {
   buildProactiveDigest,
   defaultCompanionProfile,
@@ -736,8 +736,10 @@ onAuthStateChanged(auth, (user) => {
       streamInFlight = false;
       streamingAssistant = null;
     } catch (e) {
-      console.error(e);
-      alert(`Failed to send: ${e.message}`);
+      console.error("[assistant] send failed:", e);
+      alert(
+        "Couldn’t complete that message. Check your connection and try again. If it keeps failing, open the browser console (details for support).",
+      );
     } finally {
       awaitingAssistantAfterUserId = null;
       streamInFlight = false;
