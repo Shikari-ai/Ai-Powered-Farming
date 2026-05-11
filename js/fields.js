@@ -77,11 +77,77 @@ function setNotifBadge(count) {
   badge.classList.toggle("hidden", count <= 0);
 }
 
+// 4-tier health buckets (used for status pill, sort grouping, and legend):
+//   Healthy   ≥ 80
+//   Moderate  60–79
+//   At Risk   40–59
+//   Critical  < 40
 function scoreToStatus(score) {
-  if (typeof score !== "number") return { label: "Not monitored", color: "var(--dim)" };
-  if (score >= 80) return { label: "Healthy", color: "var(--neon)" };
-  if (score >= 50) return { label: "Moderate", color: "var(--warn)" };
-  return { label: "At risk", color: "var(--danger)" };
+  if (typeof score !== "number") return { label: "Not monitored", color: "var(--dim)", rank: 4, key: "none" };
+  if (score >= 80) return { label: "Healthy", color: "var(--neon)", rank: 0, key: "healthy" };
+  if (score >= 60) return { label: "Moderate", color: "var(--warn)", rank: 1, key: "moderate" };
+  if (score >= 40) return { label: "At Risk", color: "#F97316", rank: 2, key: "risk" };
+  return { label: "Critical", color: "var(--danger)", rank: 3, key: "critical" };
+}
+
+// ─── Sort options for the Field Overview list ───
+const SORT_OPTIONS = [
+  { id: "health-desc", label: "Health: best first" },
+  { id: "health-asc",  label: "Health: worst first" },
+  { id: "status-critical", label: "Status: Critical → Healthy" },
+  { id: "status-healthy",  label: "Status: Healthy → Critical" },
+  { id: "name-asc",  label: "Name (A–Z)" },
+  { id: "area-desc", label: "Area: largest first" },
+  { id: "recent",    label: "Recently added" },
+];
+const SORT_KEY = "agri.fields.sortMode";
+function getSortMode() {
+  try {
+    const v = localStorage.getItem(SORT_KEY);
+    if (v && SORT_OPTIONS.some((o) => o.id === v)) return v;
+  } catch {}
+  return "health-desc";
+}
+function setSortMode(id) {
+  try { localStorage.setItem(SORT_KEY, id); } catch {}
+}
+function sortModeLabel(id) {
+  return (SORT_OPTIONS.find((o) => o.id === id) || SORT_OPTIONS[0]).label;
+}
+function scoreOf(field, latestByField) {
+  const s = latestByField.get(field.id);
+  return s && typeof s.healthScore === "number" ? s.healthScore : null;
+}
+function makeFieldComparator(mode, latestByField) {
+  const createdMs = (f) => {
+    const c = f.createdAt;
+    if (!c) return 0;
+    if (typeof c.toMillis === "function") return c.toMillis();
+    if (typeof c.seconds === "number") return c.seconds * 1000;
+    if (typeof c === "number") return c;
+    const t = Date.parse(c);
+    return Number.isFinite(t) ? t : 0;
+  };
+  return (a, b) => {
+    const sa = scoreOf(a, latestByField);
+    const sb = scoreOf(b, latestByField);
+    const ra = scoreToStatus(sa).rank;
+    const rb = scoreToStatus(sb).rank;
+    switch (mode) {
+      case "health-asc":  return (sa ?? -1) - (sb ?? -1);
+      case "status-critical": return rb - ra || (sa ?? -1) - (sb ?? -1);
+      case "status-healthy":  return ra - rb || (sb ?? -1) - (sa ?? -1);
+      case "name-asc":
+        return (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" });
+      case "area-desc":
+        return (b.areaAcres || 0) - (a.areaAcres || 0);
+      case "recent":
+        return createdMs(b) - createdMs(a);
+      case "health-desc":
+      default:
+        return (sb ?? -1) - (sa ?? -1);
+    }
+  };
 }
 
 function aiRiskLabel(scan) {
@@ -226,13 +292,14 @@ function renderHolograms(container, fields, latestByField) {
       poly.style.borderColor = "rgba(57,255,20,0.2)";
       poly.style.boxShadow = "inset 0 0 20px rgba(57,255,20,0.08)";
     } else if (score >= 80) poly.classList.add("f-healthy");
-    else if (score >= 50) poly.classList.add("f-moderate");
+    else if (score >= 60) poly.classList.add("f-moderate");
+    else if (score >= 40) poly.classList.add("f-risk");
     else poly.classList.add("f-critical");
     if (i === 0) poly.style.gridRow = "1/3";
     const marker = document.createElement("div");
     marker.className = "f-marker";
     marker.style.color = score === null ? "rgba(148,163,184,0.8)" : st.color;
-    marker.innerHTML = `<i class="${score === null ? "ri-question-line" : score >= 80 ? "ri-leaf-fill" : score >= 50 ? "ri-bug-line" : "ri-error-warning-fill"}"></i>`;
+    marker.innerHTML = `<i class="${score === null ? "ri-question-line" : score >= 80 ? "ri-leaf-fill" : score >= 60 ? "ri-bug-line" : score >= 40 ? "ri-alert-line" : "ri-error-warning-fill"}"></i>`;
     poly.appendChild(marker);
     container.appendChild(poly);
   }
@@ -876,13 +943,7 @@ function mountFieldsPage(user) {
 
     const html = fields
       .slice()
-      .sort((a, b) => {
-        const as = latestByField.get(a.id);
-        const bs = latestByField.get(b.id);
-        const av = as && typeof as.healthScore === "number" ? as.healthScore : -1;
-        const bv = bs && typeof bs.healthScore === "number" ? bs.healthScore : -1;
-        return bv - av;
-      })
+      .sort(makeFieldComparator(getSortMode(), latestByField))
       .map((f, i) =>
         renderFieldCard({
           index: i,
@@ -914,10 +975,80 @@ function mountFieldsPage(user) {
     }),
   );
 
+  function bindSortDropdown() {
+    const dd = document.querySelector(".sort-dropdown");
+    if (!dd) return;
+    // Make it look/act like a real control
+    dd.setAttribute("role", "button");
+    dd.setAttribute("tabindex", "0");
+    dd.setAttribute("aria-haspopup", "listbox");
+    dd.setAttribute("aria-expanded", "false");
+    dd.style.cursor = "pointer";
+    dd.style.userSelect = "none";
+
+    const labelEl = dd.querySelector("span");
+    const reflectLabel = () => { if (labelEl) labelEl.textContent = sortModeLabel(getSortMode()); };
+    reflectLabel();
+
+    let menu = null;
+    const closeMenu = () => {
+      if (!menu) return;
+      menu.remove();
+      menu = null;
+      dd.setAttribute("aria-expanded", "false");
+      document.removeEventListener("click", onDocClick, true);
+    };
+    const onDocClick = (e) => {
+      if (menu && !menu.contains(e.target) && !dd.contains(e.target)) closeMenu();
+    };
+    const openMenu = () => {
+      if (menu) { closeMenu(); return; }
+      menu = document.createElement("div");
+      menu.className = "fields-sort-menu";
+      menu.setAttribute("role", "listbox");
+      const current = getSortMode();
+      menu.innerHTML = SORT_OPTIONS.map((o) =>
+        `<button type="button" role="option" data-sort="${o.id}" aria-selected="${o.id === current}">
+           <span>${o.label}</span>
+           ${o.id === current ? '<i class="ri-check-line"></i>' : ""}
+         </button>`
+      ).join("");
+      // Position the menu under the dropdown trigger
+      const rect = dd.getBoundingClientRect();
+      Object.assign(menu.style, {
+        position: "fixed",
+        top: `${Math.round(rect.bottom + 6)}px`,
+        right: `${Math.round(window.innerWidth - rect.right)}px`,
+        zIndex: "9999",
+      });
+      document.body.appendChild(menu);
+      dd.setAttribute("aria-expanded", "true");
+      menu.querySelectorAll("button[data-sort]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-sort");
+          setSortMode(id);
+          reflectLabel();
+          closeMenu();
+          rerender();
+        });
+      });
+      // Defer doc-click bind so the opening click doesn't immediately close it
+      setTimeout(() => document.addEventListener("click", onDocClick, true), 0);
+    };
+    dd.addEventListener("click", openMenu);
+    dd.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openMenu(); }
+      if (e.key === "Escape") closeMenu();
+    });
+  }
+
   function bindUi() {
     if (fieldsUiBound) return;
     fieldsUiBound = true;
     el("add-field-cta")?.addEventListener("click", openFieldModalForCreate);
+
+    // Wire the "Sort by:" dropdown in the Field Overview header
+    bindSortDropdown();
 
     el("wiz-next-btn")?.addEventListener("click", async () => {
       if (wizardStep < 4) {
