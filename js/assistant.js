@@ -126,6 +126,13 @@ function enforceReplyShape(reply, needs) {
 /** @param {string} text */
 function buildNoDataActionFallback(text) {
   const t = String(text || "").toLowerCase();
+  if (/\bwheat\b.*\brust\b|\brust\b.*\bwheat\b/.test(t)) {
+    return [
+      "- Survey representative wheat patches now and mark rust hot-spots; prioritize upper canopy and field edges.",
+      "- Reduce leaf wetness immediately (avoid evening irrigation, improve airflow) and prepare a label-compliant fungicide plan if spread is active.",
+      "- Recheck within 24 hours with photo notes and escalate to local extension support if pustule spread increases.",
+    ].join("\n");
+  }
   if (/\bblight|spot|fung|disease|yellow|leaf\b/.test(t)) {
     return [
       "- Scout 20-30 plants now and isolate the worst patches; remove heavily affected leaves and avoid overhead watering tonight.",
@@ -155,6 +162,19 @@ function buildKnownAgriDefinitionReply(text) {
   }
   if (/\b(what\s+is|full\s*form\s+of)\s+msp\b|\bmsp\b.*\b(what|full\s*form)\b/.test(t)) {
     return "MSP stands for Minimum Support Price. It is a government-announced floor price for selected crops to protect farmers from sharp post-harvest price declines and support predictable farm income.";
+  }
+  if (/\b(what\s+is|define|full\s*form\s+of)\s+imd\b|\bimd\b.*\b(what|define|full\s*form)\b/.test(t)) {
+    return "IMD stands for India Meteorological Department, the national weather service that issues forecasts and warnings for India.";
+  }
+  return "";
+}
+
+/** @param {string} text */
+function buildOneLineAgriDirectiveReply(text) {
+  const t = String(text || "").toLowerCase();
+  if (!/\b(one\s+line|single\s+line)\b/.test(t)) return "";
+  if (/\byellow|yellowing|chlorosis|leaf\b/.test(t)) {
+    return "First check root-zone moisture and recent watering because sudden yellowing is most often water-stress or root-oxygen stress before nutrient causes.";
   }
   return "";
 }
@@ -733,6 +753,8 @@ onAuthStateChanged(auth, (user) => {
 
       const routing = classifyAssistantRouting(text, { hasImage: !!imageBlob });
       const knownDefReply = !imageBlob ? buildKnownAgriDefinitionReply(text) : "";
+      const oneLineDirectiveReply = !imageBlob ? buildOneLineAgriDirectiveReply(text) : "";
+      const forcedDirectReply = knownDefReply || oneLineDirectiveReply;
 
       let snapshot = null;
       let orch = null;
@@ -740,8 +762,8 @@ onAuthStateChanged(auth, (user) => {
       /** @type {{ entry: any, score: number }[]} */
       let learnedMemoryHits = [];
 
-      if (knownDefReply) {
-        reply = knownDefReply;
+      if (forcedDirectReply) {
+        reply = forcedDirectReply;
         orch = null;
       } else if (routing.mode === "micro_social") {
         reply = buildMicroSocialAssistantReply(text, { fieldCount: fields.length, scanCount: scans.length });
