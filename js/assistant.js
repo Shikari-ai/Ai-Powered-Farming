@@ -516,7 +516,14 @@ onAuthStateChanged(auth, (user) => {
   activeSubscriptions.push(
     onSnapshot(msgsQ, (snap) => {
       const msgs = [];
-      snap.forEach((d) => msgs.push({ id: d.id, ...d.data() }));
+      snap.forEach((d) => {
+        const data = d.data();
+        // Filter out archived messages — they live in the DB but are
+        // hidden from the chat view. The AI still gets the recent
+        // non-archived turns as conversational context.
+        if (data && data.archivedAt) return;
+        msgs.push({ id: d.id, ...data });
+      });
       lastMsgCount = msgs.length;
       chatMessages = msgs;
       if (!streamInFlight) paintChat();
@@ -1098,7 +1105,7 @@ onAuthStateChanged(auth, (user) => {
   });
 
   clearBtn?.addEventListener("click", async () => {
-    const ok = confirm("Clear assistant chat and engine run history for this account?");
+    const ok = confirm("Archive this chat? Old messages will be hidden so you can start fresh with the AI. Nothing is deleted — the history stays in your account.");
     if (!ok) return;
     streamAbort.abort();
     sendGeneration += 1;
@@ -1110,12 +1117,18 @@ onAuthStateChanged(auth, (user) => {
       const runsQ = query(collection(db, "ai_engine_runs"), where("userId", "==", user.uid), limit(500));
       const [msgSnap, runSnap] = await Promise.all([getDocs(msgsQ), getDocs(runsQ)]);
       const batch = writeBatch(db);
-      msgSnap.forEach((d) => batch.delete(doc(db, "assistant_messages", d.id)));
+      const archivedAt = serverTimestamp();
+      // Soft-archive every assistant message (don't delete — preserves history)
+      msgSnap.forEach((d) => {
+        if (d.data().archivedAt) return; // already archived
+        batch.update(doc(db, "assistant_messages", d.id), { archivedAt });
+      });
+      // Engine runs are dev telemetry — safe to delete on archive
       runSnap.forEach((d) => batch.delete(doc(db, "ai_engine_runs", d.id)));
       await batch.commit();
     } catch (e) {
       console.error(e);
-      alert(`Failed to clear: ${e.message}`);
+      alert(`Failed to archive: ${e.message}`);
     }
   });
 });
