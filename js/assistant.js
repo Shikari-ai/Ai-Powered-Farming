@@ -11,17 +11,26 @@ import {
   getDocs,
   limit,
   onSnapshot,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import { runAgriOrchestrator } from "./ai/orchestrator.js?v=73";
-import { attachSnapshotForReply, composeAssistantReply, composeOperationsSnapshotReply } from "./ai/assistant-reply.js?v=71";
-import { getAiConfig } from "./ai/config.js?v=70";
-import { shouldUseWebAssistedResearch } from "./ai/web-research-policy.js?v=2";
+import { attachSnapshotForReply, composeAssistantReply, composeOperationsSnapshotReply } from "./ai/assistant-reply.js?v=72";
+import { getAiConfig } from "./ai/config.js?v=71";
+import {
+  buildKnowledgeDocPayload,
+  findMergeTargetEntry,
+  findRelevantKnowledgeMemory,
+  KNOWLEDGE_MEMORY_CAP,
+  mergeKnowledgeEntries,
+} from "./ai/assistant-knowledge-memory.js?v=1";
+import { shouldUseWebAssistedResearch } from "./ai/web-research-policy.js?v=3";
 import { fetchPublicAgriBrief, formatWebResearchAppend } from "./ai/web-research-client.js?v=3";
 import {
   buildProactiveDigest,
@@ -47,6 +56,34 @@ import { computePresencePlan, maybePresenceMemoryNudge, sleep as presenceSleep }
 import { getFlowSnapshot, recordFlowUserTurn, resolveReplyVerbosity, streamRhythmPreference } from "./ai/conversation-flow.js?v=48";
 
 const ROUTING_NO_ENGINE_LOG = /** @type {const} */ (["micro_social", "casual", "clarify", "operations_quick"]);
+
+/** @param {Record<string, unknown>} o */
+function stripUndefinedForFirestore(o) {
+  const out = {};
+  for (const [k, v] of Object.entries(o || {})) {
+    if (v !== undefined) out[k] = v;
+  }
+  return out;
+}
+
+/** @param {{ id: string, data: () => any }} d */
+function normalizeKnowledgeMemoryDoc(d) {
+  const x = d.data();
+  const lastR = x.lastReinforcedAt;
+  const lastRMs =
+    lastR && typeof lastR.toMillis === "function"
+      ? lastR.toMillis()
+      : typeof lastR === "string"
+        ? Date.parse(lastR) || 0
+        : 0;
+  return {
+    id: d.id,
+    ...x,
+    lastUsedAtMs: x.lastUsedAt?.toMillis?.() ?? 0,
+    createdAtMs: x.createdAt?.toMillis?.() ?? 0,
+    lastReinforcedAtMs: lastRMs,
+  };
+}
 
 function el(id) {
   return document.getElementById(id);
@@ -264,6 +301,8 @@ onAuthStateChanged(auth, (user) => {
   let regionalBriefingText = null;
   /** Latest `learning_profiles/{uid}` (may be absent until first aggregation). */
   let learningProfile = null;
+  /** Cached `assistant_knowledge_memory` rows for this user (bounded query). */
+  let knowledgeMemoryEntries = [];
 
   listScrollRoot = getAssistantScrollRoot(listEl);
   listScrollRoot.addEventListener(
@@ -331,6 +370,20 @@ onAuthStateChanged(auth, (user) => {
     learningProfile = snap.exists() ? { id: snap.id, ...snap.data() } : null;
     updateCompanionEmptyHint();
   });
+
+  const knowledgeMemQ = query(
+    collection(db, "assistant_knowledge_memory"),
+    where("userId", "==", user.uid),
+    orderBy("lastUsedAt", "desc"),
+    limit(40),
+  );
+  onSnapshot(
+    knowledgeMemQ,
+    (snap) => {
+      knowledgeMemoryEntries = snap.docs.map((d) => normalizeKnowledgeMemoryDoc(d));
+    },
+    (err) => console.warn("[assistant] knowledge memory listener:", err?.message || err),
+  );
 
   const attachInput = el("assistant-attach-input");
   const attachBtn = el("assistant-attach");
@@ -489,6 +542,8 @@ onAuthStateChanged(auth, (user) => {
       let snapshot = null;
       let orch = null;
       let reply = "";
+      /** @type {{ entry: any, score: number }[]} */
+      let learnedMemoryHits = [];
 
       if (routing.mode === "micro_social") {
         reply = buildMicroSocialAssistantReply(text, { fieldCount: fields.length, scanCount: scans.length });
@@ -549,6 +604,10 @@ onAuthStateChanged(auth, (user) => {
           flowSnapshot: flowSnap,
         });
         attachSnapshotForReply(orch, snapshot);
+        const cfgKmMem = getAiConfig();
+        learnedMemoryHits = cfgKmMem.assistantKnowledgeMemoryEnabled
+          ? findRelevantKnowledgeMemory(knowledgeMemoryEntries, text, { limit: 2, minScore: 0.16 })
+          : [];
         const replyVerbosity =
           routing.mode === "weather_quick"
             ? "minimal"
@@ -564,6 +623,7 @@ onAuthStateChanged(auth, (user) => {
           replyVerbosity,
           routingReason: routing.reason,
           flowSnapshot: flowSnap,
+          learnedMemoryHits,
         });
 
         if (!reply) {
@@ -571,15 +631,21 @@ onAuthStateChanged(auth, (user) => {
         }
 
         const cfgWeb = getAiConfig();
+        let webBrief = null;
+        /** @type {{ use?: boolean, reasons?: string[], query?: string } | null} */
+        let webResearchMeta = null;
         if (cfgWeb.webResearchEnabled !== false && String(text || "").trim().length > 12 && orch) {
           const wr = shouldUseWebAssistedResearch({
             question: text,
             routingMode: routing.mode,
             orch,
+            memoryHits: learnedMemoryHits,
           });
           if (wr.use) {
+            webResearchMeta = wr;
             try {
               const brief = await fetchPublicAgriBrief(wr.query || text, { signal: streamAbort.signal });
+              webBrief = brief;
               if (brief?.summary) {
                 reply = `${String(reply || "").trimEnd()}\n\n${formatWebResearchAppend(brief, { reasons: wr.reasons })}`;
               }
@@ -587,6 +653,71 @@ onAuthStateChanged(auth, (user) => {
               console.warn("[assistant] web research:", e?.message || e);
             }
           }
+        }
+
+        const cfgKmPersist = getAiConfig();
+        if (cfgKmPersist.assistantKnowledgeMemoryEnabled && webBrief?.summary && orch && webResearchMeta?.use) {
+          void (async () => {
+            try {
+              const payload = buildKnowledgeDocPayload({
+                userId: user.uid,
+                question: text,
+                researchQuery: webResearchMeta.query || text,
+                brief: webBrief,
+                webReasons: webResearchMeta.reasons || [],
+                intents: orch.intents || {},
+                assistantReply: reply,
+              });
+              const mergeT = findMergeTargetEntry(knowledgeMemoryEntries, text);
+              if (mergeT?.id) {
+                const { id: _i, lastUsedAtMs: _lu, createdAtMs: _cm, lastReinforcedAtMs: _lr, ...base } = mergeT;
+                const merged = mergeKnowledgeEntries(base, payload);
+                await updateDoc(doc(db, "assistant_knowledge_memory", mergeT.id), {
+                  ...stripUndefinedForFirestore(merged),
+                  lastUsedAt: serverTimestamp(),
+                  lastReinforcedAt: serverTimestamp(),
+                });
+              } else {
+                await addDoc(
+                  collection(db, "assistant_knowledge_memory"),
+                  stripUndefinedForFirestore({
+                    ...payload,
+                    createdAt: serverTimestamp(),
+                    lastUsedAt: serverTimestamp(),
+                    lastReinforcedAt: serverTimestamp(),
+                  }),
+                );
+              }
+              const ps = await getDocs(
+                query(collection(db, "assistant_knowledge_memory"), where("userId", "==", user.uid), limit(55)),
+              );
+              if (ps.size > KNOWLEDGE_MEMORY_CAP) {
+                const rows = ps.docs.map((d) => ({
+                  id: d.id,
+                  lu: d.data().lastUsedAt?.toMillis?.() ?? 0,
+                }));
+                rows.sort((a, b) => a.lu - b.lu);
+                const batch = writeBatch(db);
+                for (const r of rows.slice(0, ps.size - KNOWLEDGE_MEMORY_CAP)) {
+                  batch.delete(doc(db, "assistant_knowledge_memory", r.id));
+                }
+                await batch.commit();
+              }
+            } catch (e) {
+              console.warn("[assistant] knowledge memory persist:", e?.message || e);
+            }
+          })();
+        }
+
+        if (
+          cfgKmPersist.assistantKnowledgeMemoryEnabled &&
+          learnedMemoryHits.length &&
+          learnedMemoryHits[0].entry?.id &&
+          routing.mode !== "weather_quick"
+        ) {
+          void updateDoc(doc(db, "assistant_knowledge_memory", learnedMemoryHits[0].entry.id), {
+            lastUsedAt: serverTimestamp(),
+          }).catch(() => {});
         }
       }
 

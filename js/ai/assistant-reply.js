@@ -1,3 +1,4 @@
+import { formatLearnedMemoryLines } from "./assistant-knowledge-memory.js?v=1";
 import { tsToMs } from "./farmer-context.js?v=34";
 import { softenOverclaimProse } from "./reliability/core.js";
 import {
@@ -307,6 +308,7 @@ export function composeAssistantReply(
         replyVerbosity = "full",
         routingReason = "",
         flowSnapshot = null,
+        learnedMemoryHits = [],
     } = {},
 ) {
     if (!orch) return "";
@@ -369,6 +371,12 @@ export function composeAssistantReply(
     });
     if (bridge) {
         lines.push(bridge);
+        lines.push("");
+    }
+
+    if (Array.isArray(learnedMemoryHits) && learnedMemoryHits.length && !compact && !bundle.namedPlaceLeanWx) {
+        const lm = formatLearnedMemoryLines(learnedMemoryHits);
+        for (const line of lm) lines.push(line);
         lines.push("");
     }
 

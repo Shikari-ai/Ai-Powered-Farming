@@ -19,7 +19,7 @@ import {
     uploadBytesResumable,
     getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-import { getAiConfig } from "./ai/config.js?v=70";
+import { getAiConfig } from "./ai/config.js?v=71";
 import { startLiveDiseaseScan } from "./scanner-live-vision.js?v=35";
 import { runVisionJob } from "./inference-jobs.js?v=34";
 import { mergeSymptomScanIntoFieldMemory } from "./ai/field-context.js?v=34";

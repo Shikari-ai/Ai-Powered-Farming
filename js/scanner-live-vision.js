@@ -3,7 +3,7 @@
  * Preview stays native <video>; overlay is a <canvas>. Never awaits inference on rVFC path.
  */
 
-import { getAiConfig } from "./ai/config.js?v=70";
+import { getAiConfig } from "./ai/config.js?v=71";
 import { postDiseaseVision } from "./ai/vision-client.js?v=34";
 
 export class DetectionStabilizer {

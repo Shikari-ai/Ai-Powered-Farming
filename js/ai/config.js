@@ -41,11 +41,16 @@ export function getAiConfig() {
     const webMeta = readMeta("agri-web-research").toLowerCase();
     const webResearchEnabled = webMeta !== "0" && webMeta !== "false" && webMeta !== "off";
 
+    /** `<meta name="agri-knowledge-memory" content="0">` disables Firestore-backed learned summaries. */
+    const kmMeta = readMeta("agri-knowledge-memory").toLowerCase();
+    const assistantKnowledgeMemoryEnabled = kmMeta !== "0" && kmMeta !== "false" && kmMeta !== "off";
+
     return {
         inferenceBaseUrl: inferExplicit || aiBase || localFallback,
         imdApiBaseUrl: String(g.__AGRI_IMD_API__ || readMeta("agri-imd-api") || "").replace(/\/$/, ""),
         enginePackVersion: "ecosystem-2026-05-reliability-v1",
         webResearchEnabled,
+        assistantKnowledgeMemoryEnabled,
     };
 }
 

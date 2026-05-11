@@ -2,6 +2,7 @@
  * When to augment internal (orchestrator + heuristics) answers with a small **public** lookup.
  * Selective: no web for micro-social, casual, clarify, or very short non-technical turns.
  */
+import { orchestratorEpistemicStress } from "./assistant-knowledge-memory.js?v=1";
 import { shouldDeferDiagnosis, shouldFrameActionsProvisional } from "./epistemic-policy.js?v=3";
 
 /** @typedef {"micro_social"|"casual"|"clarify"|"operations_quick"|"weather_quick"|"full"} AssistantRoutingMode */
@@ -14,10 +15,10 @@ const NO_WEB_MODES = /** @type {const} */ ([
 ]);
 
 /**
- * @param {{ question: string, routingMode: AssistantRoutingMode, orch?: any }} args
+ * @param {{ question: string, routingMode: AssistantRoutingMode, orch?: any, memoryHits?: { score: number, entry?: any }[] }} args
  * @returns {{ use: boolean, reasons: string[], query: string }}
  */
-export function shouldUseWebAssistedResearch({ question, routingMode, orch }) {
+export function shouldUseWebAssistedResearch({ question, routingMode, orch, memoryHits = [] }) {
     const q = String(question || "").trim();
     if (!q || q.length < 18) return { use: false, reasons: [], query: "" };
     if (NO_WEB_MODES.includes(routingMode)) return { use: false, reasons: [], query: "" };
@@ -58,6 +59,30 @@ export function shouldUseWebAssistedResearch({ question, routingMode, orch }) {
 
     if (/\b(obscure|rare|unusual)\b.*\b(disease|pathogen|pest|virus)\b|\b(never\s+heard\s+of)\b.*\b(pest|disease)/i.test(q)) {
         reasons.push("obscure_taxon");
+    }
+
+    const agriCue =
+        intents.disease ||
+        intents.pest ||
+        intents.weather ||
+        intents.field ||
+        /\b(crop|farm|soil|harvest|irrigation|fertiliz|pesticide|pathogen|variety|seed|msp|mandi|icar|imd)\b/i.test(q);
+    const { lowConfidence } = orchestratorEpistemicStress(orch);
+    if (reasons.length === 0 && lowConfidence && agriCue) {
+        reasons.push("engine_epistemic_stress");
+    }
+
+    const topMem = memoryHits[0];
+    const memScore = typeof topMem?.score === "number" ? topMem.score : 0;
+    const memEntry = topMem?.entry;
+    const memConf = typeof memEntry?.confidence === "number" ? memEntry.confidence : 0;
+    if (
+        reasons.length === 1 &&
+        reasons[0] === "engine_epistemic_stress" &&
+        memScore >= 0.5 &&
+        memConf >= 0.62
+    ) {
+        return { use: false, reasons: [], query: "", skippedForMemory: true };
     }
 
     if (reasons.length === 0) return { use: false, reasons: [], query: "" };

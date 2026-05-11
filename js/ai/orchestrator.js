@@ -1,4 +1,4 @@
-import { getAiConfig } from "./config.js?v=70";
+import { getAiConfig } from "./config.js?v=71";
 import { detectIntents } from "./detect-intents.js";
 import { buildFarmerContext, tsToMs } from "./farmer-context.js";
 import { runWeatherIntelligence } from "./engines/weather-intelligence.js";
