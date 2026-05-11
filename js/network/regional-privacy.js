@@ -40,9 +40,14 @@ export function anonymizedCentroidCell(fields) {
     let lng = 0;
     let n = 0;
     for (const f of list) {
-        const coords = f?.boundary?.coordinates;
-        if (!Array.isArray(coords) || coords.length < 3) continue;
-        for (const [la, ln] of coords) {
+        const raw = f?.boundary?.coordinates;
+        if (!Array.isArray(raw) || raw.length < 3) continue;
+        for (const p of raw) {
+            // Accept both [lat,lng] tuples (legacy) and {lat,lng} objects (current).
+            let la, ln;
+            if (Array.isArray(p)) { la = p[0]; ln = p[1]; }
+            else if (p && typeof p === "object") { la = p.lat; ln = p.lng; }
+            if (typeof la !== "number" || typeof ln !== "number") continue;
             lat += la;
             lng += ln;
             n++;

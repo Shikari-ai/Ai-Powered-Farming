@@ -16,6 +16,7 @@ import {
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { decorateNotificationForAmbient } from "./ambient/notification-decorator.js";
 import { openCropPicker } from "./crop-picker.js?v=1";
+import { normalizeBoundaryCoords } from "./boundary-coords.js?v=1";
 
 const DRAFT_KEY = "agri_field_wizard_draft";
 
@@ -1163,9 +1164,7 @@ function mountFieldsPage(user) {
     if (el("field-area")) el("field-area").value = typeof field.areaAcres === "number" ? field.areaAcres.toFixed(2) : "";
     if (el("field-planted")) el("field-planted").value = field.plantedAt || "";
     if (el("field-notes")) el("field-notes").value = field.notes || "";
-    drawingPoints = Array.isArray(field?.boundary?.coordinates)
-      ? field.boundary.coordinates.map(([lat, lng]) => [lat, lng])
-      : [];
+    drawingPoints = normalizeBoundaryCoords(field?.boundary?.coordinates);
     updateWizardUi();
     window.openAddFieldModal();
   }
@@ -1443,7 +1442,10 @@ function mountFieldsPage(user) {
           boundary: hasBoundary
             ? {
                 type: "polygon",
-                coordinates: drawingPoints.map(([lat, lng]) => [lat, lng]),
+                // Firestore forbids nested arrays inside documents, so we
+                // store corners as an array of {lat, lng} objects instead
+                // of [[lat, lng], …]. Readers normalize both shapes.
+                coordinates: drawingPoints.map(([lat, lng]) => ({ lat, lng })),
                 areaSqM: polygonAreaSqM(drawingPoints),
                 pointCount: drawingPoints.length,
                 mappedAt: serverTimestamp(),
