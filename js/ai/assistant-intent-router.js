@@ -12,7 +12,7 @@ import { getNamedPlaceHintOrNull } from "../weather-location.js?v=61";
 import { matchSymptomTrainingReply } from "./symptom-training-corpus.js?v=79";
 
 const AGRI_TOKEN =
-    /\b(field|fields|farm|farms|crop|crops|scans?|pest|pests|disease|diseases|fungal|blight|rust|mildew|rot|aphid|thrips|nematode|irrigation|irrigat|spray|fungicide|pesticide|herbicide|rain|humidity|weather|soil|moisture|yield|harvest|acre|hectare|nitrogen|fertil|deficien|tomatoes?|potatoes?|wheat|rice|corn|maize|cotton|soy|canopy|ndvi|scouting|icar|imd|msp|subsidy|mandi|agri(?:culture)?)\b/i;
+    /\b(field|fields|farm|farms|crop|crops|scans?|pest|pests|disease|diseases|fungal|blight|rust|mildew|rot|aphid|thrips|nematode|irrigation|irrigat|spray|fungicide|pesticide|herbicide|rain|humidity|weather|soil|moisture|yield|harvest|acre|hectare|nitrogen|fertil|deficien|tomatoes?|potatoes?|wheat|rice|corn|maize|cotton|soy|canopy|ndvi|scouting|icar|imd|msp|subsidy|mandi|agri(?:culture)?|wilt(?:ing)?|grapes?|capsicum|chill(?:i|y)|blast|salinity|drought|frost|mulch|residue|storage|calibrat|sensor|deficit|paddy|maize|tomato|enam|pmfby|pm[\s-]?kisan|ipm|integrated\s+pest)\b/i;
 
 const DEEP_PIPELINE =
     /\b(simulat|simulation|digital\s*twin|\btwin\b|counterfactual|scenario|stress\s*test|forecast|outbreak|epidemic|regional\s*network|\bgeo\b|geo-?intel|stress\s*map|learning\s*engine|calibration|deep\s*dive|full\s*analysis|risk\s*report|audit\s*trail|compare\s*scenarios|what\s*if)\b/i;
@@ -42,11 +42,18 @@ function isNamedPlaceWeatherQuery(text) {
 }
 
 const SPECIFIC_SYMPTOM =
-    /\b(yellow|chloros|spot|spots|mold|mildew|rust|blight|wilt|hole|chew|aphid|thrips|mite|bug|larvae|worm|rot|canker|curl|necrosis|stunt|stem\s+bore)\b/i;
+    /\b(yellow|chloros|spot|spots|mold|mildew|rust|blight|wilt(?:ing)?|hole|chew|aphid|thrips|mite|bug|larvae|worm|rot|canker|curl|necrosis|stunt|stem\s+bore)\b/i;
+
+/** User asked for an exact response shape (bullets/sentences) — must not route to casual/social. */
+const STRICT_OUTPUT_SHAPE =
+    /\b(exactly|only)\s+\d+\s+(?:\w+\s+){0,3}(?:sentences?|bullets?|actions?|points?|steps?)\b|\b\d+\s+(?:priority\s+)?(?:action\s+)?bullets?\s+only\b|\bone\s+(?:professional\s+)?paragraph\s+only\b|\bsay\s+only\s+one\s+line\b|\bone\s+line\s+only\b/i;
+
+const POLICY_OR_SCHEME =
+    /\b(pm[\s-]?kisan|pmfby|pradhan\s+mantri\s+fasal\s+bima|e[\s-]?nam|icar\b|msp\b|mandi\b|fertil\w*\s+subsidy|organic\s+certif|navdanya)\b/i;
 
 /** Strongly task-oriented asks should run full planning even if short/non-agri tokens. */
 const ACTION_REQUEST =
-    /\b(give\s+me\s+\d+\s+(?:action|step|bullet)s?|next\s+24\s+hours|priority\s+list|what\s+should\s+i\s+do\s+first|step-?by-?step\s+plan|action\s+plan)\b/i;
+    /\b(give\s+me\s+\d+\s+(?:action|step|bullet)s?|give\s+\d+\s+(?:priority\s+)?(?:action\s+)?bullets?|exactly\s+\d+\s+(?:\w+\s+){0,3}(?:bullets?|actions?|points?|steps?)|next\s+24\s+hours|priority\s+list|what\s+should\s+i\s+do\s+first|step-?by-?step\s+plan|action\s+plan)\b/i;
 
 /** Conversational asks that should stay casual even if they contain farm tokens. */
 const SOCIAL_CASUAL_REQUEST =
@@ -169,6 +176,13 @@ export function classifyAssistantRouting(rawText, opts = {}) {
 
     if (ACTION_REQUEST.test(text)) {
         return { mode: "full", reason: "explicit_action_request" };
+    }
+
+    if (
+        STRICT_OUTPUT_SHAPE.test(text) &&
+        (AGRI_TOKEN.test(text) || SPECIFIC_SYMPTOM.test(text) || POLICY_OR_SCHEME.test(text))
+    ) {
+        return { mode: "full", reason: "strict_output_shape" };
     }
 
     if (SOCIAL_CASUAL_REQUEST.test(text) && !/\b(dose|spray|treatment|diagnos|disease|pest|irrigat|fertiliz)\b/i.test(text)) {
