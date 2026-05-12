@@ -274,6 +274,64 @@
             display: inline-flex; align-items: center; gap: 6px;
         }
 
+        /* Live AI detection badge — top-left of viewfinder while live mode on */
+        .sc-live-badge[hidden] { display: none; }
+        .sc-live-badge {
+            position: absolute; top: 12px; left: 12px; z-index: 6;
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 14px 8px 10px;
+            border-radius: 999px;
+            background: rgba(8, 16, 14, 0.78);
+            border: 1px solid rgba(16, 185, 129, 0.45);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 14px rgba(16, 185, 129, 0.22);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            max-width: calc(100% - 110px);
+        }
+        .sc-live-pulse {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: var(--sc-emerald);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.9), 0 0 0 4px rgba(16, 185, 129, 0.15);
+            animation: scLivePulse 1.4s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+        @keyframes scLivePulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 8px rgba(16, 185, 129, 0.9), 0 0 0 4px rgba(16, 185, 129, 0.15); }
+            50%      { transform: scale(1.25); box-shadow: 0 0 14px rgba(16, 185, 129, 1), 0 0 0 6px rgba(16, 185, 129, 0.20); }
+        }
+        .sc-live-body { display: flex; flex-direction: column; min-width: 0; }
+        .sc-live-title {
+            font-size: 12.5px; font-weight: 600; color: var(--sc-emerald);
+            line-height: 1.2;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .sc-live-sub {
+            font-size: 10.5px; color: var(--sc-dim);
+            margin-top: 1px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            max-width: 220px;
+        }
+        .sc-live-badge.is-warn { border-color: rgba(245, 158, 11, 0.55); }
+        .sc-live-badge.is-warn .sc-live-pulse { background: var(--sc-amber); box-shadow: 0 0 8px rgba(245, 158, 11, 0.9), 0 0 0 4px rgba(245, 158, 11, 0.15); }
+        .sc-live-badge.is-warn .sc-live-title { color: var(--sc-amber); }
+        .sc-live-badge.is-bad { border-color: rgba(244, 63, 94, 0.55); }
+        .sc-live-badge.is-bad .sc-live-pulse { background: #f87171; box-shadow: 0 0 8px rgba(244, 63, 94, 0.9), 0 0 0 4px rgba(244, 63, 94, 0.15); }
+        .sc-live-badge.is-bad .sc-live-title { color: #f87171; }
+        @media (prefers-reduced-motion: reduce) {
+            .sc-live-pulse { animation: none !important; }
+        }
+
+        /* Also light up the Detect toggle when active */
+        .sc-live-detect-btn.is-active {
+            background: rgba(16, 185, 129, 0.16);
+            border-color: rgba(16, 185, 129, 0.55);
+            color: var(--sc-emerald);
+            box-shadow: 0 0 14px rgba(16, 185, 129, 0.30);
+        }
+        .sc-live-detect-btn.is-active i {
+            animation: scLiveRadar 2s linear infinite;
+        }
+        @keyframes scLiveRadar { to { transform: rotate(360deg); } }
+
         /* ── State containers ── */
         .sc-state { margin-top: 16px; }
         .hidden { display: none !important; }
@@ -598,6 +656,15 @@
             <div class="cam-assist-badge" id="cam-assist-badge" hidden>
                 <i class="ri-contrast-2-line"></i><span id="cam-assist-text"></span>
             </div>
+            <!-- Live Gemini detection badge — populated by startLiveGeminiScan
+                 once every ~6s while the Detect toggle is on. Hidden otherwise. -->
+            <div class="sc-live-badge" id="sc-live-badge" hidden>
+                <div class="sc-live-pulse"></div>
+                <div class="sc-live-body">
+                    <div class="sc-live-title" id="sc-live-title">AI watching…</div>
+                    <div class="sc-live-sub" id="sc-live-sub">Hold steady on a leaf</div>
+                </div>
+            </div>
             <!-- Camera controls (top-right inside viewfinder) -->
             <div class="sc-vf-actions">
                 <button type="button" class="sc-vf-btn" id="flip-camera" title="Flip camera" aria-label="Flip camera"><i class="ri-camera-switch-line"></i></button>
@@ -755,7 +822,7 @@
     </script>
 
     <script src="js/app.js"></script>
-    <script type="module" src="js/scanner-db.js?v=40"></script>
+    <script type="module" src="js/scanner-db.js?v=41"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>

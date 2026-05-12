@@ -34,6 +34,7 @@ import { queueLearningFlush } from "./learning/scheduler.js";
 import { decorateNotificationForAmbient } from "./ambient/notification-decorator.js";
 import { enqueueSensoryCue } from "./ambient/sensory-hooks.js";
 import { runAiVisionScan } from "./ai/vision-scan.js?v=2";
+import { startLiveGeminiScan } from "./ai/live-vision-gemini.js?v=1";
 
 const SYMPTOMS = [
     { id: "leaf_spots", label: "Leaf spots", weight: 14, tags: ["fungal", "bacterial"] },
@@ -351,6 +352,41 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     };
 
+    // ── Live AI detection (Gemini multimodal via Val Town proxy) ──
+    // Every ~6s while the toggle is on: grab a frame, send to Gemini vision,
+    // surface the diagnosis as a glowing badge in the top-left of the
+    // viewfinder. We bypass scanner-live-vision.js entirely now — that
+    // module needed a separately-hosted FastAPI model that most users
+    // don't have configured.
+    function setLiveBadge({ ok, diagnosis, error }) {
+        const badge = document.getElementById("sc-live-badge");
+        const titleEl = document.getElementById("sc-live-title");
+        const subEl = document.getElementById("sc-live-sub");
+        if (!badge || !titleEl || !subEl) return;
+        badge.hidden = false;
+        badge.classList.remove("is-warn", "is-bad");
+        if (!ok) {
+            titleEl.textContent = "AI watching…";
+            subEl.textContent = error === "all_providers_failed"
+                ? "AI reachable, no answer — hold steady"
+                : "Hold steady on a leaf";
+            return;
+        }
+        const d = diagnosis;
+        titleEl.textContent = d.diseaseName || "Analyzing…";
+        const conf = Number.isFinite(d.confidence) ? Math.round(d.confidence) : null;
+        const subBits = [];
+        if (d.scientificName) subBits.push(d.scientificName);
+        if (conf != null) subBits.push(conf + "% confident");
+        subEl.textContent = subBits.length ? subBits.join(" · ") : (d.summary || "Live detection");
+        if (d.riskLevel === "medium") badge.classList.add("is-warn");
+        if (d.riskLevel === "high") badge.classList.add("is-bad");
+    }
+    function hideLiveBadge() {
+        const badge = document.getElementById("sc-live-badge");
+        if (badge) badge.hidden = true;
+    }
+
     const stopLiveVision = () => {
         if (liveHandle && typeof liveHandle.stop === "function") liveHandle.stop();
         liveHandle = null;
@@ -360,36 +396,40 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         if (liveToggle) {
             liveToggle.setAttribute("aria-pressed", "false");
-            liveToggle.classList.remove("live-active");
+            liveToggle.classList.remove("live-active", "is-active");
         }
+        hideLiveBadge();
     };
 
-    if (liveToggle && visionCanvas) {
+    if (liveToggle) {
         liveToggle.addEventListener("click", () => {
-            const cfg = getAiConfig();
-            if (!cfg.inferenceBaseUrl) {
-                showScannerStatus("Live scan needs AI vision API configured.", true, 2800);
-                return;
-            }
             if (liveHandle) {
                 stopLiveVision();
-                showScannerStatus("Live scan stopped.", false, 1200);
+                showScannerStatus("Live AI scan stopped.", false, 1200);
                 return;
             }
             const v = qs("videoElement");
-            if (!v) return;
+            if (!v || !v.videoWidth) {
+                showScannerStatus("Camera not ready yet — give it a moment.", true, 2200);
+                return;
+            }
             try {
-                liveHandle = startLiveDiseaseScan({
+                liveHandle = startLiveGeminiScan({
                     videoEl: v,
-                    canvasEl: visionCanvas,
-                    tuning: { confThreshold: 0.68 },
+                    intervalMs: 6000,
+                    context: {
+                        cropType: cropSel?.value || "",
+                        fieldName: fieldSel?.options[fieldSel.selectedIndex]?.textContent || "",
+                    },
+                    onDetection: setLiveBadge,
                 });
                 liveToggle.setAttribute("aria-pressed", "true");
-                liveToggle.classList.add("live-active");
-                showScannerStatus("Live AI scan running.", false, 1200);
+                liveToggle.classList.add("live-active", "is-active");
+                setLiveBadge({ ok: false, error: "starting" });
+                showScannerStatus("Live AI scan running — Gemini every ~6s.", false, 1600);
             } catch (e) {
                 console.warn("[scanner] live vision start:", e?.message || e);
-                showScannerStatus("Could not start live scan.", true, 2600);
+                showScannerStatus("Could not start live scan: " + (e?.message || e), true, 2800);
             }
         });
     }
