@@ -188,9 +188,14 @@
         @keyframes aaDotPulse { 50% { opacity: 0.4; box-shadow: 0 0 4px var(--aa-emerald-glow); } }
         .aa-model-pill .aa-pill-label { font-size: 12px; letter-spacing: 0.5px; }
 
-        /* ── Model menu (popover) ── */
+        /* ── Model / chat menu (popover) ──
+           position: fixed so the menu is anchored to the viewport (same
+           coordinate space as .aa-header). Previously position: absolute
+           relative to .aa-app meant the menu sat at document-y=70 — when
+           the user had scrolled the chat, the menu was off-screen above
+           the viewport, looking like nothing opened. */
         .aa-menu {
-            position: absolute; top: 70px; right: 12px;
+            position: fixed; top: calc(70px + env(safe-area-inset-top, 0px)); right: 12px;
             z-index: 60;
             min-width: 280px; max-width: calc(100vw - 24px);
             background: rgba(6, 12, 10, 0.96);
@@ -616,7 +621,7 @@
                 </div>
             </div>
             <div class="aa-hdr-actions">
-                <a href="profile.html" class="aa-icon-btn" aria-label="Settings"><i class="ri-settings-3-line"></i></a>
+                <button type="button" class="aa-icon-btn" id="aa-settings-btn" aria-label="Assistant settings" aria-haspopup="menu" aria-expanded="false"><i class="ri-settings-3-line"></i></button>
                 <button type="button" class="aa-icon-btn aa-model-pill" id="ai-model-picker" title="Choose AI model" aria-haspopup="listbox" aria-expanded="false">
                     <span class="aa-pill-label" id="ai-model-badge">Auto</span>
                     <span class="aa-pill-dot"></span>
@@ -734,7 +739,7 @@
         <a href="profile.html" class="b-nav-item"><i class="ri-user-smile-line"></i><span data-i18n="navProfile">Profile</span></a>
     </nav>
 
-    <script type="module" src="js/assistant.js?v=96"></script>
+    <script type="module" src="js/assistant.js?v=97"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>

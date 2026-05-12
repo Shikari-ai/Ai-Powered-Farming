@@ -292,10 +292,27 @@ onAuthStateChanged(auth, (user) => {
   const headerEl = document.querySelector("header.aa-header") || document.querySelector("header.header");
   const vv = window.visualViewport;
   if (headerEl && vv) {
+    // Also remove the focus class when the keyboard collapses back —
+    // some mobile browsers don't fire `blur` reliably (the user dismisses
+    // the keyboard via gesture, not by tapping outside the input). That
+    // left the bottom dock stuck hidden after typing. We detect the
+    // collapse by visualViewport.height returning to >=95% of the layout
+    // viewport.
+    const maybeClearFocusOnKeyboardCollapse = () => {
+      const layoutH = window.innerHeight || vv.height;
+      if (!layoutH) return;
+      const ratio = vv.height / layoutH;
+      if (ratio >= 0.95 && document.body.classList.contains("assistant-composer-focus")) {
+        // Keyboard is gone — even if the input is still "focused" in the
+        // DOM, the user doesn't want the dock hidden anymore.
+        document.body.classList.remove("assistant-composer-focus");
+      }
+    };
     const sync = () => {
       const top = Math.max(0, Math.round(vv.offsetTop));
       headerEl.style.top = top + "px";
       document.documentElement.style.setProperty("--vv-offset-top", top + "px");
+      maybeClearFocusOnKeyboardCollapse();
     };
     vv.addEventListener("resize", sync);
     vv.addEventListener("scroll", sync);
@@ -374,42 +391,48 @@ onAuthStateChanged(auth, (user) => {
   // Expose pref to the assistant-side request builder
   window.__agriGetModelPref = getModelPref;
 
-  // ── Hamburger menu (top-left): opens "Clear chat" dropdown ──
-  // The actual archive logic stays in the existing clearBtn click handler
-  // (further down). This menu just exposes that action via a dust-bin icon.
+  // ── Chat menu popover (Clear chat with dust-bin icon) ──
+  // Both the hamburger (top-left) and the settings gear (top-right) open
+  // the same menu — two affordances, one action surface. The actual
+  // archive logic lives in the existing clearBtn handler (below in this
+  // file); this menu is just the UI to expose it.
   const menuBtn = document.getElementById("aa-menu-btn");
+  const settingsBtn = document.getElementById("aa-settings-btn");
   const menuPop = document.getElementById("aa-menu-popover");
-  if (menuBtn && menuPop) {
+  if (menuPop) {
+    const triggers = [menuBtn, settingsBtn].filter(Boolean);
     const closeMenuPop = () => {
       menuPop.classList.add("hidden");
-      menuBtn.setAttribute("aria-expanded", "false");
+      triggers.forEach((t) => t.setAttribute("aria-expanded", "false"));
       document.removeEventListener("click", onDocMenuClick, true);
     };
     function onDocMenuClick(e) {
-      if (menuPop.contains(e.target) || menuBtn.contains(e.target)) return;
+      if (menuPop.contains(e.target)) return;
+      if (triggers.some((t) => t.contains(e.target))) return;
       closeMenuPop();
     }
-    menuBtn.addEventListener("click", () => {
+    const openMenuPop = (anchor) => {
       const isOpen = !menuPop.classList.contains("hidden");
       if (isOpen) { closeMenuPop(); return; }
       // Close model menu if open
       modelMenu?.classList.add("hidden");
       modelBtn?.setAttribute("aria-expanded", "false");
       menuPop.classList.remove("hidden");
-      menuBtn.setAttribute("aria-expanded", "true");
+      anchor?.setAttribute("aria-expanded", "true");
       setTimeout(() => document.addEventListener("click", onDocMenuClick, true), 0);
-    });
-    // After Clear chat clicked, close the popover (the click handler on
-    // clearBtn already runs the archive logic in its own listener).
+    };
+    triggers.forEach((t) => t.addEventListener("click", () => openMenuPop(t)));
+    // After Clear chat clicked, close the popover.
     document.getElementById("assistant-clear")?.addEventListener("click", () => {
       closeMenuPop();
     });
   }
 
   // ── Microphone (Web Speech API) ──
-  // Click → start listening → transcribe into the input field. Click again
-  // to stop early. Falls back silently if the browser doesn't support
-  // SpeechRecognition (Firefox, some older Android Chrome).
+  // Click to start, click again to stop. Transcribed text streams into
+  // the chat input as the user speaks. Continuous mode + interim results
+  // so the user sees live feedback. Falls back to a clear hint if the
+  // browser doesn't support SpeechRecognition (Firefox, some Android).
   const micBtn = document.getElementById("aa-mic-btn");
   if (micBtn) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -420,49 +443,84 @@ onAuthStateChanged(auth, (user) => {
         const inp = document.getElementById("assistant-input");
         if (inp) {
           inp.focus();
-          inp.placeholder = "Type here — voice input isn't supported on this browser.";
+          inp.placeholder = "Voice input isn't supported on this browser — please type.";
         }
       });
     } else {
       let rec = null;
       let isListening = false;
+      let baseText = "";
+      let finalSoFar = "";
       const stopListening = () => {
-        if (rec && isListening) { try { rec.stop(); } catch {} }
+        if (rec) { try { rec.stop(); } catch {} }
         isListening = false;
         micBtn.classList.remove("recording");
+      };
+      // Pick a safe language: prefer en-US (most reliable), fall back to navigator.language.
+      const pickLang = () => {
+        const nav = (navigator.language || "").toLowerCase();
+        if (nav.startsWith("en")) return nav.includes("in") ? "en-IN" : "en-US";
+        return nav || "en-US";
       };
       micBtn.addEventListener("click", () => {
         const inp = document.getElementById("assistant-input");
         if (!inp) return;
         if (isListening) { stopListening(); return; }
+
         rec = new SR();
-        rec.lang = (navigator.language || "en-IN");
+        rec.lang = pickLang();
         rec.interimResults = true;
-        rec.continuous = false;
+        rec.continuous = true;  // keep listening until the user taps mic again
         rec.maxAlternatives = 1;
-        let baseText = inp.value;
-        if (baseText && !/[\s]$/.test(baseText)) baseText += " ";
+
+        // Anchor: whatever was in the input when listening starts.
+        baseText = inp.value;
+        if (baseText && !/\s$/.test(baseText)) baseText += " ";
+        finalSoFar = "";
+
         rec.onresult = (ev) => {
           let interim = "";
-          let finalText = "";
           for (let i = ev.resultIndex; i < ev.results.length; i++) {
             const r = ev.results[i];
-            if (r.isFinal) finalText += r[0].transcript;
-            else interim += r[0].transcript;
+            const t = r[0]?.transcript || "";
+            if (r.isFinal) {
+              finalSoFar += (finalSoFar && !/\s$/.test(finalSoFar) ? " " : "") + t.trim();
+            } else {
+              interim += t;
+            }
           }
-          inp.value = baseText + finalText + interim;
+          inp.value = (baseText + finalSoFar + (interim ? " " + interim : "")).replace(/\s+/g, " ").trimStart();
+          // Fire input event so any listeners (autocomplete etc.) react.
+          inp.dispatchEvent(new Event("input", { bubbles: true }));
         };
         rec.onerror = (ev) => {
-          console.warn("[assistant] speech recognition error:", ev.error);
+          console.warn("[assistant] mic error:", ev.error);
+          if (ev.error === "not-allowed" || ev.error === "service-not-allowed") {
+            inp.placeholder = "Microphone access denied — allow it in browser settings.";
+          } else if (ev.error === "no-speech") {
+            // Soft error — keep listening if continuous; otherwise stop.
+            if (!rec.continuous) stopListening();
+            return;
+          } else if (ev.error === "audio-capture") {
+            inp.placeholder = "No microphone found on this device.";
+          }
           stopListening();
         };
-        rec.onend = () => { stopListening(); };
+        rec.onend = () => {
+          // In continuous mode some browsers still fire end after a pause.
+          // Auto-restart only if the user hasn't tapped to stop.
+          if (isListening) {
+            try { rec.start(); return; } catch {}
+          }
+          stopListening();
+        };
         try {
           rec.start();
           isListening = true;
           micBtn.classList.add("recording");
+          inp.focus();
         } catch (e) {
-          console.warn("[assistant] could not start speech recognition:", e);
+          console.warn("[assistant] mic start failed:", e);
           stopListening();
         }
       });
