@@ -435,42 +435,40 @@
             box-shadow: inset 0 0 0 3px rgba(16, 185, 129, 0.55);
         }
 
-        /* Google Lens second-opinion button — appears in the AI Review card */
-        .sc-lens-btn {
+        /* Google Lens live-detect button — captures current video frame
+           and opens lens.google.com with it for instant visual search */
+        .sc-lens-live-btn {
             width: 100%;
-            margin-top: 14px;
             display: flex; align-items: center; gap: 10px;
-            padding: 10px 14px;
-            border-radius: 14px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            background: linear-gradient(135deg, rgba(66, 133, 244, 0.10), rgba(234, 67, 53, 0.05));
+            padding: 13px 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(66, 133, 244, 0.28);
+            background: linear-gradient(135deg, rgba(66, 133, 244, 0.10), rgba(234, 67, 53, 0.06));
             color: var(--sc-text);
-            font-size: 13px; font-weight: 500; font-family: inherit;
+            font-size: 14px; font-weight: 600; font-family: inherit;
             cursor: pointer;
-            transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s;
+            transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s, box-shadow 0.18s;
             -webkit-tap-highlight-color: transparent;
         }
-        .sc-lens-btn:hover:not([disabled]) {
-            background: linear-gradient(135deg, rgba(66, 133, 244, 0.16), rgba(234, 67, 53, 0.08));
-            border-color: rgba(66, 133, 244, 0.32);
+        .sc-lens-live-btn:hover:not([disabled]) {
+            background: linear-gradient(135deg, rgba(66, 133, 244, 0.18), rgba(234, 67, 53, 0.10));
+            border-color: rgba(66, 133, 244, 0.50);
+            box-shadow: 0 0 18px rgba(66, 133, 244, 0.22);
         }
-        .sc-lens-btn:active:not([disabled]) { transform: scale(0.98); }
-        .sc-lens-btn[disabled] { opacity: 0.5; cursor: default; }
-        .sc-lens-btn i {
-            font-size: 17px;
-            background: linear-gradient(135deg, #4285F4 0%, #34A853 30%, #FBBC04 60%, #EA4335 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
+        .sc-lens-live-btn:active:not([disabled]) { transform: scale(0.97); }
+        .sc-lens-live-btn[disabled] { opacity: 0.55; cursor: default; }
+        .sc-lens-live-btn .sc-lens-g {
+            width: 26px; height: 26px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            background: #fff;
+            flex-shrink: 0;
         }
-        .sc-lens-btn span:nth-of-type(1) { flex: 1; }
-        .sc-lens-hint {
+        .sc-lens-live-btn .sc-lens-g svg { width: 16px; height: 16px; display: block; }
+        .sc-lens-live-btn .sc-lens-label { flex: 1; text-align: left; }
+        .sc-lens-live-btn .sc-lens-hint {
             font-size: 11px; color: var(--sc-muted); font-weight: 400;
         }
-        .sc-lens-btn.is-uploading .sc-lens-hint::after {
-            content: ""; display: inline-block; width: 10px;
-            animation: scLensDots 1.4s infinite steps(4, end);
-        }
+        .sc-lens-live-btn.is-uploading .sc-lens-hint { opacity: 0.7; }
         @keyframes scLensDots {
             0%   { content: ""; }
             25%  { content: "."; }
@@ -478,18 +476,10 @@
             75%  { content: "..."; }
             100% { content: ""; }
         }
-
-        /* Also light up the Detect toggle when active */
-        .sc-live-detect-btn.is-active {
-            background: rgba(16, 185, 129, 0.16);
-            border-color: rgba(16, 185, 129, 0.55);
-            color: var(--sc-emerald);
-            box-shadow: 0 0 14px rgba(16, 185, 129, 0.30);
+        .sc-lens-live-btn.is-uploading .sc-lens-hint::after {
+            content: ""; display: inline-block; width: 10px;
+            animation: scLensDots 1.4s infinite steps(4, end);
         }
-        .sc-live-detect-btn.is-active i {
-            animation: scLiveRadar 2s linear infinite;
-        }
-        @keyframes scLiveRadar { to { transform: rotate(360deg); } }
 
         /* ── State containers ── */
         .sc-state { margin-top: 16px; }
@@ -856,22 +846,25 @@
                     <li>Loading recommendations…</li>
                 </ul>
             </div>
-            <!-- Open the current capture in Google Lens as a second-opinion
-                 visual search. Uploads the photo to a public Firebase
-                 Storage URL and opens lens.google.com with that URL. -->
-            <button type="button" class="sc-lens-btn" id="sc-open-lens-btn" disabled>
-                <i class="ri-google-fill"></i>
-                <span>View in Google Lens</span>
-                <span class="sc-lens-hint" id="sc-lens-hint">Capture a photo first</span>
-            </button>
         </section>
 
         <!-- Ready state: capture / upload -->
         <div id="ready-state" class="sc-state">
             <p class="sc-state-help">Point at a leaf, then capture or upload.</p>
             <div class="sc-live-detect-row">
-                <button class="sc-btn sc-btn-outline sc-live-detect-btn" id="live-vision-toggle" aria-label="Detect under live camera" aria-pressed="false">
-                    <i class="ri-radar-line"></i> Detect under live camera
+                <!-- Captures current video frame → uploads → opens Google Lens -->
+                <button class="sc-lens-live-btn" id="sc-open-lens-btn" aria-label="Scan with Google Lens">
+                    <span class="sc-lens-g">
+                        <!-- Google "G" logo SVG -->
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                        </svg>
+                    </span>
+                    <span class="sc-lens-label">Scan with Google Lens</span>
+                    <span class="sc-lens-hint" id="sc-lens-hint">Point at a leaf, then tap</span>
                 </button>
             </div>
             <div class="sc-ready-btns">
@@ -1017,7 +1010,7 @@
     </script>
 
     <script src="js/app.js"></script>
-    <script type="module" src="js/scanner-db.js?v=46"></script>
+    <script type="module" src="js/scanner-db.js?v=47"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>

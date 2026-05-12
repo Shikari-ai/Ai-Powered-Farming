@@ -505,48 +505,49 @@ document.addEventListener("DOMContentLoaded", () => {
         if (badge) badge.hidden = true;
     }
 
-    // ── Google Lens fallback button ──
-    // Uploads the captured/uploaded blob to a temp Firebase Storage path,
-    // gets a public download URL, then opens lens.google.com/uploadbyurl in
-    // a new tab. Gives users a no-AI fallback when our Gemini path fails or
-    // they just want a second opinion from Google's broader visual index.
+    // ── Google Lens live-capture button ──
+    // Grabs the current video frame, uploads to a temp Firebase Storage path,
+    // and opens lens.google.com/uploadbyurl so Google Lens processes it directly.
+    // Button lives in the ready-state so the user just points and taps.
     function setLensButtonState(state) {
         const btn = document.getElementById("sc-open-lens-btn");
         const hint = document.getElementById("sc-lens-hint");
         if (!btn || !hint) return;
         btn.classList.remove("is-uploading");
-        if (state === "ready") {
-            btn.disabled = false;
-            hint.textContent = "Opens in a new tab";
-        } else if (state === "uploading") {
+        if (state === "uploading") {
             btn.disabled = true;
             btn.classList.add("is-uploading");
             hint.textContent = "Uploading";
         } else if (state === "error") {
             btn.disabled = false;
-            hint.textContent = "Upload failed — tap to retry";
-        } else { // "disabled"
-            btn.disabled = true;
-            hint.textContent = "Capture a photo first";
+            hint.textContent = "Failed — tap to retry";
+        } else { // "idle"
+            btn.disabled = false;
+            hint.textContent = "Point at a leaf, then tap";
         }
     }
     const lensBtn = document.getElementById("sc-open-lens-btn");
     if (lensBtn) {
         lensBtn.addEventListener("click", async () => {
-            if (!currentBlob) return;
-            if (!currentUserId) {
-                setLensButtonState("error");
+            const videoEl = qs("videoElement");
+            if (!videoEl || !videoEl.videoWidth) {
+                showScannerStatus("Camera not ready — give it a moment.", true, 2000);
                 return;
             }
+            if (!currentUserId) return;
             setLensButtonState("uploading");
+            showScannerStatus("Uploading frame to Google Lens…", false, 8000);
             try {
-                const url = await uploadForLens(currentUserId, currentBlob);
+                const blob = await captureFromVideo(videoEl);
+                const url = await uploadForLens(currentUserId, blob);
                 const lensUrl = "https://lens.google.com/uploadbyurl?url=" + encodeURIComponent(url);
                 window.open(lensUrl, "_blank", "noopener,noreferrer");
-                setLensButtonState("ready");
+                setLensButtonState("idle");
+                showScannerStatus("Opened in Google Lens.", false, 2000);
             } catch (e) {
-                console.warn("[scanner] lens upload:", e?.message || e);
+                console.warn("[scanner] lens live:", e?.message || e);
                 setLensButtonState("error");
+                showScannerStatus("Lens upload failed — check connection.", true, 3000);
             }
         });
     }
@@ -564,39 +565,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         hideLiveBadge();
     };
-
-    if (liveToggle) {
-        liveToggle.addEventListener("click", () => {
-            if (liveHandle) {
-                stopLiveVision();
-                showScannerStatus("Live AI scan stopped.", false, 1200);
-                return;
-            }
-            const v = qs("videoElement");
-            if (!v || !v.videoWidth) {
-                showScannerStatus("Camera not ready yet — give it a moment.", true, 2200);
-                return;
-            }
-            try {
-                liveHandle = startLiveGeminiScan({
-                    videoEl: v,
-                    intervalMs: 6000,
-                    context: {
-                        cropType: cropSel?.value || "",
-                        fieldName: fieldSel?.options[fieldSel.selectedIndex]?.textContent || "",
-                    },
-                    onDetection: setLiveBadge,
-                });
-                liveToggle.setAttribute("aria-pressed", "true");
-                liveToggle.classList.add("live-active", "is-active");
-                setLiveBadge({ ok: false, error: "starting" });
-                showScannerStatus("Live AI scan running — Gemini every ~6s.", false, 1600);
-            } catch (e) {
-                console.warn("[scanner] live vision start:", e?.message || e);
-                showScannerStatus("Could not start live scan: " + (e?.message || e), true, 2800);
-            }
-        });
-    }
 
     const updateSymptomCount = () => {
         if (!symptomsWrap || !symptomCount) return;
@@ -623,7 +591,7 @@ document.addEventListener("DOMContentLoaded", () => {
         currentPreviewUrl = null;
         if (preview) preview.removeAttribute("src");
         resetVisionPanel();
-        setLensButtonState("disabled");
+        setLensButtonState("idle");
         if (cropSel) cropSel.value = "";
         if (symptomsWrap) {
             for (const b of symptomsWrap.querySelectorAll("button.active")) b.click();
@@ -920,7 +888,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 currentPreviewUrl = URL.createObjectURL(blob);
                 if (preview) preview.src = currentPreviewUrl;
                 toAnalyzeState();
-                setLensButtonState("ready");
                 startBackgroundVision(blob);
                 startAiVision(blob); // Gemini vision → auto-populate result
             } catch (e) {
