@@ -1,4 +1,4 @@
-import "./i18n.js";
+import "./i18n.js?v=12";
 
 const STYLE_ID = "interaction-engine-style";
 

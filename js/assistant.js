@@ -1,13 +1,14 @@
 import "./auth-session.js?v=33";
-import "./i18n.js?v=6";
+import "./i18n.js?v=12";
 import { auth, db } from "./auth.js?v=32";
-import { getLang } from "./i18n.js?v=6";
+import { getLang } from "./i18n.js?v=12";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
   addDoc,
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   limit,
   onSnapshot,
@@ -260,14 +261,29 @@ function buildAssistantReply({ question, fields, scans, recs, weatherLogs }) {
 
 /** @type {Array<() => void>} */
 let activeSubscriptions = [];
+/** Message listener for the active chat session (replaced on session switch). */
+let assistantMsgUnsub = null;
+
 function teardownSubscriptions() {
+  if (assistantMsgUnsub) {
+    try {
+      assistantMsgUnsub();
+    } catch (e) {
+      console.warn("[assistant] msg listener:", e);
+    }
+    assistantMsgUnsub = null;
+  }
   for (const u of activeSubscriptions) {
-    try { u?.(); } catch (e) { console.warn("[assistant] teardown:", e); }
+    try {
+      u?.();
+    } catch (e) {
+      console.warn("[assistant] teardown:", e);
+    }
   }
   activeSubscriptions = [];
 }
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   // Auth callbacks can fire multiple times (token refresh, sign-out+in,
   // multi-tab). Tear down any prior snapshot listeners before re-binding,
   // otherwise each refresh stacks another full set of Firestore reads.
@@ -324,7 +340,8 @@ onAuthStateChanged(auth, (user) => {
   inputEl?.addEventListener("focus", () => document.body.classList.add("assistant-composer-focus"));
   inputEl?.addEventListener("blur", () => document.body.classList.remove("assistant-composer-focus"));
   const sendBtn = el("assistant-send");
-  const clearBtn = el("assistant-clear");
+  const newChatBtn = el("assistant-new-chat");
+  const saveChatBtn = el("assistant-save-chat");
   const subEl = el("assistant-subtitle");
 
   // ── Model picker (user-controlled cascade override) ──
@@ -357,6 +374,7 @@ onAuthStateChanged(auth, (user) => {
     });
   }
   reflectModelPref();
+
   // Toggle the popover open/closed
   const modelBtn = document.getElementById("ai-model-picker");
   const modelMenu = document.getElementById("ai-model-menu");
@@ -374,7 +392,12 @@ onAuthStateChanged(auth, (user) => {
   modelBtn?.addEventListener("click", () => {
     if (!modelMenu) return;
     const isOpen = !modelMenu.classList.contains("hidden");
-    if (isOpen) { closeModelMenu(); return; }
+    if (isOpen) {
+      closeModelMenu();
+      return;
+    }
+    closeMenuPop();
+    closeSettingsPop();
     modelMenu.classList.remove("hidden");
     modelBtn.setAttribute("aria-expanded", "true");
     setTimeout(() => document.addEventListener("click", onDocClickForModel, true), 0);
@@ -391,42 +414,65 @@ onAuthStateChanged(auth, (user) => {
   // Expose pref to the assistant-side request builder
   window.__agriGetModelPref = getModelPref;
 
-  // ── Chat menu popover (Clear chat with dust-bin icon) ──
-  // Both the hamburger (top-left) and the settings gear (top-right) open
-  // the same menu — two affordances, one action surface. The actual
-  // archive logic lives in the existing clearBtn handler (below in this
-  // file); this menu is just the UI to expose it.
+  // ── Hamburger: recent / saved threads + delete. Settings: save chat pin. ──
   const menuBtn = document.getElementById("aa-menu-btn");
   const settingsBtn = document.getElementById("aa-settings-btn");
   const menuPop = document.getElementById("aa-menu-popover");
-  if (menuPop) {
-    const triggers = [menuBtn, settingsBtn].filter(Boolean);
-    const closeMenuPop = () => {
-      menuPop.classList.add("hidden");
-      triggers.forEach((t) => t.setAttribute("aria-expanded", "false"));
-      document.removeEventListener("click", onDocMenuClick, true);
-    };
-    function onDocMenuClick(e) {
-      if (menuPop.contains(e.target)) return;
-      if (triggers.some((t) => t.contains(e.target))) return;
-      closeMenuPop();
-    }
-    const openMenuPop = (anchor) => {
-      const isOpen = !menuPop.classList.contains("hidden");
-      if (isOpen) { closeMenuPop(); return; }
-      // Close model menu if open
-      modelMenu?.classList.add("hidden");
-      modelBtn?.setAttribute("aria-expanded", "false");
-      menuPop.classList.remove("hidden");
-      anchor?.setAttribute("aria-expanded", "true");
-      setTimeout(() => document.addEventListener("click", onDocMenuClick, true), 0);
-    };
-    triggers.forEach((t) => t.addEventListener("click", () => openMenuPop(t)));
-    // After Clear chat clicked, close the popover.
-    document.getElementById("assistant-clear")?.addEventListener("click", () => {
-      closeMenuPop();
-    });
+  const settingsPop = document.getElementById("aa-settings-popover");
+  const sessionsListEl = document.getElementById("aa-chat-sessions-list");
+
+  const closeMenuPop = () => {
+    if (!menuPop) return;
+    menuPop.classList.add("hidden");
+    menuBtn?.setAttribute("aria-expanded", "false");
+    document.removeEventListener("click", onDocMenuClick, true);
+  };
+  const closeSettingsPop = () => {
+    if (!settingsPop) return;
+    settingsPop.classList.add("hidden");
+    settingsBtn?.setAttribute("aria-expanded", "false");
+    document.removeEventListener("click", onDocSettingsClick, true);
+  };
+  function onDocMenuClick(e) {
+    if (!menuPop) return;
+    if (menuPop.contains(e.target)) return;
+    if (menuBtn?.contains(e.target)) return;
+    closeMenuPop();
   }
+  function onDocSettingsClick(e) {
+    if (!settingsPop) return;
+    if (settingsPop.contains(e.target)) return;
+    if (settingsBtn?.contains(e.target)) return;
+    closeSettingsPop();
+  }
+  const openMenuPop = () => {
+    if (!menuPop) return;
+    const isOpen = !menuPop.classList.contains("hidden");
+    if (isOpen) {
+      closeMenuPop();
+      return;
+    }
+    closeSettingsPop();
+    closeModelMenu();
+    menuPop.classList.remove("hidden");
+    menuBtn?.setAttribute("aria-expanded", "true");
+    setTimeout(() => document.addEventListener("click", onDocMenuClick, true), 0);
+  };
+  const openSettingsPop = () => {
+    if (!settingsPop) return;
+    const isOpen = !settingsPop.classList.contains("hidden");
+    if (isOpen) {
+      closeSettingsPop();
+      return;
+    }
+    closeMenuPop();
+    closeModelMenu();
+    settingsPop.classList.remove("hidden");
+    settingsBtn?.setAttribute("aria-expanded", "true");
+    setTimeout(() => document.addEventListener("click", onDocSettingsClick, true), 0);
+  };
+  menuBtn?.addEventListener("click", () => openMenuPop());
+  settingsBtn?.addEventListener("click", () => openSettingsPop());
 
   // ── Microphone (Web Speech API) ──
   // Click to start, click again to stop. Transcribed text streams into
@@ -540,6 +586,9 @@ onAuthStateChanged(auth, (user) => {
   let companionProfile = defaultCompanionProfile(user.uid);
   let lastMsgCount = 0;
   let chatMessages = [];
+  /** Firestore `assistant_sessions` doc id for the thread shown in the composer. */
+  let activeSessionId = null;
+  const sessionLsKey = `agri_aa_active_sess_${user.uid}`;
   /** While set, UI shows a typing row after this user message (until assistant stream starts). */
   let awaitingAssistantAfterUserId = null;
   /** When true, message list repaint during Firestore snapshot is skipped (stream owns DOM). */
@@ -686,23 +735,261 @@ onAuthStateChanged(auth, (user) => {
     attachBtn?.setAttribute("aria-label", pendingImageBlob ? "Replace attached image" : "Attach crop photo");
   };
 
-  const msgsQ = query(collection(db, "assistant_messages"), where("userId", "==", user.uid), limit(200));
-  activeSubscriptions.push(
-    onSnapshot(msgsQ, (snap) => {
-      const msgs = [];
-      snap.forEach((d) => {
-        const data = d.data();
-        // Filter out archived messages — they live in the DB but are
-        // hidden from the chat view. The AI still gets the recent
-        // non-archived turns as conversational context.
-        if (data && data.archivedAt) return;
-        msgs.push({ id: d.id, ...data });
+  let latestSessionsSnapshot = [];
+
+  async function migrateLegacyAssistantMessages(uid, targetSessionId) {
+    const flag = `agri_aa_sess_mig_v1_${uid}`;
+    try {
+      if (localStorage.getItem(flag)) return;
+    } catch {}
+    const legacyQ = query(collection(db, "assistant_messages"), where("userId", "==", uid), limit(500));
+    const snap = await getDocs(legacyQ);
+    const batch = writeBatch(db);
+    let count = 0;
+    snap.forEach((d) => {
+      const data = d.data();
+      if (data.sessionId || data.archivedAt) return;
+      batch.update(doc(db, "assistant_messages", d.id), { sessionId: targetSessionId });
+      count++;
+    });
+    if (count) await batch.commit();
+    try {
+      localStorage.setItem(flag, "1");
+    } catch {}
+  }
+
+  function bindAssistantMessagesListener(uid, sessionId) {
+    if (assistantMsgUnsub) {
+      try {
+        assistantMsgUnsub();
+      } catch {}
+      assistantMsgUnsub = null;
+    }
+    const q = query(
+      collection(db, "assistant_messages"),
+      where("userId", "==", uid),
+      where("sessionId", "==", sessionId),
+      orderBy("createdAt", "asc"),
+      limit(200),
+    );
+    assistantMsgUnsub = onSnapshot(
+      q,
+      (snap) => {
+        const msgs = [];
+        snap.forEach((d) => {
+          const data = d.data();
+          if (data?.archivedAt) return;
+          msgs.push({ id: d.id, ...data });
+        });
+        lastMsgCount = msgs.length;
+        chatMessages = msgs;
+        if (!streamInFlight) paintChat();
+      },
+      (err) => console.warn("[assistant] messages:", err?.message || err),
+    );
+  }
+
+  function paintChatSessionsMenu() {
+    const host = sessionsListEl;
+    if (!host) return;
+    if (!latestSessionsSnapshot.length) {
+      host.innerHTML =
+        `<div class="aa-session-meta" style="padding:10px 12px;line-height:1.4;">No threads yet. Type below or open <strong>New chat</strong>.</div>`;
+      return;
+    }
+    const esc = (s) =>
+      String(s || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/"/g, "&quot;");
+    host.innerHTML = latestSessionsSnapshot
+      .map((row) => {
+        const active = row.id === activeSessionId;
+        const saved = !!row.saved;
+        const title = esc(row.title || "Chat");
+        const preview = esc(row.preview || "—");
+        const when = formatTime(tsToMs(row.lastActivityAt));
+        const sid = esc(row.id);
+        return `<div class="aa-session-row${active ? " is-active" : ""}" data-session-id="${sid}" role="menuitem">
+  <div class="aa-session-main">
+    <div class="aa-session-title">${title}</div>
+    <div class="aa-session-meta">${preview} · ${when}</div>
+  </div>
+  ${saved ? `<span class="aa-session-saved">Saved</span>` : `<span style="width:6px;flex-shrink:0"></span>`}
+  <button type="button" class="aa-session-del" data-del-session="${sid}" aria-label="Delete chat" title="Delete"><i class="ri-delete-bin-line"></i></button>
+</div>`;
+      })
+      .join("");
+  }
+
+  async function switchToSession(sid) {
+    if (!sid || sid === activeSessionId) return;
+    streamAbort.abort();
+    streamAbort = new AbortController();
+    sendGeneration += 1;
+    streamInFlight = false;
+    streamingAssistant = null;
+    activeStreamCtrl = null;
+    awaitingAssistantAfterUserId = null;
+    supersededUserMsgIds.clear();
+    activeSessionId = sid;
+    try {
+      localStorage.setItem(sessionLsKey, sid);
+    } catch {}
+    bindAssistantMessagesListener(user.uid, sid);
+    paintChatSessionsMenu();
+    paintChat();
+  }
+
+  async function deleteSessionById(sessionId) {
+    if (!sessionId) return;
+    if (!confirm("Delete this chat forever? Messages in this thread will be removed.")) return;
+    const wasActive = sessionId === activeSessionId;
+    const delQ = query(
+      collection(db, "assistant_messages"),
+      where("userId", "==", user.uid),
+      where("sessionId", "==", sessionId),
+      limit(450),
+    );
+    for (;;) {
+      const snap = await getDocs(delQ);
+      if (snap.empty) break;
+      const batch = writeBatch(db);
+      snap.forEach((d) => batch.delete(doc(db, "assistant_messages", d.id)));
+      await batch.commit();
+    }
+    await deleteDoc(doc(db, "assistant_sessions", sessionId));
+    if (wasActive) {
+      const ref = await addDoc(collection(db, "assistant_sessions"), {
+        userId: user.uid,
+        title: "New chat",
+        preview: "",
+        saved: false,
+        createdAt: serverTimestamp(),
+        lastActivityAt: serverTimestamp(),
+        schemaVersion: 1,
       });
-      lastMsgCount = msgs.length;
-      chatMessages = msgs;
-      if (!streamInFlight) paintChat();
-    }),
+      await switchToSession(ref.id);
+    }
+  }
+
+  async function touchSessionAfterUserSend(userText) {
+    if (!activeSessionId) return;
+    try {
+      const sref = doc(db, "assistant_sessions", activeSessionId);
+      const snap = await getDoc(sref);
+      const cur = snap.data() || {};
+      const preview = (userText || "(message)").slice(0, 140);
+      const title =
+        !cur.title || String(cur.title).trim() === "New chat"
+          ? preview.slice(0, 44).trim() || "Chat"
+          : cur.title;
+      await updateDoc(sref, {
+        lastActivityAt: serverTimestamp(),
+        preview,
+        title,
+      });
+    } catch (e) {
+      console.warn("[assistant] session touch:", e?.message || e);
+    }
+  }
+
+  async function ensureAssistantSessionReady() {
+    let sid = null;
+    try {
+      sid = localStorage.getItem(sessionLsKey);
+    } catch {}
+    if (sid) {
+      const sd = await getDoc(doc(db, "assistant_sessions", sid));
+      if (!sd.exists()) sid = null;
+    }
+    if (!sid) {
+      const ref = await addDoc(collection(db, "assistant_sessions"), {
+        userId: user.uid,
+        title: "New chat",
+        preview: "",
+        saved: false,
+        createdAt: serverTimestamp(),
+        lastActivityAt: serverTimestamp(),
+        schemaVersion: 1,
+      });
+      sid = ref.id;
+      try {
+        localStorage.setItem(sessionLsKey, sid);
+      } catch {}
+    }
+    activeSessionId = sid;
+    await migrateLegacyAssistantMessages(user.uid, sid);
+    bindAssistantMessagesListener(user.uid, sid);
+  }
+
+  await ensureAssistantSessionReady();
+
+  const sessionsQ = query(
+    collection(db, "assistant_sessions"),
+    where("userId", "==", user.uid),
+    orderBy("lastActivityAt", "desc"),
+    limit(28),
   );
+  activeSubscriptions.push(
+    onSnapshot(
+      sessionsQ,
+      (snap) => {
+        latestSessionsSnapshot = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        paintChatSessionsMenu();
+      },
+      (err) => console.warn("[assistant] sessions:", err?.message || err),
+    ),
+  );
+
+  newChatBtn?.addEventListener("click", async () => {
+    closeMenuPop();
+    try {
+      const ref = await addDoc(collection(db, "assistant_sessions"), {
+        userId: user.uid,
+        title: "New chat",
+        preview: "",
+        saved: false,
+        createdAt: serverTimestamp(),
+        lastActivityAt: serverTimestamp(),
+        schemaVersion: 1,
+      });
+      await switchToSession(ref.id);
+    } catch (e) {
+      console.error(e);
+      alert(`Could not start a new chat: ${e?.message || e}`);
+    }
+  });
+
+  saveChatBtn?.addEventListener("click", async () => {
+    if (!activeSessionId) return;
+    try {
+      await updateDoc(doc(db, "assistant_sessions", activeSessionId), {
+        saved: true,
+        savedAt: serverTimestamp(),
+      });
+      closeSettingsPop();
+    } catch (e) {
+      console.error(e);
+      alert(`Could not save: ${e?.message || e}`);
+    }
+  });
+
+  sessionsListEl?.addEventListener("click", (e) => {
+    const del = /** @type {HTMLElement} */ (e.target).closest("[data-del-session]");
+    if (del) {
+      e.preventDefault();
+      e.stopPropagation();
+      const ds = del.getAttribute("data-del-session");
+      if (ds) void deleteSessionById(ds);
+      return;
+    }
+    const row = /** @type {HTMLElement} */ (e.target).closest(".aa-session-row");
+    const sid = row?.getAttribute("data-session-id");
+    if (!sid) return;
+    void switchToSession(sid);
+    closeMenuPop();
+  });
 
   activeSubscriptions.push(
     onSnapshot(query(collection(db, "fields"), where("userId", "==", user.uid), limit(200)), (snap) => {
@@ -819,6 +1106,7 @@ onAuthStateChanged(auth, (user) => {
     if (inputEl) inputEl.value = "";
 
     try {
+      if (!activeSessionId) await ensureAssistantSessionReady();
       const flowTurnText = text || (imageBlob ? "(Image attached)" : "");
       recordFlowUserTurn({ text: flowTurnText, hadPriorStreamInterrupt: hadPriorStreamInterrupt });
       const flowSnap = getFlowSnapshot();
@@ -830,7 +1118,10 @@ onAuthStateChanged(auth, (user) => {
         hasAttachment: !!imageBlob,
         createdAt: serverTimestamp(),
         schemaVersion: 2,
+        sessionId: activeSessionId,
       });
+
+      await touchSessionAfterUserSend(flowTurnText);
 
       const optimisticUser = {
         id: userMsgRef.id,
@@ -840,6 +1131,7 @@ onAuthStateChanged(auth, (user) => {
         hasAttachment: !!imageBlob,
         createdAt: { toMillis: () => Date.now() },
         schemaVersion: 2,
+        sessionId: activeSessionId,
       };
       if (!chatMessages.some((m) => m.id === userMsgRef.id)) {
         chatMessages = [...chatMessages, optimisticUser].sort((a, b) => tsToMs(a.createdAt) - tsToMs(b.createdAt));
@@ -1042,6 +1334,7 @@ onAuthStateChanged(auth, (user) => {
         text: reply,
         createdAt: serverTimestamp(),
         replyTo: userMsgRef.id,
+        sessionId: activeSessionId,
         enginePackVersion:
           orch?.enginePackVersion ||
           (routing.mode === "clarify"
@@ -1057,6 +1350,12 @@ onAuthStateChanged(auth, (user) => {
         routingMode: routing.mode,
         schemaVersion: 2,
       });
+      try {
+        await updateDoc(doc(db, "assistant_sessions", activeSessionId), {
+          lastActivityAt: serverTimestamp(),
+          preview: reply.slice(0, 140),
+        });
+      } catch (_) {}
       // Optimistically place the persisted reply into chatMessages so the
       // upcoming paint shows it instantly without waiting for snapshot RTT.
       if (persistedReplyDoc?.id && !chatMessages.some((m) => m.id === persistedReplyDoc.id)) {
@@ -1071,6 +1370,7 @@ onAuthStateChanged(auth, (user) => {
             createdAt: { toMillis: () => Date.now() },
             routingMode: routing.mode,
             schemaVersion: 2,
+            sessionId: activeSessionId,
           },
         ].sort((a, b) => tsToMs(a.createdAt) - tsToMs(b.createdAt));
       }
@@ -1101,34 +1401,6 @@ onAuthStateChanged(auth, (user) => {
   sendBtn?.addEventListener("click", send);
   inputEl?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") send();
-  });
-
-  clearBtn?.addEventListener("click", async () => {
-    const ok = confirm("Archive this chat? Old messages will be hidden so you can start fresh with the AI. Nothing is deleted — the history stays in your account.");
-    if (!ok) return;
-    streamAbort.abort();
-    sendGeneration += 1;
-    streamAbort = new AbortController();
-    streamInFlight = false;
-    streamingAssistant = null;
-    activeStreamCtrl = null;
-    try {
-      const runsQ = query(collection(db, "ai_engine_runs"), where("userId", "==", user.uid), limit(500));
-      const [msgSnap, runSnap] = await Promise.all([getDocs(msgsQ), getDocs(runsQ)]);
-      const batch = writeBatch(db);
-      const archivedAt = serverTimestamp();
-      // Soft-archive every assistant message (don't delete — preserves history)
-      msgSnap.forEach((d) => {
-        if (d.data().archivedAt) return; // already archived
-        batch.update(doc(db, "assistant_messages", d.id), { archivedAt });
-      });
-      // Engine runs are dev telemetry — safe to delete on archive
-      runSnap.forEach((d) => batch.delete(doc(db, "ai_engine_runs", d.id)));
-      await batch.commit();
-    } catch (e) {
-      console.error(e);
-      alert(`Failed to archive: ${e.message}`);
-    }
   });
 });
 

@@ -1,5 +1,5 @@
 import "./auth-session.js?v=33";
-import "./i18n.js";
+import "./i18n.js?v=12";
 import { auth, db } from "./auth.js?v=32";
 import { doc, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {

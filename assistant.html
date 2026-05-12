@@ -198,7 +198,8 @@
         .aa-menu {
             position: fixed; top: calc(70px + env(safe-area-inset-top, 0px)); right: 12px;
             z-index: 60;
-            min-width: 280px; max-width: calc(100vw - 24px);
+            min-width: min(320px, calc(100vw - 24px));
+            max-width: calc(100vw - 24px);
             background: rgba(6, 12, 10, 0.96);
             border: 1px solid rgba(16, 185, 129, 0.18);
             border-radius: 18px;
@@ -227,6 +228,61 @@
         .aa-menu-opt.danger:hover { background: rgba(244, 63, 94, 0.10); }
         .aa-menu-opt.danger > i:first-child { color: rgba(244, 113, 99, 0.85); }
         .aa-menu-opt.danger .aa-menu-meta strong { color: rgba(252, 165, 165, 0.95); }
+
+        .aa-menu-section-title {
+            font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
+            text-transform: uppercase; color: rgba(148, 163, 184, 0.75);
+            padding: 8px 12px 4px;
+        }
+        .aa-sessions-list {
+            max-height: min(52vh, 340px);
+            overflow-y: auto;
+            margin: 0 2px 4px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .aa-session-row {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 6px 8px 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.12s ease;
+            border: 1px solid transparent;
+        }
+        .aa-session-row:hover { background: rgba(16, 185, 129, 0.06); }
+        .aa-session-row.is-active {
+            background: rgba(16, 185, 129, 0.10);
+            border-color: rgba(16, 185, 129, 0.22);
+        }
+        .aa-session-main { flex: 1; min-width: 0; }
+        .aa-session-title {
+            font-size: 13px; font-weight: 600; color: var(--aa-text);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .aa-session-meta {
+            font-size: 11px; color: var(--aa-dim); margin-top: 2px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .aa-session-saved {
+            font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+            color: var(--aa-emerald);
+            background: rgba(16, 185, 129, 0.12);
+            padding: 2px 6px; border-radius: 6px;
+            flex-shrink: 0;
+        }
+        .aa-session-del {
+            all: unset; cursor: pointer; box-sizing: border-box;
+            width: 36px; height: 36px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 10px;
+            color: rgba(248, 113, 113, 0.85);
+            font-size: 17px;
+        }
+        .aa-session-del:hover { background: rgba(244, 63, 94, 0.12); }
+        .aa-settings-hint {
+            font-size: 11px; line-height: 1.45; color: var(--aa-muted);
+            padding: 0 12px 10px;
+            margin: 0;
+        }
 
         /* ── Hero (AI Orb) ── */
         .aa-hero {
@@ -545,6 +601,98 @@
             }
         }
 
+        /* ── Desktop / large tablet: wider readable column, aligned chrome ── */
+        @media (min-width: 900px) {
+            body.assistant-page {
+                /* Softer edge on very wide monitors */
+                background:
+                    radial-gradient(ellipse 55% 40% at 50% 0%, rgba(16, 185, 129, 0.14) 0%, transparent 55%),
+                    var(--aa-bg);
+            }
+
+            .aa-app {
+                max-width: min(820px, calc(100vw - 48px));
+                padding-bottom: 132px;
+                border-radius: 22px 22px 0 0;
+                border: 1px solid rgba(16, 185, 129, 0.14);
+                border-bottom: none;
+                background: linear-gradient(180deg, rgba(5, 12, 10, 0.72) 0%, rgba(2, 8, 10, 0.35) 28%, transparent 55%);
+                box-shadow:
+                    0 0 0 1px rgba(0, 0, 0, 0.35) inset,
+                    0 24px 80px rgba(0, 0, 0, 0.45);
+            }
+
+            .aa-header {
+                max-width: min(820px, calc(100vw - 48px));
+                width: 100%;
+                left: 50%;
+                transform: translateX(-50%);
+                border-radius: 22px 22px 0 0;
+                padding-left: 20px;
+                padding-right: 20px;
+                background: linear-gradient(180deg, rgba(2, 8, 10, 0.96) 0%, rgba(2, 8, 10, 0.55) 72%, rgba(2, 8, 10, 0) 100%);
+            }
+
+            .aa-title p {
+                white-space: normal;
+                line-height: 1.35;
+                max-width: 42em;
+            }
+
+            .aa-menu,
+            #ai-model-menu,
+            #aa-menu-popover,
+            #aa-settings-popover {
+                right: calc((100vw - min(820px, calc(100vw - 48px))) / 2 + 10px);
+                max-width: min(340px, calc(100vw - 32px));
+            }
+
+            .aa-hero {
+                padding: 96px 28px 12px;
+            }
+            .aa-orb-wrap {
+                width: 200px;
+                height: 200px;
+            }
+            .aa-orb {
+                width: 132px;
+                height: 132px;
+            }
+            .aa-orb-leaf { font-size: 48px; }
+            .aa-ring.r1 { width: 168px; height: 168px; }
+            .aa-ring.r2 { width: 196px; height: 196px; }
+            .aa-arc { width: 228px; height: 228px; }
+            .aa-greet { font-size: 20px; margin-top: 18px; }
+            .aa-sub { font-size: 14px; max-width: 36em; margin-left: auto; margin-right: auto; }
+
+            .aa-cards { padding: 20px 24px 10px; }
+            .aa-card { padding: 18px 20px; }
+
+            .aa-chat {
+                padding: 10px 24px 0;
+                gap: 14px;
+            }
+            .msg {
+                max-width: min(92%, 640px);
+                font-size: 14px;
+                line-height: 1.55;
+                padding: 14px 16px;
+            }
+            .msg.user { max-width: min(78%, 520px); }
+
+            .aa-composer {
+                max-width: min(780px, calc(100vw - 56px));
+                bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+            }
+            .aa-composer-inner {
+                padding: 10px 12px;
+            }
+
+            body.assistant-page .bottom-nav {
+                max-width: min(800px, calc(100vw - 40px));
+            }
+        }
+
         .hidden { display: none !important; }
     </style>
 </head>
@@ -579,7 +727,7 @@
                     <i class="ri-menu-2-line"></i>
                 </button>
                 <div class="aa-title">
-                    <h1>AI Assistant <i class="ri-sparkling-line aa-spark"></i></h1>
+                    <h1 data-i18n="aiAssistant">AI Assistant <i class="ri-sparkling-line aa-spark"></i></h1>
                     <p id="assistant-subtitle">On-device intelligence • Live weather • Your Firestore data</p>
                 </div>
             </div>
@@ -616,11 +764,22 @@
             </button>
         </div>
 
-        <div id="aa-menu-popover" class="aa-menu hidden" role="menu" aria-label="Chat menu">
-            <button type="button" class="aa-menu-opt danger" id="assistant-clear" role="menuitem">
-                <i class="ri-delete-bin-line"></i>
-                <div class="aa-menu-meta"><strong>Clear chat</strong><span>Archive history and start fresh with the AI</span></div>
+        <div id="aa-menu-popover" class="aa-menu hidden" role="menu" aria-label="Chats">
+            <div class="aa-menu-section-title">Recent &amp; saved</div>
+            <div id="aa-chat-sessions-list" class="aa-sessions-list" aria-live="polite"></div>
+            <div class="aa-menu-sep"></div>
+            <button type="button" class="aa-menu-opt" id="assistant-new-chat" role="menuitem">
+                <i class="ri-add-line"></i>
+                <div class="aa-menu-meta"><strong>New chat</strong><span>Start a fresh thread — previous chats stay in this list</span></div>
             </button>
+        </div>
+
+        <div id="aa-settings-popover" class="aa-menu hidden" role="menu" aria-label="Assistant settings">
+            <button type="button" class="aa-menu-opt" id="assistant-save-chat" role="menuitem">
+                <i class="ri-bookmark-3-line"></i>
+                <div class="aa-menu-meta"><strong>Save chat</strong><span>Pin this thread in the menu under Recent &amp; saved</span></div>
+            </button>
+            <p class="aa-settings-hint">Saved chats appear in the <strong>☰</strong> menu. Open a thread from the list to continue or delete it with the trash icon.</p>
         </div>
 
         <!-- Hero: animated AI orb -->
@@ -688,7 +847,7 @@
         <a href="profile.html" class="b-nav-item"><i class="ri-user-smile-line"></i><span data-i18n="navProfile">Profile</span></a>
     </nav>
 
-    <script type="module" src="js/assistant.js?v=99"></script>
+    <script type="module" src="js/assistant.js?v=102"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>

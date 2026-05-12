@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>lang DOM harness (all data-i18n keys used on app pages)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 12px; max-width: 720px; color: #e2e8f0; }
+    .row { margin: 6px 0; display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
+    .k { color: #64748b; font-size: 12px; min-width: 160px; font-family: ui-monospace, monospace; }
+    .row [data-i18n] { flex: 1; min-width: 120px; color: #f1f5f9; font-size: 14px; }
+    nav { display: flex; gap: 16px; margin-bottom: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <p id="status">loading…</p>
+  <nav aria-label="Bottom nav (fixture)">
+    <span data-i18n="navHome">Home</span>
+    <span data-i18n="navFields">Fields</span>
+    <span data-i18n="navMap">Map</span>
+    <span data-i18n="navAi">AI</span>
+    <span data-i18n="navProfile">Profile</span>
+  </nav>
+  <section aria-label="Home dashboard labels (fixture)">
+    <div class="row"><span class="k">weatherNow</span><span data-i18n="weatherNow"></span></div>
+    <div class="row"><span class="k">humidity</span><span data-i18n="humidity"></span></div>
+    <div class="row"><span class="k">wind</span><span data-i18n="wind"></span></div>
+    <div class="row"><span class="k">rainfall</span><span data-i18n="rainfall"></span></div>
+    <div class="row"><span class="k">viewForecast</span><span data-i18n="viewForecast"></span></div>
+    <div class="row"><span class="k">scanCrop</span><span data-i18n="scanCrop"></span></div>
+    <div class="row"><span class="k">addField</span><span data-i18n="addField"></span></div>
+    <div class="row"><span class="k">irrigation</span><span data-i18n="irrigation"></span></div>
+    <div class="row"><span class="k">aiAssistant</span><span data-i18n="aiAssistant"></span></div>
+    <div class="row"><span class="k">recentAlerts</span><span data-i18n="recentAlerts"></span></div>
+    <div class="row"><span class="k">cropHealthMonitor</span><span data-i18n="cropHealthMonitor"></span></div>
+    <div class="row"><span class="k">viewAll</span><span data-i18n="viewAll"></span></div>
+    <div class="row"><span class="k">overallCropHealth</span><span data-i18n="overallCropHealth"></span></div>
+    <div class="row"><span class="k">pestPrediction</span><span data-i18n="pestPrediction"></span></div>
+    <div class="row"><span class="k">viewDetails</span><span data-i18n="viewDetails"></span></div>
+    <div class="row"><span class="k">riskLevel</span><span data-i18n="riskLevel"></span></div>
+    <div class="row"><span class="k">atAGlance</span><span data-i18n="atAGlance"></span></div>
+    <div class="row"><span class="k">gcFields</span><span data-i18n="gcFields"></span></div>
+    <div class="row"><span class="k">active</span><span data-i18n="active"></span></div>
+    <div class="row"><span class="k">gcCrops</span><span data-i18n="gcCrops"></span></div>
+    <div class="row"><span class="k">growing</span><span data-i18n="growing"></span></div>
+    <div class="row"><span class="k">gcIrrig</span><span data-i18n="gcIrrig"></span></div>
+    <div class="row"><span class="k">efficiency</span><span data-i18n="efficiency"></span></div>
+    <div class="row"><span class="k">gcSoil</span><span data-i18n="gcSoil"></span></div>
+    <div class="row"><span class="k">moisture</span><span data-i18n="moisture"></span></div>
+    <div class="row"><span class="k">myFields</span><span data-i18n="myFields"></span></div>
+    <div class="row"><span class="k">manageAll</span><span data-i18n="manageAll"></span></div>
+  </section>
+  <script type="module">
+    import "../js/i18n.js?v=12";
+    const st = document.getElementById("status");
+    if (st) st.textContent = `${window.i18n.getLang()} · harness ready`;
+    window.__LANG_DOM_HARNESS = 1;
+  </script>
+</body>
+</html>

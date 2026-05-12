@@ -138,17 +138,6 @@
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
     }
-    .hdr-menu {
-      width: 38px; height: 38px;
-      border-radius: 12px;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.08);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 19px; color: var(--text);
-      flex-shrink: 0; margin-top: 3px;
-      transition: background 0.2s;
-    }
-    .hdr-menu:active { background: rgba(255,255,255,0.1); }
     .hdr-mid { flex: 1; min-width: 0; }
     .hdr-greet {
       font-size: 13px; font-weight: 400;
@@ -485,15 +474,19 @@
       display: flex; align-items: center; gap: 2px;
     }
 
-    /* ── QUICK ACTIONS ── */
+    /* ── QUICK ACTIONS (4-up grid so tiles fill width evenly) ── */
     .qactions {
-      display: flex; flex-wrap: wrap; justify-content: space-between;
-      margin-bottom: 14px; padding: 0 2px; gap: 8px 4px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-bottom: 14px;
+      padding: 0 2px;
+      gap: 10px 8px;
     }
     .qa {
       display: flex; flex-direction: column;
-      align-items: center; gap: 7px; flex: 1;
+      align-items: center; gap: 7px;
       padding: 2px 0;
+      min-width: 0;
     }
     .qa-ico {
       width: 54px; height: 54px;
@@ -1207,12 +1200,8 @@
       </div>
     </div>
 
-    <!-- ════ HEADER (sticky: menu, greeting, bell, avatar stay at top while scrolling) ════ -->
+    <!-- ════ HEADER (greeting, bell, avatar) ════ -->
     <header class="hdr">
-      <button class="hdr-menu rw" id="hdr-menu-btn" aria-label="Menu">
-        <i class="ri-menu-2-line"></i>
-      </button>
-
       <div class="hdr-mid">
         <p class="hdr-greet" id="hdr-greet">Good evening,</p>
         <h2 class="hdr-name">
@@ -1314,10 +1303,6 @@
       <a href="weather.html" class="qa rw" id="qa-irrigation">
         <div class="qa-ico qa-blue"><i class="ri-water-flash-line"></i></div>
         <span data-i18n="irrigation">Irrigation</span>
-      </a>
-      <a href="copilot.html" class="qa rw">
-        <div class="qa-ico qa-cyan"><i class="ri-broadcast-line"></i></div>
-        <span>AI Copilot</span>
       </a>
       <a href="assistant.html" class="qa rw">
         <div class="qa-ico qa-purple"><i class="ri-sparkling-2-line"></i></div>
@@ -1743,7 +1728,7 @@
 </script>
 
 <script src="js/app.js?v=29"></script>
-<script type="module" src="js/dashboard.js?v=38"></script>
-<script type="module" src="js/i18n.js?v=6"></script>
+<script type="module" src="js/dashboard.js?v=40"></script>
+<script type="module" src="js/i18n.js?v=12"></script>
 </body>
 </html>
