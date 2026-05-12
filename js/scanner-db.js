@@ -534,20 +534,49 @@ document.addEventListener("DOMContentLoaded", () => {
                 showScannerStatus("Camera not ready — give it a moment.", true, 2000);
                 return;
             }
-            if (!currentUserId) return;
             setLensButtonState("uploading");
-            showScannerStatus("Scanning…", false, 8000);
+            showScannerStatus("Scanning…", false, 12000);
+
+            // Min 5 s "Scanning…" so the user sees feedback;
+            // whole operation hard-capped at 10 s.
+            const minWait = new Promise(r => setTimeout(r, 5000));
+            const maxTimeout = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 10000));
+
             try {
-                const blob = await captureFromVideo(videoEl);
-                const url = await uploadForLens(currentUserId, blob);
-                const lensUrl = "https://lens.google.com/uploadbyurl?url=" + encodeURIComponent(url);
-                window.open(lensUrl, "_blank", "noopener,noreferrer");
+                await Promise.race([
+                    (async () => {
+                        const blob = await captureFromVideo(videoEl);
+                        // Direct form-POST to Google visual search — no Firebase
+                        // needed, no public URL required. Browser submits the
+                        // image as multipart/form-data and opens results in a new tab.
+                        const file = new File([blob], "scan.jpg", { type: "image/jpeg" });
+                        const dt = new DataTransfer();
+                        dt.items.add(file);
+                        const form = document.createElement("form");
+                        form.method = "POST";
+                        form.action = "https://www.google.com/searchbyimage/upload";
+                        form.enctype = "multipart/form-data";
+                        form.target = "_blank";
+                        form.style.display = "none";
+                        const inp = document.createElement("input");
+                        inp.type = "file";
+                        inp.name = "encoded_image";
+                        inp.files = dt.files;
+                        form.appendChild(inp);
+                        document.body.appendChild(form);
+                        form.submit();
+                        setTimeout(() => { try { document.body.removeChild(form); } catch {} }, 3000);
+                    })(),
+                    maxTimeout,
+                ]);
+                await minWait;
                 setLensButtonState("idle");
-                showScannerStatus("Opened in Google Lens.", false, 2000);
+                showScannerStatus("Search opened.", false, 2000);
             } catch (e) {
-                console.warn("[scanner] lens live:", e?.message || e);
+                console.warn("[scanner] lens:", e?.message || e);
+                await minWait;
                 setLensButtonState("error");
-                showScannerStatus("Lens upload failed — check connection.", true, 3000);
+                showScannerStatus("Search failed — tap to retry.", true, 3000);
             }
         });
     }
