@@ -124,6 +124,7 @@ function normalizeDiagnosis(obj) {
     plantType: "",      // e.g. "Tomato leaf", "Apple foliage", "Wheat crop"
     partOfPlant: "",    // "leaf" | "fruit" | "stem" | "whole plant" | ""
     narrative: "",      // Conversational 2-3 sentence "It looks like..."
+    treatments: [],     // [{type, name, usage}] — chemical/fertilizer/organic fixes
   };
   if (!obj || typeof obj !== "object") return out;
   if (typeof obj.diseaseName === "string" && obj.diseaseName.trim()) out.diseaseName = obj.diseaseName.trim();
@@ -142,6 +143,16 @@ function normalizeDiagnosis(obj) {
   if (typeof obj.plantType === "string") out.plantType = obj.plantType.trim();
   if (typeof obj.partOfPlant === "string") out.partOfPlant = obj.partOfPlant.trim().toLowerCase();
   if (typeof obj.narrative === "string") out.narrative = obj.narrative.trim();
+  if (Array.isArray(obj.treatments)) {
+    out.treatments = obj.treatments
+      .filter((t) => t && typeof t === "object" && t.name)
+      .map((t) => ({
+        type: String(t.type || "general").toLowerCase(),  // "chemical"|"fertilizer"|"organic"|"general"
+        name: String(t.name || "").trim(),
+        usage: String(t.usage || "").trim(),
+      }))
+      .slice(0, 5);
+  }
   // If the model skipped narrative, synthesize a graceful fallback from
   // what we DO have so the UI always has something conversational to show.
   if (!out.narrative) {
@@ -210,7 +221,9 @@ export async function runAiVisionScan(blob, opts = {}) {
   const extras = ` Also include these extra fields in the same JSON object:` +
     ` "plantType" (short label, e.g. "Tomato leaf", "Apple foliage", "Wheat seedling", or "Unidentified plant"),` +
     ` "partOfPlant" (one of "leaf" / "fruit" / "stem" / "whole plant" / "root" / "" ),` +
-    ` "narrative" (2-3 friendly sentences starting with "It looks like" — describe what you see, name the plant, mention any visible issue, and end with a quick judgment).`;
+    ` "narrative" (2-3 friendly sentences starting with "It looks like" — describe what you see, name the plant, mention any visible issue, and end with a quick judgment),` +
+    ` "treatments" (array of up to 4 objects, each with: "type" one of "chemical"|"fertilizer"|"organic"|"general", "name" the product or substance name e.g. "Mancozeb 75% WP", "Copper Oxychloride", "Neem Oil", "NPK 19-19-19", "usage" one short sentence on how/when to apply).` +
+    ` If the plant is healthy, leave treatments as an empty array.`;
   const question = (hints.length
     ? "Diagnose this crop photo as JSON per the spec. " + hints.join(". ") + "."
     : "Diagnose this crop photo as JSON per the spec.") + extras;

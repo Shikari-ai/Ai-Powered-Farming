@@ -33,7 +33,7 @@ import {
 import { queueLearningFlush } from "./learning/scheduler.js";
 import { decorateNotificationForAmbient } from "./ambient/notification-decorator.js";
 import { enqueueSensoryCue } from "./ambient/sensory-hooks.js";
-import { runAiVisionScan } from "./ai/vision-scan.js?v=4";
+import { runAiVisionScan } from "./ai/vision-scan.js?v=5";
 import { startLiveGeminiScan } from "./ai/live-vision-gemini.js?v=3";
 
 const SYMPTOMS = [
@@ -559,16 +559,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let recs = "";
         const recList = Array.isArray(d.recommendations) && d.recommendations.length
-            ? d.recommendations.slice(0, 3)
-            : [];
+            ? d.recommendations.slice(0, 3) : [];
         if (recList.length) {
             recs = `<ul class="sc-search-recs">${recList.map(r => `<li>${r}</li>`).join("")}</ul>`;
+        }
+
+        let treatHtml = "";
+        const treats = Array.isArray(d.treatments) ? d.treatments : [];
+        if (treats.length) {
+            const typeIcon = { chemical: "ri-flask-line", fertilizer: "ri-seedling-line", organic: "ri-leaf-line", general: "ri-medicine-bottle-line" };
+            const typeLabel = { chemical: "Chemical", fertilizer: "Fertilizer", organic: "Organic", general: "Treatment" };
+            const typeClass = { chemical: "sc-treat-chemical", fertilizer: "sc-treat-fertilizer", organic: "sc-treat-organic", general: "sc-treat-general" };
+            treatHtml = `<div class="sc-treat-head"><i class="ri-capsule-line"></i> Treatments & Inputs</div>` +
+                treats.map(t => {
+                    const ic = typeIcon[t.type] || "ri-medicine-bottle-line";
+                    const lb = typeLabel[t.type] || "Treatment";
+                    const cl = typeClass[t.type] || "sc-treat-general";
+                    return `<div class="sc-treat-row">
+                        <div class="sc-treat-icon ${cl}"><i class="${ic}"></i></div>
+                        <div class="sc-treat-info">
+                            <span class="sc-treat-name">${t.name}</span>
+                            <span class="sc-treat-type">${lb}</span>
+                            ${t.usage ? `<span class="sc-treat-usage">${t.usage}</span>` : ""}
+                        </div>
+                    </div>`;
+                }).join("");
         }
 
         body.innerHTML = `
             <div class="sc-search-chips">${chips}</div>
             <p class="sc-search-narr">${d.narrative || d.summary || "No details returned."}</p>
-            ${recs}`;
+            ${recs}
+            ${treatHtml ? `<div class="sc-treat-section">${treatHtml}</div>` : ""}`;
     }
 
     if (lensBtn) {
