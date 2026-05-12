@@ -30,6 +30,7 @@
     <link rel="stylesheet" href="css/design-tokens.css?v=2">
     <script src="js/device-adaptive-shell.js?v=1"></script>
     <link rel="stylesheet" href="css/adaptive-shell.css?v=1">
+    <link rel="stylesheet" href="css/nav.css?v=21">
     <style>
         :root {
             --aa-bg: #02080a;
@@ -535,82 +536,10 @@
         .aa-send[disabled] { opacity: 0.5; cursor: default; }
         .aa-attach-hidden { display: none; }
 
-        /* ── Floating 3-tab dock ── */
-        /* Hide the global 5-tab bottom-nav on this page; we render our own
-           scoped dock so the global nav (used by every other page) stays
-           untouched. */
-        body.assistant-page .bottom-nav { display: none !important; }
-        .aa-dock {
-            position: fixed; left: 50%; transform: translateX(-50%);
-            bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-            z-index: 41;
-            display: flex; align-items: center;
-            padding: 6px; gap: 4px;
-            border-radius: 999px;
-            background: rgba(8, 16, 14, 0.72);
-            border: 1px solid rgba(16, 185, 129, 0.20);
-            backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
-            box-shadow:
-                0 16px 40px rgba(0, 0, 0, 0.55),
-                0 0 24px rgba(16, 185, 129, 0.10),
-                inset 0 1px 0 rgba(255, 255, 255, 0.04);
-        }
-        .aa-dock-item {
-            display: flex; flex-direction: column; align-items: center; gap: 2px;
-            padding: 8px 12px; border-radius: 999px;
-            color: rgba(236, 253, 245, 0.55);
-            text-decoration: none;
-            transition: color 0.18s ease, background 0.18s ease;
-        }
-        .aa-dock-item i { font-size: 20px; }
-        .aa-dock-item span { font-size: 10px; font-weight: 500; }
-        .aa-dock-item:hover { color: var(--aa-text); }
-        .aa-dock-item.active {
-            color: var(--aa-emerald);
-        }
-        .aa-dock-item.active i {
-            filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.7));
-        }
-        /* Scan: leaf icon inside a circular emerald border. Icon stays the
-           same size as the others (20px); the circle is just a glowing
-           ring around it. Pushed slightly up to give the dock the cinematic
-           "raised scan" feel from the reference without making the icon
-           larger. */
-        .aa-dock-scan {
-            padding: 4px 12px;
-        }
-        .aa-dock-scan .aa-scan-ring {
-            width: 46px; height: 46px;
-            border-radius: 50%;
-            border: 1.5px solid rgba(16, 185, 129, 0.55);
-            display: flex; align-items: center; justify-content: center;
-            box-shadow:
-                0 0 18px rgba(16, 185, 129, 0.35),
-                inset 0 0 12px rgba(16, 185, 129, 0.18);
-            color: var(--aa-emerald);
-            position: relative;
-            background: rgba(8, 16, 14, 0.55);
-        }
-        .aa-dock-scan .aa-scan-ring i {
-            font-size: 20px; /* matches the other dock icons exactly */
-            filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.7));
-        }
-        .aa-dock-scan .aa-scan-ring::after {
-            content: ""; position: absolute; inset: -4px;
-            border-radius: 50%;
-            border: 1px dashed rgba(16, 185, 129, 0.18);
-            animation: aaScanSpin 12s linear infinite;
-            pointer-events: none;
-        }
-        @keyframes aaScanSpin { to { transform: rotate(360deg); } }
-        @media (prefers-reduced-motion: reduce) {
-            .aa-dock-scan .aa-scan-ring::after { animation: none; }
-        }
-        .aa-dock-scan span { margin-top: 2px; }
-
-        /* Mobile keyboard: hide dock + drop composer onto keyboard */
+        /* Mobile keyboard: hide global dock + drop composer onto keyboard.
+           Dock styles live in css/nav.css and are shared across all pages. */
         @media (pointer: coarse) {
-            body.assistant-page.assistant-composer-focus .aa-dock { display: none; }
+            body.assistant-page.assistant-composer-focus .bottom-nav { display: none; }
             body.assistant-page.assistant-composer-focus .aa-composer {
                 bottom: env(safe-area-inset-bottom, 0px);
             }
@@ -748,41 +677,18 @@
         </div>
     </div>
 
-    <!-- Scoped 5-tab floating dock (the global .bottom-nav is hidden via CSS).
-         The middle Scan tab wraps its icon in an emerald ring (same icon size
-         as the other tabs, just a glowing circular border around it). -->
-    <nav class="aa-dock" aria-label="Primary">
-        <a href="index.html" class="aa-dock-item">
-            <i class="ri-home-5-line"></i>
-            <span>Home</span>
-        </a>
-        <a href="fields.html" class="aa-dock-item">
-            <i class="ri-leaf-line"></i>
-            <span>Fields</span>
-        </a>
-        <a href="scanner.html" class="aa-dock-item aa-dock-scan" aria-label="Scan">
-            <span class="aa-scan-ring"><i class="ri-leaf-fill"></i></span>
-        </a>
-        <a href="assistant.html" class="aa-dock-item active" aria-current="page">
-            <i class="ri-sparkling-line"></i>
-            <span>AI</span>
-        </a>
-        <a href="profile.html" class="aa-dock-item">
-            <i class="ri-user-smile-line"></i>
-            <span>Profile</span>
-        </a>
-    </nav>
-
-    <!-- Hidden global 5-tab nav kept for any cross-page JS that might query it -->
-    <nav class="bottom-nav hidden" aria-hidden="true">
+    <!-- Shared floating dock — same markup + styling as every other page
+         (see css/nav.css). The middle Scan tab is the leaf-in-emerald-ring;
+         the icon inside is the same 20px as the others. -->
+    <nav class="bottom-nav">
         <a href="index.html" class="b-nav-item"><i class="ri-home-5-line"></i><span data-i18n="navHome">Home</span></a>
         <a href="fields.html" class="b-nav-item"><i class="ri-leaf-line"></i><span data-i18n="navFields">Fields</span></a>
-        <a href="scanner.html" class="b-nav-scan"><i class="ri-leaf-fill"></i></a>
-        <a href="assistant.html" class="b-nav-item active"><i class="ri-sparkling-line"></i><span data-i18n="navAi">AI</span></a>
+        <a href="scanner.html" class="b-nav-scan" aria-label="Scan"><i class="ri-leaf-fill"></i></a>
+        <a href="assistant.html" class="b-nav-item active" aria-current="page"><i class="ri-sparkling-line"></i><span data-i18n="navAi">AI</span></a>
         <a href="profile.html" class="b-nav-item"><i class="ri-user-smile-line"></i><span data-i18n="navProfile">Profile</span></a>
     </nav>
 
-    <script type="module" src="js/assistant.js?v=98"></script>
+    <script type="module" src="js/assistant.js?v=99"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>
