@@ -435,49 +435,109 @@
             box-shadow: inset 0 0 0 3px rgba(16, 185, 129, 0.55);
         }
 
-        /* Google Lens live-detect button — captures current video frame
-           and opens lens.google.com with it for instant visual search */
+        /* ── Scan to Search — premium card button ── */
         .sc-lens-live-btn {
+            position: relative; overflow: hidden;
             width: 100%;
-            display: flex; align-items: center; gap: 10px;
-            padding: 13px 16px;
-            border-radius: 999px;
-            border: 1px solid rgba(66, 133, 244, 0.28);
-            background: linear-gradient(135deg, rgba(66, 133, 244, 0.10), rgba(234, 67, 53, 0.06));
+            display: flex; align-items: center; gap: 14px;
+            padding: 16px 18px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(12, 22, 20, 0.72);
+            backdrop-filter: blur(20px);
             color: var(--sc-text);
-            font-size: 14px; font-weight: 600; font-family: inherit;
+            font-family: inherit;
             cursor: pointer;
-            transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s, box-shadow 0.18s;
             -webkit-tap-highlight-color: transparent;
+            transition: transform 0.14s, box-shadow 0.2s, border-color 0.2s;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.06);
         }
+        /* Animated aurora shimmer across the card */
+        .sc-lens-live-btn::before {
+            content: "";
+            position: absolute; inset: 0;
+            background: linear-gradient(110deg,
+                rgba(66,133,244,0.14) 0%,
+                rgba(52,168,83,0.10) 30%,
+                rgba(251,188,5,0.08) 60%,
+                rgba(234,67,53,0.10) 100%);
+            opacity: 0.9;
+            pointer-events: none;
+        }
+        /* Sweeping gloss line */
+        .sc-lens-live-btn::after {
+            content: "";
+            position: absolute;
+            top: 0; left: -75%;
+            width: 50%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent);
+            transform: skewX(-18deg);
+            transition: left 0.6s ease;
+            pointer-events: none;
+        }
+        .sc-lens-live-btn:hover::after { left: 130%; }
         .sc-lens-live-btn:hover:not([disabled]) {
-            background: linear-gradient(135deg, rgba(66, 133, 244, 0.18), rgba(234, 67, 53, 0.10));
-            border-color: rgba(66, 133, 244, 0.50);
-            box-shadow: 0 0 18px rgba(66, 133, 244, 0.22);
+            border-color: rgba(66,133,244,0.38);
+            box-shadow: 0 6px 32px rgba(66,133,244,0.22), 0 2px 8px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.10);
         }
-        .sc-lens-live-btn:active:not([disabled]) { transform: scale(0.97); }
-        .sc-lens-live-btn[disabled] { opacity: 0.55; cursor: default; }
-        .sc-lens-live-btn .sc-lens-g {
-            width: 26px; height: 26px; border-radius: 50%;
+        .sc-lens-live-btn:active:not([disabled]) { transform: scale(0.975); }
+        .sc-lens-live-btn[disabled] { opacity: 0.5; cursor: default; }
+        /* Icon orb */
+        .sc-lens-g {
+            position: relative; z-index: 1; flex-shrink: 0;
+            width: 44px; height: 44px; border-radius: 14px;
             display: flex; align-items: center; justify-content: center;
-            background: #fff;
-            flex-shrink: 0;
+            background: linear-gradient(140deg, rgba(66,133,244,0.22), rgba(52,168,83,0.14));
+            border: 1px solid rgba(66,133,244,0.28);
+            box-shadow: 0 2px 10px rgba(66,133,244,0.20);
         }
-        .sc-lens-live-btn .sc-lens-g svg { width: 16px; height: 16px; display: block; }
-        .sc-lens-live-btn .sc-lens-label { flex: 1; text-align: left; }
-        .sc-lens-live-btn .sc-lens-hint {
-            font-size: 11px; color: var(--sc-muted); font-weight: 400;
+        .sc-lens-g i {
+            font-size: 20px;
+            background: linear-gradient(135deg, #4285F4 0%, #34A853 50%, #FBBC04 80%, #EA4335 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
         }
-        .sc-lens-live-btn.is-uploading .sc-lens-hint { opacity: 0.7; }
+        /* Text stack */
+        .sc-lens-text-wrap {
+            position: relative; z-index: 1;
+            display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+            flex: 1;
+        }
+        .sc-lens-label {
+            font-size: 15px; font-weight: 700; letter-spacing: 0.01em;
+            color: rgba(255,255,255,0.95);
+        }
+        .sc-lens-hint {
+            font-size: 11.5px; font-weight: 400;
+            color: rgba(255,255,255,0.42);
+            letter-spacing: 0.01em;
+        }
+        /* Arrow chevron */
+        .sc-lens-arrow {
+            position: relative; z-index: 1; flex-shrink: 0;
+            width: 30px; height: 30px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.10);
+            color: rgba(255,255,255,0.50);
+            font-size: 14px;
+            transition: background 0.18s, color 0.18s;
+        }
+        .sc-lens-live-btn:hover:not([disabled]) .sc-lens-arrow {
+            background: rgba(66,133,244,0.18);
+            color: rgba(255,255,255,0.80);
+        }
+        /* Uploading state */
+        .sc-lens-live-btn.is-uploading .sc-lens-hint { opacity: 0.65; }
         @keyframes scLensDots {
             0%   { content: ""; }
             25%  { content: "."; }
             50%  { content: ".."; }
             75%  { content: "..."; }
-            100% { content: ""; }
         }
         .sc-lens-live-btn.is-uploading .sc-lens-hint::after {
-            content: ""; display: inline-block; width: 10px;
+            content: ""; display: inline-block;
             animation: scLensDots 1.4s infinite steps(4, end);
         }
 
@@ -854,11 +914,12 @@
             <div class="sc-live-detect-row">
                 <!-- Captures current video frame → uploads → opens Google Lens -->
                 <button class="sc-lens-live-btn" id="sc-open-lens-btn" aria-label="Scan to Search">
-                    <span class="sc-lens-g">
-                        <i class="ri-search-eye-line" style="font-size:16px;color:#4285F4;"></i>
+                    <span class="sc-lens-g"><i class="ri-search-eye-line"></i></span>
+                    <span class="sc-lens-text-wrap">
+                        <span class="sc-lens-label">Scan to Search</span>
+                        <span class="sc-lens-hint" id="sc-lens-hint">Point at a leaf, then tap</span>
                     </span>
-                    <span class="sc-lens-label">Scan to Search</span>
-                    <span class="sc-lens-hint" id="sc-lens-hint">Point at a leaf, then tap</span>
+                    <span class="sc-lens-arrow"><i class="ri-arrow-right-s-line"></i></span>
                 </button>
             </div>
             <div class="sc-ready-btns">
