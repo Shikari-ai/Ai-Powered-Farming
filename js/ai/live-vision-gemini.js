@@ -12,7 +12,7 @@
 // We also guard against overlapping calls: if the previous tick hasn't
 // returned yet, we skip the next one rather than queuing.
 
-import { runAiVisionScan } from "./vision-scan.js?v=5";
+import { runAiVisionScan } from "./vision-scan.js?v=6";
 
 const DEFAULT_INTERVAL_MS = 6000;
 const FRAME_MAX_DIM = 720; // small enough that base64 is ~80-120 KB

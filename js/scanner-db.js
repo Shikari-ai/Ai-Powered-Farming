@@ -33,7 +33,7 @@ import {
 import { queueLearningFlush } from "./learning/scheduler.js";
 import { decorateNotificationForAmbient } from "./ambient/notification-decorator.js";
 import { enqueueSensoryCue } from "./ambient/sensory-hooks.js";
-import { runAiVisionScan } from "./ai/vision-scan.js?v=5";
+import { runAiVisionScan } from "./ai/vision-scan.js?v=6";
 import { startLiveGeminiScan } from "./ai/live-vision-gemini.js?v=3";
 
 const SYMPTOMS = [
@@ -605,10 +605,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
             try {
                 const blob = await captureFromVideo(videoEl);
-                const result = await runAiVisionScan(blob, {
-                    cropType: cropSel?.value || "",
-                    farmContext: null,
-                });
+                const scanOpts = { cropType: cropSel?.value || "", farmContext: null };
+
+                let result = await runAiVisionScan(blob, scanOpts);
+
+                // Auto-retry once if confidence is low (< 65) or the call failed
+                // with a parse error — Gemini occasionally gives a hedging first
+                // response; a second attempt on the same frame usually improves it.
+                if (!result.ok || (result.ok && result.diagnosis.confidence < 65)) {
+                    showScannerStatus("Low confidence — retrying for better result…", false, 6000);
+                    await new Promise(r => setTimeout(r, 1200));
+                    const retry = await runAiVisionScan(blob, scanOpts);
+                    // Keep the retry result if it's better (higher confidence) or
+                    // the first attempt failed entirely.
+                    if (retry.ok && (!result.ok || retry.diagnosis.confidence > result.diagnosis.confidence)) {
+                        result = retry;
+                    }
+                }
+
                 if (result.ok) {
                     showSearchBox("result", result.diagnosis);
                     setLensButtonState("idle");
