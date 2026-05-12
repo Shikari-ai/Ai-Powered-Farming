@@ -225,6 +225,21 @@ async function uploadScanImage({ userId, scanId, blob, onProgress }) {
     return { storagePath, downloadURL };
 }
 
+// Uploads a one-off blob to a short-lived temp path so external tools
+// (Google Lens) can fetch the image by URL. Returns a publicly-accessible
+// Firebase Storage download URL.
+async function uploadForLens(userId, blob) {
+    const ts = Date.now();
+    const rand = Math.random().toString(36).slice(2, 8);
+    const storagePath = `lens_temp/${userId}/${ts}-${rand}.jpg`;
+    const storageRef = ref(storage, storagePath);
+    const task = uploadBytesResumable(storageRef, blob, { contentType: blob.type || "image/jpeg" });
+    await new Promise((resolve, reject) => {
+        task.on("state_changed", null, (err) => reject(err), () => resolve());
+    });
+    return await getDownloadURL(task.snapshot.ref);
+}
+
 function setBtnLoading(btn, isLoading, text) {
     if (!btn) return;
     btn.disabled = isLoading;
@@ -490,6 +505,52 @@ document.addEventListener("DOMContentLoaded", () => {
         if (badge) badge.hidden = true;
     }
 
+    // ── Google Lens fallback button ──
+    // Uploads the captured/uploaded blob to a temp Firebase Storage path,
+    // gets a public download URL, then opens lens.google.com/uploadbyurl in
+    // a new tab. Gives users a no-AI fallback when our Gemini path fails or
+    // they just want a second opinion from Google's broader visual index.
+    function setLensButtonState(state) {
+        const btn = document.getElementById("sc-open-lens-btn");
+        const hint = document.getElementById("sc-lens-hint");
+        if (!btn || !hint) return;
+        btn.classList.remove("is-uploading");
+        if (state === "ready") {
+            btn.disabled = false;
+            hint.textContent = "Opens in a new tab";
+        } else if (state === "uploading") {
+            btn.disabled = true;
+            btn.classList.add("is-uploading");
+            hint.textContent = "Uploading";
+        } else if (state === "error") {
+            btn.disabled = false;
+            hint.textContent = "Upload failed — tap to retry";
+        } else { // "disabled"
+            btn.disabled = true;
+            hint.textContent = "Capture a photo first";
+        }
+    }
+    const lensBtn = document.getElementById("sc-open-lens-btn");
+    if (lensBtn) {
+        lensBtn.addEventListener("click", async () => {
+            if (!currentBlob) return;
+            if (!currentUserId) {
+                setLensButtonState("error");
+                return;
+            }
+            setLensButtonState("uploading");
+            try {
+                const url = await uploadForLens(currentUserId, currentBlob);
+                const lensUrl = "https://lens.google.com/uploadbyurl?url=" + encodeURIComponent(url);
+                window.open(lensUrl, "_blank", "noopener,noreferrer");
+                setLensButtonState("ready");
+            } catch (e) {
+                console.warn("[scanner] lens upload:", e?.message || e);
+                setLensButtonState("error");
+            }
+        });
+    }
+
     const stopLiveVision = () => {
         if (liveHandle && typeof liveHandle.stop === "function") liveHandle.stop();
         liveHandle = null;
@@ -562,6 +623,7 @@ document.addEventListener("DOMContentLoaded", () => {
         currentPreviewUrl = null;
         if (preview) preview.removeAttribute("src");
         resetVisionPanel();
+        setLensButtonState("disabled");
         if (cropSel) cropSel.value = "";
         if (symptomsWrap) {
             for (const b of symptomsWrap.querySelectorAll("button.active")) b.click();
@@ -858,6 +920,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 currentPreviewUrl = URL.createObjectURL(blob);
                 if (preview) preview.src = currentPreviewUrl;
                 toAnalyzeState();
+                setLensButtonState("ready");
                 startBackgroundVision(blob);
                 startAiVision(blob); // Gemini vision → auto-populate result
             } catch (e) {
@@ -878,6 +941,7 @@ document.addEventListener("DOMContentLoaded", () => {
             currentPreviewUrl = URL.createObjectURL(file);
             if (preview) preview.src = currentPreviewUrl;
             toAnalyzeState();
+            setLensButtonState("ready");
             startBackgroundVision(file);
             startAiVision(file); // Gemini vision → auto-populate result
         });

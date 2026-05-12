@@ -435,6 +435,50 @@
             box-shadow: inset 0 0 0 3px rgba(16, 185, 129, 0.55);
         }
 
+        /* Google Lens second-opinion button — appears in the AI Review card */
+        .sc-lens-btn {
+            width: 100%;
+            margin-top: 14px;
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: linear-gradient(135deg, rgba(66, 133, 244, 0.10), rgba(234, 67, 53, 0.05));
+            color: var(--sc-text);
+            font-size: 13px; font-weight: 500; font-family: inherit;
+            cursor: pointer;
+            transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .sc-lens-btn:hover:not([disabled]) {
+            background: linear-gradient(135deg, rgba(66, 133, 244, 0.16), rgba(234, 67, 53, 0.08));
+            border-color: rgba(66, 133, 244, 0.32);
+        }
+        .sc-lens-btn:active:not([disabled]) { transform: scale(0.98); }
+        .sc-lens-btn[disabled] { opacity: 0.5; cursor: default; }
+        .sc-lens-btn i {
+            font-size: 17px;
+            background: linear-gradient(135deg, #4285F4 0%, #34A853 30%, #FBBC04 60%, #EA4335 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .sc-lens-btn span:nth-of-type(1) { flex: 1; }
+        .sc-lens-hint {
+            font-size: 11px; color: var(--sc-muted); font-weight: 400;
+        }
+        .sc-lens-btn.is-uploading .sc-lens-hint::after {
+            content: ""; display: inline-block; width: 10px;
+            animation: scLensDots 1.4s infinite steps(4, end);
+        }
+        @keyframes scLensDots {
+            0%   { content: ""; }
+            25%  { content: "."; }
+            50%  { content: ".."; }
+            75%  { content: "..."; }
+            100% { content: ""; }
+        }
+
         /* Also light up the Detect toggle when active */
         .sc-live-detect-btn.is-active {
             background: rgba(16, 185, 129, 0.16);
@@ -812,6 +856,14 @@
                     <li>Loading recommendations…</li>
                 </ul>
             </div>
+            <!-- Open the current capture in Google Lens as a second-opinion
+                 visual search. Uploads the photo to a public Firebase
+                 Storage URL and opens lens.google.com with that URL. -->
+            <button type="button" class="sc-lens-btn" id="sc-open-lens-btn" disabled>
+                <i class="ri-google-fill"></i>
+                <span>View in Google Lens</span>
+                <span class="sc-lens-hint" id="sc-lens-hint">Capture a photo first</span>
+            </button>
         </section>
 
         <!-- Ready state: capture / upload -->
@@ -965,7 +1017,7 @@
     </script>
 
     <script src="js/app.js"></script>
-    <script type="module" src="js/scanner-db.js?v=45"></script>
+    <script type="module" src="js/scanner-db.js?v=46"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>
