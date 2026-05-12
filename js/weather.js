@@ -206,15 +206,13 @@ function fetchImdCityForecastLocWithTimeout(lat, lon, ms = 12_000) {
 
 /** Fast path: single Open-Meteo forecast request (matches dashboard-style first paint). */
 async function fetchOpenMeteoForecastOnly(lat, lon) {
-  // Mobile cellular often takes 15-20s for the 10-day Open-Meteo payload —
-  // home page (app.js) uses 22s and works; this page was capped at 12s and
-  // timing out before any render. Match the home-page settings so a phone
-  // that loads weather on the dashboard also loads it here. Default
-  // forecast_days (7) is enough — the 10-day card just shows the first 7
-  // anyway after a slice; the extra 3 days were costing seconds of wait
-  // for data the UI didn't use.
-  const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,is_day,surface_pressure,visibility&hourly=temperature_2m,precipitation_probability,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max&timezone=auto`;
-  const fRes = await fetch(forecastUrl, { signal: createTimeoutSignal(22_000) });
+  // Mobile cellular can stall fetches indefinitely. Without a timeout the
+  // entire page hangs in "Loading realtime weather..." until the network
+  // gives up — that's why the live audit saw it work on desktop and freeze
+  // on phone. Air quality already has a timeout (see fetchOpenMeteoAir);
+  // the forecast path missed it.
+  const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,is_day,surface_pressure,visibility&hourly=temperature_2m,precipitation_probability,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max&timezone=auto&forecast_days=10`;
+  const fRes = await fetch(forecastUrl, { signal: createTimeoutSignal(12_000) });
   if (!fRes.ok) throw new Error("Weather API unavailable");
   const forecast = await fRes.json();
   if (forecast?.error || !forecast?.current || !forecast?.hourly || !forecast?.daily) {
@@ -769,28 +767,18 @@ async function renderWeatherForLoc(loc) {
 }
 
 async function loadWeather() {
-  const gen = ++weatherLoadGen;
-  let showed = false;
-
-  // Try the pinned location first if there is one. CRITICAL: on mobile,
-  // slow cellular can make the 10-day Open-Meteo fetch time out or
-  // partial-respond, throwing from renderWeatherForLoc. Previously we
-  // returned silently here so the page stayed stuck at
-  // "Loading realtime weather..." forever. Now we fall through to the
-  // IP-geo / GPS / fallback chain when pinned-render fails.
   const pinned = peekActiveWeatherLocation();
   if (pinned) {
-    try {
-      await renderWeatherForLoc(pinned);
-      return;
-    } catch (e) {
-      console.warn("[weather] pinned render failed, trying fallback chain:", e?.message || e);
-    }
+    weatherLoadGen++;
+    await renderWeatherForLoc(pinned).catch((e) => console.error(e));
+    return;
   }
 
+  const gen = ++weatherLoadGen;
+  let showed = false;
   try {
     const ipLoc = await resolveLocationApprox();
-    if (gen !== weatherLoadGen) return;
+    if (peekActiveWeatherLocation() || gen !== weatherLoadGen) return;
     await renderWeatherForLoc({ ...ipLoc, source: "ip" });
     showed = true;
   } catch (e) {
@@ -799,34 +787,20 @@ async function loadWeather() {
 
   resolveWeatherLocation()
     .then(async (loc) => {
-      if (gen !== weatherLoadGen) return;
+      if (peekActiveWeatherLocation() || gen !== weatherLoadGen) return;
       if (loc.source !== "fallback" && loc.source !== "insecure-context") {
-        try { await renderWeatherForLoc(loc); showed = true; }
-        catch (e) { console.warn("[weather] GPS render failed:", e?.message || e); }
+        await renderWeatherForLoc(loc);
+      } else if (!showed) {
+        await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" });
       }
-      if (!showed) {
-        try { await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" }); showed = true; }
-        catch (e) { console.warn("[weather] fallback render failed:", e?.message || e); }
-      }
-      if (!showed) showWeatherError();
     })
     .catch(async (e) => {
       console.error("Weather GPS upgrade failed:", e);
-      if (gen !== weatherLoadGen) return;
+      if (peekActiveWeatherLocation() || gen !== weatherLoadGen) return;
       if (!showed) {
-        try { await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" }); showed = true; }
-        catch (err) { console.warn("[weather] fallback render after GPS fail also failed:", err?.message || err); }
+        await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" });
       }
-      if (!showed) showWeatherError();
     });
-}
-
-// Shows a visible error in the hero card when every location/forecast
-// attempt has failed. Without this the page used to sit at
-// "Loading realtime weather..." indefinitely with no signal to retry.
-function showWeatherError() {
-  const curDesc = qs("cur-desc");
-  if (curDesc) curDesc.textContent = "Couldn't load weather — check your connection, then tap the refresh icon (top right).";
 }
 
 function escapeHtml(str) {
