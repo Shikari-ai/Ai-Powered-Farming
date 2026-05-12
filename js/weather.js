@@ -206,13 +206,15 @@ function fetchImdCityForecastLocWithTimeout(lat, lon, ms = 12_000) {
 
 /** Fast path: single Open-Meteo forecast request (matches dashboard-style first paint). */
 async function fetchOpenMeteoForecastOnly(lat, lon) {
-  // Mobile cellular can stall fetches indefinitely. Without a timeout the
-  // entire page hangs in "Loading realtime weather..." until the network
-  // gives up — that's why the live audit saw it work on desktop and freeze
-  // on phone. Air quality already has a timeout (see fetchOpenMeteoAir);
-  // the forecast path missed it.
-  const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,is_day,surface_pressure,visibility&hourly=temperature_2m,precipitation_probability,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max&timezone=auto&forecast_days=10`;
-  const fRes = await fetch(forecastUrl, { signal: createTimeoutSignal(12_000) });
+  // Mobile cellular often takes 15-20s for the 10-day Open-Meteo payload —
+  // home page (app.js) uses 22s and works; this page was capped at 12s and
+  // timing out before any render. Match the home-page settings so a phone
+  // that loads weather on the dashboard also loads it here. Default
+  // forecast_days (7) is enough — the 10-day card just shows the first 7
+  // anyway after a slice; the extra 3 days were costing seconds of wait
+  // for data the UI didn't use.
+  const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,is_day,surface_pressure,visibility&hourly=temperature_2m,precipitation_probability,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max&timezone=auto`;
+  const fRes = await fetch(forecastUrl, { signal: createTimeoutSignal(22_000) });
   if (!fRes.ok) throw new Error("Weather API unavailable");
   const forecast = await fRes.json();
   if (forecast?.error || !forecast?.current || !forecast?.hourly || !forecast?.daily) {
