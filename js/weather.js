@@ -767,18 +767,28 @@ async function renderWeatherForLoc(loc) {
 }
 
 async function loadWeather() {
-  const pinned = peekActiveWeatherLocation();
-  if (pinned) {
-    weatherLoadGen++;
-    await renderWeatherForLoc(pinned).catch((e) => console.error(e));
-    return;
-  }
-
   const gen = ++weatherLoadGen;
   let showed = false;
+
+  // Try the pinned location first if there is one. CRITICAL: on mobile,
+  // slow cellular can make the 10-day Open-Meteo fetch time out or
+  // partial-respond, throwing from renderWeatherForLoc. Previously we
+  // returned silently here so the page stayed stuck at
+  // "Loading realtime weather..." forever. Now we fall through to the
+  // IP-geo / GPS / fallback chain when pinned-render fails.
+  const pinned = peekActiveWeatherLocation();
+  if (pinned) {
+    try {
+      await renderWeatherForLoc(pinned);
+      return;
+    } catch (e) {
+      console.warn("[weather] pinned render failed, trying fallback chain:", e?.message || e);
+    }
+  }
+
   try {
     const ipLoc = await resolveLocationApprox();
-    if (peekActiveWeatherLocation() || gen !== weatherLoadGen) return;
+    if (gen !== weatherLoadGen) return;
     await renderWeatherForLoc({ ...ipLoc, source: "ip" });
     showed = true;
   } catch (e) {
@@ -787,20 +797,34 @@ async function loadWeather() {
 
   resolveWeatherLocation()
     .then(async (loc) => {
-      if (peekActiveWeatherLocation() || gen !== weatherLoadGen) return;
+      if (gen !== weatherLoadGen) return;
       if (loc.source !== "fallback" && loc.source !== "insecure-context") {
-        await renderWeatherForLoc(loc);
-      } else if (!showed) {
-        await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" });
+        try { await renderWeatherForLoc(loc); showed = true; }
+        catch (e) { console.warn("[weather] GPS render failed:", e?.message || e); }
       }
+      if (!showed) {
+        try { await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" }); showed = true; }
+        catch (e) { console.warn("[weather] fallback render failed:", e?.message || e); }
+      }
+      if (!showed) showWeatherError();
     })
     .catch(async (e) => {
       console.error("Weather GPS upgrade failed:", e);
-      if (peekActiveWeatherLocation() || gen !== weatherLoadGen) return;
+      if (gen !== weatherLoadGen) return;
       if (!showed) {
-        await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" });
+        try { await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" }); showed = true; }
+        catch (err) { console.warn("[weather] fallback render after GPS fail also failed:", err?.message || err); }
       }
+      if (!showed) showWeatherError();
     });
+}
+
+// Shows a visible error in the hero card when every location/forecast
+// attempt has failed. Without this the page used to sit at
+// "Loading realtime weather..." indefinitely with no signal to retry.
+function showWeatherError() {
+  const curDesc = qs("cur-desc");
+  if (curDesc) curDesc.textContent = "Couldn't load weather — check your connection, then tap the refresh icon (top right).";
 }
 
 function escapeHtml(str) {
