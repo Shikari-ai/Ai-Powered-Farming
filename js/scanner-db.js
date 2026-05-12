@@ -517,7 +517,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (state === "uploading") {
             btn.disabled = true;
             btn.classList.add("is-uploading");
-            hint.textContent = "Uploading";
+            hint.textContent = "Scanning";
         } else if (state === "error") {
             btn.disabled = false;
             hint.textContent = "Failed — tap to retry";
@@ -536,7 +536,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             if (!currentUserId) return;
             setLensButtonState("uploading");
-            showScannerStatus("Uploading frame to Google Lens…", false, 8000);
+            showScannerStatus("Scanning…", false, 8000);
             try {
                 const blob = await captureFromVideo(videoEl);
                 const url = await uploadForLens(currentUserId, blob);
