@@ -541,6 +541,93 @@
             animation: scLensDots 1.4s infinite steps(4, end);
         }
 
+        /* ── Inline Scan-to-Search result card ── */
+        .sc-search-box {
+            margin-top: 14px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.07);
+            background: rgba(10,20,18,0.80);
+            backdrop-filter: blur(18px);
+            overflow: hidden;
+            animation: scSearchSlideIn 0.30s cubic-bezier(0.22,1,0.36,1);
+        }
+        @keyframes scSearchSlideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Loading shimmer */
+        .sc-search-box.is-loading .sc-search-body {
+            min-height: 80px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .sc-search-loading-ring {
+            width: 30px; height: 30px; border-radius: 50%;
+            border: 2.5px solid rgba(66,133,244,0.18);
+            border-top-color: #4285F4;
+            animation: scSearchSpin 0.9s linear infinite;
+        }
+        @keyframes scSearchSpin { to { transform: rotate(360deg); } }
+        /* Head strip */
+        .sc-search-head {
+            display: flex; align-items: center; gap: 8px;
+            padding: 11px 14px 0;
+        }
+        .sc-search-head-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: #4285F4;
+            box-shadow: 0 0 6px rgba(66,133,244,0.70);
+            flex-shrink: 0;
+        }
+        .sc-search-head-label {
+            font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+            text-transform: uppercase; color: rgba(255,255,255,0.35);
+            flex: 1;
+        }
+        .sc-search-head-conf {
+            font-size: 11px; font-weight: 600;
+            color: rgba(255,255,255,0.40);
+        }
+        /* Body */
+        .sc-search-body { padding: 10px 14px 14px; }
+        .sc-search-chips {
+            display: flex; flex-wrap: wrap; gap: 6px;
+            margin-bottom: 10px;
+        }
+        .sc-search-chip {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 4px 10px; border-radius: 999px;
+            font-size: 11px; font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.10);
+            background: rgba(255,255,255,0.05);
+            color: rgba(255,255,255,0.70);
+        }
+        .sc-search-chip.is-healthy { border-color: rgba(16,185,129,0.40); background: rgba(16,185,129,0.10); color: rgb(52,211,153); }
+        .sc-search-chip.is-low     { border-color: rgba(52,211,153,0.30); background: rgba(52,211,153,0.08); color: rgb(52,211,153); }
+        .sc-search-chip.is-medium  { border-color: rgba(251,191,36,0.35); background: rgba(251,191,36,0.08); color: rgb(251,191,36); }
+        .sc-search-chip.is-high    { border-color: rgba(239,68,68,0.35);  background: rgba(239,68,68,0.08);  color: rgb(248,113,113); }
+        .sc-search-narr {
+            font-size: 13.5px; line-height: 1.55;
+            color: rgba(255,255,255,0.82);
+            margin-bottom: 10px;
+        }
+        .sc-search-recs {
+            list-style: none; margin: 0; padding: 0;
+            display: flex; flex-direction: column; gap: 5px;
+        }
+        .sc-search-recs li {
+            display: flex; align-items: flex-start; gap: 7px;
+            font-size: 12px; color: rgba(255,255,255,0.55); line-height: 1.45;
+        }
+        .sc-search-recs li::before {
+            content: "›"; font-size: 14px; color: rgba(66,133,244,0.70);
+            flex-shrink: 0; line-height: 1.3;
+        }
+        .sc-search-error {
+            padding: 16px 14px;
+            font-size: 13px; color: rgba(239,68,68,0.80);
+            text-align: center;
+        }
+
         /* ── State containers ── */
         .sc-state { margin-top: 16px; }
         .hidden { display: none !important; }
@@ -925,12 +1012,21 @@
             <div class="sc-ready-btns">
                 <button class="sc-btn sc-btn-primary" id="capture-btn"><i class="ri-camera-3-line"></i> Capture</button>
                 <label class="sc-btn sc-btn-outline">
-                    <!-- No `capture` attr: lets the user pick from gallery / files.
-                         The big green Capture button drives the live camera flow
-                         via getUserMedia, so this input is purely for uploads. -->
                     <input type="file" id="upload-input" accept="image/*" hidden>
                     <i class="ri-upload-2-line"></i> Upload
                 </label>
+            </div>
+
+            <!-- Inline result card for Scan to Search — hidden until tapped -->
+            <div class="sc-search-box hidden" id="sc-search-box">
+                <div class="sc-search-head">
+                    <div class="sc-search-head-dot"></div>
+                    <span class="sc-search-head-label">Scan Result</span>
+                    <span class="sc-search-head-conf" id="sc-search-conf"></span>
+                </div>
+                <div class="sc-search-body" id="sc-search-body">
+                    <div class="sc-search-loading-ring"></div>
+                </div>
             </div>
         </div>
 
@@ -1065,7 +1161,7 @@
     </script>
 
     <script src="js/app.js"></script>
-    <script type="module" src="js/scanner-db.js?v=49"></script>
+    <script type="module" src="js/scanner-db.js?v=50"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>

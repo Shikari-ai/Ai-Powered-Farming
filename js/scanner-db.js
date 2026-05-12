@@ -527,6 +527,50 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
     const lensBtn = document.getElementById("sc-open-lens-btn");
+    function showSearchBox(state, diagnosis) {
+        const box  = document.getElementById("sc-search-box");
+        const body = document.getElementById("sc-search-body");
+        const conf = document.getElementById("sc-search-conf");
+        if (!box || !body) return;
+        box.classList.remove("hidden", "is-loading");
+        if (state === "loading") {
+            box.classList.add("is-loading");
+            body.innerHTML = '<div class="sc-search-loading-ring"></div>';
+            if (conf) conf.textContent = "";
+            return;
+        }
+        if (state === "error") {
+            body.innerHTML = '<div class="sc-search-error"><i class="ri-error-warning-line"></i> Could not analyse — tap again.</div>';
+            if (conf) conf.textContent = "";
+            return;
+        }
+        // Populate with diagnosis
+        const d = diagnosis;
+        const lvl = (d.riskLevel || "medium").toLowerCase();
+        const riskMap = { healthy: "Healthy", low: "Low Risk", medium: "Medium Risk", high: "High Risk" };
+        const chipClass = { healthy: "is-healthy", low: "is-low", medium: "is-medium", high: "is-high" }[lvl] || "";
+        if (conf) conf.textContent = Math.round(d.confidence || 0) + "% confident";
+
+        let chips = "";
+        if (d.plantType && d.plantType.toLowerCase() !== "unidentified plant") {
+            chips += `<span class="sc-search-chip"><i class="ri-leaf-line"></i>${d.plantType}</span>`;
+        }
+        chips += `<span class="sc-search-chip ${chipClass}"><i class="ri-shield-line"></i>${riskMap[lvl] || "Medium Risk"}</span>`;
+
+        let recs = "";
+        const recList = Array.isArray(d.recommendations) && d.recommendations.length
+            ? d.recommendations.slice(0, 3)
+            : [];
+        if (recList.length) {
+            recs = `<ul class="sc-search-recs">${recList.map(r => `<li>${r}</li>`).join("")}</ul>`;
+        }
+
+        body.innerHTML = `
+            <div class="sc-search-chips">${chips}</div>
+            <p class="sc-search-narr">${d.narrative || d.summary || "No details returned."}</p>
+            ${recs}`;
+    }
+
     if (lensBtn) {
         lensBtn.addEventListener("click", async () => {
             const videoEl = qs("videoElement");
@@ -535,48 +579,27 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
             setLensButtonState("uploading");
-            showScannerStatus("Scanning…", false, 12000);
-
-            // Min 5 s "Scanning…" so the user sees feedback;
-            // whole operation hard-capped at 10 s.
-            const minWait = new Promise(r => setTimeout(r, 5000));
-            const maxTimeout = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 10000));
+            showSearchBox("loading");
 
             try {
-                await Promise.race([
-                    (async () => {
-                        const blob = await captureFromVideo(videoEl);
-                        // Direct form-POST to Google visual search — no Firebase
-                        // needed, no public URL required. Browser submits the
-                        // image as multipart/form-data and opens results in a new tab.
-                        const file = new File([blob], "scan.jpg", { type: "image/jpeg" });
-                        const dt = new DataTransfer();
-                        dt.items.add(file);
-                        const form = document.createElement("form");
-                        form.method = "POST";
-                        form.action = "https://www.google.com/searchbyimage/upload";
-                        form.enctype = "multipart/form-data";
-                        form.target = "_blank";
-                        form.style.display = "none";
-                        const inp = document.createElement("input");
-                        inp.type = "file";
-                        inp.name = "encoded_image";
-                        inp.files = dt.files;
-                        form.appendChild(inp);
-                        document.body.appendChild(form);
-                        form.submit();
-                        setTimeout(() => { try { document.body.removeChild(form); } catch {} }, 3000);
-                    })(),
-                    maxTimeout,
-                ]);
-                await minWait;
-                setLensButtonState("idle");
-                showScannerStatus("Search opened.", false, 2000);
+                const blob = await captureFromVideo(videoEl);
+                const result = await runAiVisionScan(blob, {
+                    cropType: cropSel?.value || "",
+                    farmContext: null,
+                });
+                if (result.ok) {
+                    showSearchBox("result", result.diagnosis);
+                    setLensButtonState("idle");
+                    showScannerStatus("Scan complete.", false, 1800);
+                } else {
+                    showSearchBox("error");
+                    setLensButtonState("error");
+                    showScannerStatus("Scan failed — tap to retry.", true, 2500);
+                }
             } catch (e) {
-                console.warn("[scanner] lens:", e?.message || e);
-                await minWait;
+                console.warn("[scanner] scan-to-search:", e?.message || e);
+                showSearchBox("error");
                 setLensButtonState("error");
-                showScannerStatus("Search failed — tap to retry.", true, 3000);
             }
         });
     }
@@ -621,6 +644,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (preview) preview.removeAttribute("src");
         resetVisionPanel();
         setLensButtonState("idle");
+        const searchBox = document.getElementById("sc-search-box");
+        if (searchBox) searchBox.classList.add("hidden");
         if (cropSel) cropSel.value = "";
         if (symptomsWrap) {
             for (const b of symptomsWrap.querySelectorAll("button.active")) b.click();
