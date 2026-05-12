@@ -599,7 +599,10 @@
             <div class="sc-ready-btns">
                 <button class="sc-btn sc-btn-primary" id="capture-btn"><i class="ri-camera-3-line"></i> Capture</button>
                 <label class="sc-btn sc-btn-outline">
-                    <input type="file" id="upload-input" accept="image/*" capture="environment" hidden>
+                    <!-- No `capture` attr: lets the user pick from gallery / files.
+                         The big green Capture button drives the live camera flow
+                         via getUserMedia, so this input is purely for uploads. -->
+                    <input type="file" id="upload-input" accept="image/*" hidden>
                     <i class="ri-upload-2-line"></i> Upload
                 </label>
             </div>
