@@ -10,8 +10,11 @@
 //        → JSON { diseaseName, scientificName, riskLevel, confidence, summary, recommendations }
 //        → parsed object the scanner UI can render directly.
 
+// Vision-aware val (multimodal Gemini + structured JSON output). Distinct
+// from the chat val used by js/ai/gemini-client.js — that one continues to
+// run the text-only cascade.
 const VISION_PROXY_URL =
-  "https://harshwardhanparganiha--992de5aa4d5911f1849eee650bb23af1.web.val.run";
+  "https://harshwardhanparganiha--2d3f804c4d5911f1b7baee650bb23af1.web.val.run";
 
 const REQUEST_TIMEOUT_MS = 30000;
 const MAX_DIM = 1024;

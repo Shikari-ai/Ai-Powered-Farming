@@ -33,7 +33,7 @@ import {
 import { queueLearningFlush } from "./learning/scheduler.js";
 import { decorateNotificationForAmbient } from "./ambient/notification-decorator.js";
 import { enqueueSensoryCue } from "./ambient/sensory-hooks.js";
-import { runAiVisionScan } from "./ai/vision-scan.js?v=1";
+import { runAiVisionScan } from "./ai/vision-scan.js?v=2";
 
 const SYMPTOMS = [
     { id: "leaf_spots", label: "Leaf spots", weight: 14, tags: ["fungal", "bacterial"] },
