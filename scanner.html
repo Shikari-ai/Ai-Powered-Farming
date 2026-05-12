@@ -284,6 +284,18 @@
             font-size: 13px; margin: 8px 0 14px;
         }
         .sc-ready-btns { display: flex; gap: 10px; }
+        .sc-live-detect-row {
+            margin-bottom: 10px;
+        }
+        .sc-live-detect-btn {
+            width: 100%;
+            justify-content: center;
+        }
+        .sc-live-detect-btn.live-active {
+            background: rgba(16, 185, 129, 0.18);
+            border-color: rgba(16, 185, 129, 0.55);
+            box-shadow: 0 0 14px rgba(16, 185, 129, 0.3);
+        }
         .sc-btn {
             flex: 1;
             display: inline-flex; align-items: center; justify-content: center;
@@ -588,7 +600,6 @@
             </div>
             <!-- Camera controls (top-right inside viewfinder) -->
             <div class="sc-vf-actions">
-                <button type="button" class="sc-vf-btn" id="live-vision-toggle" title="Live disease scan" aria-label="Live disease scan" aria-pressed="false"><i class="ri-radar-line"></i></button>
                 <button type="button" class="sc-vf-btn" id="flip-camera" title="Flip camera" aria-label="Flip camera"><i class="ri-camera-switch-line"></i></button>
             </div>
         </div>
@@ -596,6 +607,11 @@
         <!-- Ready state: capture / upload -->
         <div id="ready-state" class="sc-state">
             <p class="sc-state-help">Point at a leaf, then capture or upload.</p>
+            <div class="sc-live-detect-row">
+                <button class="sc-btn sc-btn-outline sc-live-detect-btn" id="live-vision-toggle" aria-label="Detect under live camera" aria-pressed="false">
+                    <i class="ri-radar-line"></i> Detect under live camera
+                </button>
+            </div>
             <div class="sc-ready-btns">
                 <button class="sc-btn sc-btn-primary" id="capture-btn"><i class="ri-camera-3-line"></i> Capture</button>
                 <label class="sc-btn sc-btn-outline">
@@ -739,7 +755,7 @@
     </script>
 
     <script src="js/app.js"></script>
-    <script type="module" src="js/scanner-db.js?v=36"></script>
+    <script type="module" src="js/scanner-db.js?v=39"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>

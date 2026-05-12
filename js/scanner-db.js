@@ -33,6 +33,7 @@ import {
 import { queueLearningFlush } from "./learning/scheduler.js";
 import { decorateNotificationForAmbient } from "./ambient/notification-decorator.js";
 import { enqueueSensoryCue } from "./ambient/sensory-hooks.js";
+import { runAiVisionScan } from "./ai/vision-scan.js?v=1";
 
 const SYMPTOMS = [
     { id: "leaf_spots", label: "Leaf spots", weight: 14, tags: ["fungal", "bacterial"] },
@@ -265,6 +266,21 @@ document.addEventListener("DOMContentLoaded", () => {
     const visionText = qs("vision-result-text");
     const liveToggle = qs("live-vision-toggle");
     const visionCanvas = qs("vision-overlay");
+    const hdrSub = qs("sc-hdr-sub");
+    let statusResetTimer = null;
+    let camSwitching = false;
+    let hasManyCamsCache = null;
+
+    const showScannerStatus = (msg, warn = false, ms = 2400) => {
+        if (!hdrSub) return;
+        if (statusResetTimer) clearTimeout(statusResetTimer);
+        hdrSub.textContent = msg;
+        hdrSub.style.color = warn ? "var(--sc-amber)" : "var(--sc-dim)";
+        statusResetTimer = setTimeout(() => {
+            hdrSub.textContent = "Point camera at your crop";
+            hdrSub.style.color = "";
+        }, ms);
+    };
 
     const resetVisionPanel = () => {
         if (visionPanel) visionPanel.classList.add("hidden");
@@ -338,6 +354,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const stopLiveVision = () => {
         if (liveHandle && typeof liveHandle.stop === "function") liveHandle.stop();
         liveHandle = null;
+        if (visionCanvas) {
+            const ctx = visionCanvas.getContext("2d");
+            if (ctx) ctx.clearRect(0, 0, visionCanvas.width, visionCanvas.height);
+        }
         if (liveToggle) {
             liveToggle.setAttribute("aria-pressed", "false");
             liveToggle.classList.remove("live-active");
@@ -348,24 +368,29 @@ document.addEventListener("DOMContentLoaded", () => {
         liveToggle.addEventListener("click", () => {
             const cfg = getAiConfig();
             if (!cfg.inferenceBaseUrl) {
-                window.alert(
-                    "Configure your FastAPI vision host (meta agri-inference-url or __AGRI_INFERENCE_URL__) to enable live scanning."
-                );
+                showScannerStatus("Live scan needs AI vision API configured.", true, 2800);
                 return;
             }
             if (liveHandle) {
                 stopLiveVision();
+                showScannerStatus("Live scan stopped.", false, 1200);
                 return;
             }
             const v = qs("videoElement");
             if (!v) return;
-            liveHandle = startLiveDiseaseScan({
-                videoEl: v,
-                canvasEl: visionCanvas,
-                tuning: { confThreshold: 0.68 },
-            });
-            liveToggle.setAttribute("aria-pressed", "true");
-            liveToggle.classList.add("live-active");
+            try {
+                liveHandle = startLiveDiseaseScan({
+                    videoEl: v,
+                    canvasEl: visionCanvas,
+                    tuning: { confThreshold: 0.68 },
+                });
+                liveToggle.setAttribute("aria-pressed", "true");
+                liveToggle.classList.add("live-active");
+                showScannerStatus("Live AI scan running.", false, 1200);
+            } catch (e) {
+                console.warn("[scanner] live vision start:", e?.message || e);
+                showScannerStatus("Could not start live scan.", true, 2600);
+            }
         });
     }
 
@@ -407,6 +432,152 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (retakeBtn) retakeBtn.addEventListener("click", () => toReadyState());
     if (backBtn) backBtn.addEventListener("click", () => toAnalyzeState());
+
+    // ── AI vision (Gemini multimodal via Val Town proxy) ──
+    // Auto-runs after the user captures or uploads a photo. If it returns
+    // a structured diagnosis, we fill the result card and jump straight to
+    // the result-state. If it fails (offline, val down, JSON parse fail)
+    // the user just stays in analyze-state and can fall back to the manual
+    // symptoms form like before.
+    let aiVisionInFlight = false;
+    function riskToHealth(level) {
+      // Map the AI's qualitative risk to the 0-100 health score the rest
+      // of the app uses (higher = healthier).
+      switch ((level || "").toLowerCase()) {
+        case "healthy": return 92;
+        case "low":     return 78;
+        case "medium":  return 55;
+        case "high":    return 28;
+        default:        return 60;
+      }
+    }
+    function riskClass(level) {
+      switch ((level || "").toLowerCase()) {
+        case "healthy":
+        case "low":     return "risk-good";
+        case "high":    return "risk-bad";
+        default:        return "";
+      }
+    }
+    function riskLabel(level) {
+      switch ((level || "").toLowerCase()) {
+        case "healthy": return "Healthy";
+        case "low":     return "Low Risk";
+        case "high":    return "High Risk";
+        case "medium":  return "Medium Risk";
+        default:        return "Medium Risk";
+      }
+    }
+    function populateAiResult(diagnosis) {
+      // ── Top-row fields ──
+      const titleEl = qs("result-title");
+      if (titleEl) {
+        titleEl.textContent = diagnosis.diseaseName || "Scan result";
+        // Existing scanner styling toggles `.danger` on the result-badge
+        // for unhealthy outcomes — keep that behaviour for back-compat.
+        titleEl.classList.toggle("danger", diagnosis.riskLevel !== "healthy");
+      }
+      const sciEl = document.getElementById("result-sci");
+      if (sciEl) sciEl.textContent = diagnosis.scientificName || diagnosis.summary || "";
+
+      // ── Confidence bar ──
+      const confFill = document.getElementById("sc-conf-fill");
+      const healthEl = qs("result-health");
+      const pct = Math.max(0, Math.min(100, Math.round(diagnosis.confidence || 0)));
+      if (confFill) confFill.style.width = pct + "%";
+      if (healthEl) healthEl.textContent = String(pct);
+
+      // ── Risk pill ──
+      const riskWrap = document.getElementById("sc-result-risk");
+      const riskLbl = document.getElementById("sc-risk-label");
+      if (riskWrap) {
+        riskWrap.classList.remove("risk-good", "risk-bad");
+        const cls = riskClass(diagnosis.riskLevel);
+        if (cls) riskWrap.classList.add(cls);
+      }
+      if (riskLbl) riskLbl.textContent = riskLabel(diagnosis.riskLevel);
+
+      // ── Recommendations list ──
+      const list = document.querySelector("#result-state .rec-list");
+      if (list) {
+        list.innerHTML = "";
+        const recs = Array.isArray(diagnosis.recommendations) && diagnosis.recommendations.length
+          ? diagnosis.recommendations
+          : ["No recommendations from AI — try a clearer close-up of the affected leaf."];
+        for (let i = 0; i < recs.length; i++) {
+          const li = document.createElement("li");
+          // First few items as "done" checks (planned actions), last as
+          // monitoring "to-do" — matches the reference mockup pattern.
+          li.className = i === recs.length - 1 ? "is-todo" : "is-done";
+          li.textContent = recs[i];
+          list.appendChild(li);
+        }
+      }
+    }
+    async function startAiVision(blob) {
+      if (!blob || aiVisionInFlight) return;
+      aiVisionInFlight = true;
+      try {
+        // Light farm context — the AI uses it to disambiguate (e.g. wheat vs
+        // tomato yellowing has very different cause sets).
+        const farmContext = {};
+        if (fieldSel && fieldSel.value) {
+          const f = (fieldsListLast || []).find((x) => x.id === fieldSel.value);
+          if (f) farmContext.fields = [{ name: f.name, cropType: f.cropType, cropVariety: f.cropVariety, areaAcres: f.areaAcres }];
+        }
+        const result = await runAiVisionScan(blob, {
+          farmContext: Object.keys(farmContext).length ? farmContext : null,
+          cropType: cropSel?.value || "",
+          observedSymptoms: symptomsWrap ? getSelectedSymptoms(symptomsWrap) : [],
+        });
+        if (!result.ok) {
+          console.warn("[scanner] AI vision failed:", result.error, result.raw?.slice(0, 200));
+          if (visionText) {
+            visionPanel?.classList.remove("hidden");
+            visionText.textContent = "AI vision unreachable — fill in symptoms below and tap Generate to use the local rules-based diagnosis instead.";
+          }
+          return;
+        }
+
+        const d = result.diagnosis;
+        // Stash into `computed` so the existing Save Report button writes
+        // the AI result to Firestore (same shape as the rules-based path).
+        computed = {
+          cropType: cropSel?.value || "Other",
+          fieldId: fieldSel?.value || "",
+          selectedSymptoms: symptomsWrap ? getSelectedSymptoms(symptomsWrap) : [],
+          healthScore: riskToHealth(d.riskLevel),
+          diagnosis: {
+            code: "ai_vision",
+            label: d.diseaseName,
+            category: d.riskLevel === "healthy" ? "healthy" : "risk",
+            scientificName: d.scientificName || "",
+            summary: d.summary || "",
+            aiConfidence: d.confidence,
+            aiRiskLevel: d.riskLevel,
+            aiProvider: result.provider,
+            aiModel: result.model,
+          },
+          severity: {
+            level: d.riskLevel === "healthy" ? "good"
+                 : d.riskLevel === "low" ? "good"
+                 : d.riskLevel === "high" ? "critical"
+                 : "warning",
+            label: riskLabel(d.riskLevel),
+          },
+          recommendations: (d.recommendations || []).map((text) => ({ type: "action", text })),
+          analysisVersion: "ai-vision-v1",
+        };
+
+        populateAiResult(d);
+        toResultState();
+        if (navigator.vibrate) navigator.vibrate([60, 30, 60]);
+      } catch (e) {
+        console.warn("[scanner] AI vision error:", e?.message || e);
+      } finally {
+        aiVisionInFlight = false;
+      }
+    }
 
     // Auth gating + realtime field list
     onAuthStateChanged(auth, (user) => {
@@ -476,9 +647,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const flipBtn = qs("flip-camera");
     if (flipBtn) {
-        flipBtn.addEventListener("click", () => {
+        flipBtn.addEventListener("click", async () => {
+            if (camSwitching) return;
+            camSwitching = true;
+            flipBtn.disabled = true;
             const cam = window.__agriCamera;
-            if (cam && typeof cam.toggleFacing === "function") cam.toggleFacing();
+            if (!cam || typeof cam.toggleFacing !== "function") {
+                showScannerStatus("Camera is not ready yet.", true, 1800);
+                camSwitching = false;
+                flipBtn.disabled = false;
+                return;
+            }
+            try {
+                if (hasManyCamsCache == null && navigator.mediaDevices?.enumerateDevices) {
+                    const devs = await navigator.mediaDevices.enumerateDevices();
+                    hasManyCamsCache = devs.filter((d) => d.kind === "videoinput").length > 1;
+                }
+                await cam.toggleFacing();
+                showScannerStatus(
+                    hasManyCamsCache ? "Camera switched." : "Using available camera.",
+                    !hasManyCamsCache,
+                    1700,
+                );
+            } catch (e) {
+                console.warn("[scanner] flip camera:", e?.message || e);
+                try {
+                    if (typeof cam.restart === "function") await cam.restart();
+                } catch {}
+                showScannerStatus("Could not switch camera.", true, 2600);
+            } finally {
+                camSwitching = false;
+                flipBtn.disabled = false;
+            }
         });
     }
 
@@ -494,6 +694,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (preview) preview.src = currentPreviewUrl;
                 toAnalyzeState();
                 startBackgroundVision(blob);
+                startAiVision(blob); // Gemini vision → auto-populate result
             } catch (e) {
                 console.error(e);
                 alert("Could not capture from camera. Try Upload instead.");
@@ -513,15 +714,18 @@ document.addEventListener("DOMContentLoaded", () => {
             if (preview) preview.src = currentPreviewUrl;
             toAnalyzeState();
             startBackgroundVision(file);
+            startAiVision(file); // Gemini vision → auto-populate result
         });
     }
 
     if (analyzeBtn) {
         analyzeBtn.addEventListener("click", async () => {
-            const cropType = cropSel ? cropSel.value.trim() : "";
+            // Do not hard-block Generate on crop selection. Mobile users often
+            // upload first and expect immediate analysis; fallback keeps flow smooth.
+            let cropType = cropSel ? cropSel.value.trim() : "";
             if (!cropType) {
-                alert("Please select a crop type.");
-                return;
+                cropType = "Other";
+                if (cropSel) cropSel.value = "Other";
             }
             const selected = symptomsWrap ? getSelectedSymptoms(symptomsWrap) : [];
             const healthScore = computeHealthScore(selected);
