@@ -289,7 +289,7 @@ onAuthStateChanged(auth, (user) => {
   // VisualViewport.offsetTop to glue the header to whatever the user
   // can actually see, and `--vv-offset-top` so other fixed elements
   // can pin to it too if needed.
-  const headerEl = document.querySelector("header.header");
+  const headerEl = document.querySelector("header.aa-header") || document.querySelector("header.header");
   const vv = window.visualViewport;
   if (headerEl && vv) {
     const sync = () => {
@@ -373,6 +373,101 @@ onAuthStateChanged(auth, (user) => {
 
   // Expose pref to the assistant-side request builder
   window.__agriGetModelPref = getModelPref;
+
+  // ── Hamburger menu (top-left): opens "Clear chat" dropdown ──
+  // The actual archive logic stays in the existing clearBtn click handler
+  // (further down). This menu just exposes that action via a dust-bin icon.
+  const menuBtn = document.getElementById("aa-menu-btn");
+  const menuPop = document.getElementById("aa-menu-popover");
+  if (menuBtn && menuPop) {
+    const closeMenuPop = () => {
+      menuPop.classList.add("hidden");
+      menuBtn.setAttribute("aria-expanded", "false");
+      document.removeEventListener("click", onDocMenuClick, true);
+    };
+    function onDocMenuClick(e) {
+      if (menuPop.contains(e.target) || menuBtn.contains(e.target)) return;
+      closeMenuPop();
+    }
+    menuBtn.addEventListener("click", () => {
+      const isOpen = !menuPop.classList.contains("hidden");
+      if (isOpen) { closeMenuPop(); return; }
+      // Close model menu if open
+      modelMenu?.classList.add("hidden");
+      modelBtn?.setAttribute("aria-expanded", "false");
+      menuPop.classList.remove("hidden");
+      menuBtn.setAttribute("aria-expanded", "true");
+      setTimeout(() => document.addEventListener("click", onDocMenuClick, true), 0);
+    });
+    // After Clear chat clicked, close the popover (the click handler on
+    // clearBtn already runs the archive logic in its own listener).
+    document.getElementById("assistant-clear")?.addEventListener("click", () => {
+      closeMenuPop();
+    });
+  }
+
+  // ── Microphone (Web Speech API) ──
+  // Click → start listening → transcribe into the input field. Click again
+  // to stop early. Falls back silently if the browser doesn't support
+  // SpeechRecognition (Firefox, some older Android Chrome).
+  const micBtn = document.getElementById("aa-mic-btn");
+  if (micBtn) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      micBtn.title = "Voice input not supported in this browser";
+      micBtn.style.opacity = "0.5";
+      micBtn.addEventListener("click", () => {
+        const inp = document.getElementById("assistant-input");
+        if (inp) {
+          inp.focus();
+          inp.placeholder = "Type here — voice input isn't supported on this browser.";
+        }
+      });
+    } else {
+      let rec = null;
+      let isListening = false;
+      const stopListening = () => {
+        if (rec && isListening) { try { rec.stop(); } catch {} }
+        isListening = false;
+        micBtn.classList.remove("recording");
+      };
+      micBtn.addEventListener("click", () => {
+        const inp = document.getElementById("assistant-input");
+        if (!inp) return;
+        if (isListening) { stopListening(); return; }
+        rec = new SR();
+        rec.lang = (navigator.language || "en-IN");
+        rec.interimResults = true;
+        rec.continuous = false;
+        rec.maxAlternatives = 1;
+        let baseText = inp.value;
+        if (baseText && !/[\s]$/.test(baseText)) baseText += " ";
+        rec.onresult = (ev) => {
+          let interim = "";
+          let finalText = "";
+          for (let i = ev.resultIndex; i < ev.results.length; i++) {
+            const r = ev.results[i];
+            if (r.isFinal) finalText += r[0].transcript;
+            else interim += r[0].transcript;
+          }
+          inp.value = baseText + finalText + interim;
+        };
+        rec.onerror = (ev) => {
+          console.warn("[assistant] speech recognition error:", ev.error);
+          stopListening();
+        };
+        rec.onend = () => { stopListening(); };
+        try {
+          rec.start();
+          isListening = true;
+          micBtn.classList.add("recording");
+        } catch (e) {
+          console.warn("[assistant] could not start speech recognition:", e);
+          stopListening();
+        }
+      });
+    }
+  }
 
   let fields = [];
   let scans = [];
