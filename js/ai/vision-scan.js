@@ -119,6 +119,11 @@ function normalizeDiagnosis(obj) {
     confidence: 60,
     summary: "",
     recommendations: [],
+    // Richer fields (asked for in the prompt, parsed defensively so older
+    // val responses without them still work).
+    plantType: "",      // e.g. "Tomato leaf", "Apple foliage", "Wheat crop"
+    partOfPlant: "",    // "leaf" | "fruit" | "stem" | "whole plant" | ""
+    narrative: "",      // Conversational 2-3 sentence "It looks like..."
   };
   if (!obj || typeof obj !== "object") return out;
   if (typeof obj.diseaseName === "string" && obj.diseaseName.trim()) out.diseaseName = obj.diseaseName.trim();
@@ -133,6 +138,23 @@ function normalizeDiagnosis(obj) {
       .filter((r) => typeof r === "string" && r.trim())
       .map((r) => r.trim())
       .slice(0, 6);
+  }
+  if (typeof obj.plantType === "string") out.plantType = obj.plantType.trim();
+  if (typeof obj.partOfPlant === "string") out.partOfPlant = obj.partOfPlant.trim().toLowerCase();
+  if (typeof obj.narrative === "string") out.narrative = obj.narrative.trim();
+  // If the model skipped narrative, synthesize a graceful fallback from
+  // what we DO have so the UI always has something conversational to show.
+  if (!out.narrative) {
+    const lead = "It looks like";
+    const subject = out.plantType || (out.partOfPlant ? `a ${out.partOfPlant}` : "a plant");
+    if (out.riskLevel === "healthy") {
+      out.narrative = `${lead} ${subject} that appears healthy. ${out.summary || "No visible disease signs."}`.trim();
+    } else if (out.diseaseName && out.diseaseName !== "Unknown") {
+      const sci = out.scientificName ? ` (${out.scientificName})` : "";
+      out.narrative = `${lead} ${subject} showing ${out.diseaseName.toLowerCase()}${sci}. ${out.summary || ""}`.trim();
+    } else {
+      out.narrative = `${lead} ${subject}. ${out.summary || "Unable to identify a specific issue from the image."}`.trim();
+    }
   }
   return out;
 }
@@ -179,9 +201,19 @@ export async function runAiVisionScan(blob, opts = {}) {
   if (Array.isArray(opts.observedSymptoms) && opts.observedSymptoms.length) {
     hints.push("User-reported symptoms: " + opts.observedSymptoms.join(", "));
   }
-  const question = hints.length
+  // Ask for the standard JSON fields the val's vision system prompt
+  // requires, PLUS three richer fields the UI uses for the conversational
+  // "It looks like..." review panel. Gemini reliably honors requests for
+  // extra JSON fields even when the system prompt only lists the required
+  // ones — and normalizeDiagnosis() falls back gracefully if any are
+  // missing, so older val deployments still work.
+  const extras = ` Also include these extra fields in the same JSON object:` +
+    ` "plantType" (short label, e.g. "Tomato leaf", "Apple foliage", "Wheat seedling", or "Unidentified plant"),` +
+    ` "partOfPlant" (one of "leaf" / "fruit" / "stem" / "whole plant" / "root" / "" ),` +
+    ` "narrative" (2-3 friendly sentences starting with "It looks like" — describe what you see, name the plant, mention any visible issue, and end with a quick judgment).`;
+  const question = (hints.length
     ? "Diagnose this crop photo as JSON per the spec. " + hints.join(". ") + "."
-    : "Diagnose this crop photo as JSON per the spec.";
+    : "Diagnose this crop photo as JSON per the spec.") + extras;
 
   const payload = {
     question,

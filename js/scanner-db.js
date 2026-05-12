@@ -33,8 +33,8 @@ import {
 import { queueLearningFlush } from "./learning/scheduler.js";
 import { decorateNotificationForAmbient } from "./ambient/notification-decorator.js";
 import { enqueueSensoryCue } from "./ambient/sensory-hooks.js";
-import { runAiVisionScan } from "./ai/vision-scan.js?v=2";
-import { startLiveGeminiScan } from "./ai/live-vision-gemini.js?v=1";
+import { runAiVisionScan } from "./ai/vision-scan.js?v=3";
+import { startLiveGeminiScan } from "./ai/live-vision-gemini.js?v=2";
 
 const SYMPTOMS = [
     { id: "leaf_spots", label: "Leaf spots", weight: 14, tags: ["fungal", "bacterial"] },
@@ -381,7 +381,96 @@ document.addEventListener("DOMContentLoaded", () => {
         subEl.textContent = subBits.length ? subBits.join(" · ") : (d.summary || "Live detection");
         if (d.riskLevel === "medium") badge.classList.add("is-warn");
         if (d.riskLevel === "high") badge.classList.add("is-bad");
+
+        // The richer AI Review panel below the viewfinder mirrors every
+        // detection — both live ticks and one-shot capture/upload share
+        // this code path so the panel always reflects the latest verdict.
+        populateAiReview(d);
     }
+
+    // ── Rich "AI Review" panel below the viewfinder ──
+    let _lastReviewAt = 0;
+    function formatStamp(deltaMs) {
+        if (deltaMs < 5000) return "just now";
+        if (deltaMs < 60000) return Math.round(deltaMs / 1000) + "s ago";
+        return Math.round(deltaMs / 60000) + "m ago";
+    }
+    function populateAiReview(d) {
+        const panel = document.getElementById("sc-ai-review");
+        if (!panel || !d) return;
+        const $ = (id) => document.getElementById(id);
+        panel.hidden = false;
+
+        // Plant-type chip (only shown when AI returned one)
+        const plantChip = $("sc-ai-rev-plant");
+        const plantTxt  = $("sc-ai-rev-plant-text");
+        if (plantChip && plantTxt) {
+            if (d.plantType && d.plantType.toLowerCase() !== "unidentified plant") {
+                plantTxt.textContent = d.plantType;
+                plantChip.hidden = false;
+            } else {
+                plantChip.hidden = true;
+            }
+        }
+
+        // Risk chip — color-coded by risk level
+        const riskChip = $("sc-ai-rev-risk");
+        const riskTxt  = $("sc-ai-rev-risk-text");
+        if (riskChip && riskTxt) {
+            riskChip.classList.remove("risk-healthy", "risk-low", "risk-medium", "risk-high");
+            const lvl = d.riskLevel || "medium";
+            riskChip.classList.add("risk-" + lvl);
+            riskTxt.textContent = riskLabel(lvl);
+        }
+
+        // Confidence chip
+        const confTxt = $("sc-ai-rev-conf-text");
+        if (confTxt) confTxt.textContent = Math.max(0, Math.min(100, Math.round(d.confidence || 0))) + "% confident";
+
+        // Narrative — the conversational "It looks like…" line
+        const narrEl = $("sc-ai-rev-narr");
+        if (narrEl) narrEl.textContent = d.narrative || d.summary || "AI couldn't articulate a verdict from this frame.";
+
+        // Optional diagnosis row (hidden when healthy / no specific disease)
+        const dxRow  = $("sc-ai-rev-dx-row");
+        const dxName = $("sc-ai-rev-dx-name");
+        const dxSci  = $("sc-ai-rev-dx-sci");
+        if (dxRow && dxName && dxSci) {
+            const showDx = d.diseaseName && !["healthy", "unknown", ""].includes(d.diseaseName.toLowerCase());
+            if (showDx) {
+                dxName.textContent = d.diseaseName;
+                dxSci.textContent = d.scientificName || "";
+                dxRow.hidden = false;
+            } else {
+                dxRow.hidden = true;
+            }
+        }
+
+        // Recommendations list
+        const recsList = $("sc-ai-rev-recs-list");
+        if (recsList) {
+            recsList.innerHTML = "";
+            const recs = Array.isArray(d.recommendations) && d.recommendations.length
+                ? d.recommendations
+                : ["Take a clear close-up of the affected leaf for a sharper diagnosis."];
+            for (const r of recs.slice(0, 5)) {
+                const li = document.createElement("li");
+                li.textContent = r;
+                recsList.appendChild(li);
+            }
+        }
+
+        // Timestamp on the head row
+        _lastReviewAt = Date.now();
+        const stampEl = $("sc-ai-rev-stamp");
+        if (stampEl) stampEl.textContent = "just now";
+    }
+    // Keep the "just now / 12s ago" stamp ticking once per second.
+    setInterval(() => {
+        if (!_lastReviewAt) return;
+        const stampEl = document.getElementById("sc-ai-rev-stamp");
+        if (stampEl) stampEl.textContent = formatStamp(Date.now() - _lastReviewAt);
+    }, 1000);
     function hideLiveBadge() {
         const badge = document.getElementById("sc-live-badge");
         if (badge) badge.hidden = true;
@@ -610,6 +699,7 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         populateAiResult(d);
+        populateAiReview(d); // mirror into the rich review panel above the dock
         toResultState();
         if (navigator.vibrate) navigator.vibrate([60, 30, 60]);
       } catch (e) {

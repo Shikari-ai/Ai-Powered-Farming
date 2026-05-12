@@ -320,6 +320,121 @@
             .sc-live-pulse { animation: none !important; }
         }
 
+        /* ── AI Review panel ──
+           Sits between the viewfinder and the bottom dock. Shows a richer,
+           conversational "It looks like…" verdict whenever live detect or
+           capture/upload produces a fresh diagnosis. Hidden until the
+           first detection arrives. */
+        .sc-ai-review[hidden] { display: none; }
+        .sc-ai-review {
+            margin-top: 18px;
+            padding: 16px;
+            border-radius: 20px;
+            background: linear-gradient(160deg, rgba(16, 185, 129, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+            border: 1px solid rgba(16, 185, 129, 0.28);
+            box-shadow:
+                0 14px 36px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.04),
+                0 0 24px rgba(16, 185, 129, 0.12);
+            animation: scReviewIn 0.35s ease-out;
+        }
+        @keyframes scReviewIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: none; }
+        }
+        .sc-ai-rev-head {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 12px;
+        }
+        .sc-ai-rev-pulse {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: var(--sc-emerald);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.9), 0 0 0 4px rgba(16, 185, 129, 0.15);
+            animation: scLivePulse 1.4s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+        .sc-ai-rev-tag {
+            font-size: 12.5px; font-weight: 700;
+            letter-spacing: 0.6px; text-transform: uppercase;
+            color: var(--sc-emerald);
+        }
+        .sc-ai-rev-stamp {
+            margin-left: auto;
+            font-size: 10.5px; color: var(--sc-muted);
+            font-family: 'SF Mono', Consolas, monospace;
+        }
+        .sc-ai-rev-chips {
+            display: flex; flex-wrap: wrap; gap: 7px;
+            margin-bottom: 12px;
+        }
+        .sc-ai-rev-chip {
+            font-size: 11.5px; font-weight: 500;
+            padding: 5px 10px; border-radius: 999px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: rgba(236, 253, 245, 0.85);
+            display: inline-flex; align-items: center; gap: 5px;
+        }
+        .sc-ai-rev-chip i { font-size: 13px; opacity: 0.75; }
+        .sc-ai-rev-chip[hidden] { display: none; }
+        .sc-ai-rev-chip.risk-healthy { background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.45); color: var(--sc-emerald); }
+        .sc-ai-rev-chip.risk-low     { background: rgba(16, 185, 129, 0.10); border-color: rgba(16, 185, 129, 0.35); color: var(--sc-emerald); }
+        .sc-ai-rev-chip.risk-medium  { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.45); color: var(--sc-amber); }
+        .sc-ai-rev-chip.risk-high    { background: rgba(244, 63, 94, 0.12); border-color: rgba(244, 63, 94, 0.50); color: #f87171; }
+        .sc-ai-rev-chip.conf {
+            background: rgba(34, 211, 238, 0.10); border-color: rgba(34, 211, 238, 0.35); color: #67e8f9;
+            font-variant-numeric: tabular-nums;
+        }
+        .sc-ai-rev-narr {
+            font-size: 14px; line-height: 1.55;
+            color: rgba(236, 253, 245, 0.94);
+            margin: 0 0 12px;
+        }
+        .sc-ai-rev-narr strong { color: var(--sc-emerald); font-weight: 600; }
+        .sc-ai-rev-dx-row {
+            display: flex; align-items: baseline; gap: 8px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.30);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            margin-bottom: 12px;
+        }
+        .sc-ai-rev-dx-row[hidden] { display: none; }
+        .sc-ai-rev-dx-row strong {
+            font-size: 14px; font-weight: 600; color: var(--sc-text);
+        }
+        .sc-ai-rev-dx-row em {
+            font-size: 12px; color: var(--sc-dim);
+            font-style: italic;
+        }
+        .sc-ai-rev-recs {
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            padding-top: 12px;
+        }
+        .sc-ai-rev-recs-head {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 12px; color: var(--sc-emerald);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .sc-ai-rev-recs ul {
+            list-style: none; padding: 0; margin: 0;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .sc-ai-rev-recs li {
+            display: flex; align-items: flex-start; gap: 9px;
+            font-size: 13px; line-height: 1.45;
+            color: rgba(236, 253, 245, 0.92);
+        }
+        .sc-ai-rev-recs li::before {
+            content: ""; flex-shrink: 0;
+            width: 16px; height: 16px; border-radius: 50%;
+            margin-top: 3px;
+            background: rgba(16, 185, 129, 0.18);
+            border: 1.5px solid rgba(16, 185, 129, 0.55);
+            box-shadow: inset 0 0 0 3px rgba(16, 185, 129, 0.55);
+        }
+
         /* Also light up the Detect toggle when active */
         .sc-live-detect-btn.is-active {
             background: rgba(16, 185, 129, 0.16);
@@ -671,6 +786,34 @@
             </div>
         </div>
 
+        <!-- AI Review panel — appears once the AI has produced a verdict
+             (live detect tick, capture, or upload). Sits between the
+             viewfinder and the ready-state buttons so it's always above
+             the bottom dock and easy to read. -->
+        <section class="sc-ai-review" id="sc-ai-review" hidden aria-live="polite">
+            <div class="sc-ai-rev-head">
+                <div class="sc-ai-rev-pulse"></div>
+                <div class="sc-ai-rev-tag">AI Review</div>
+                <div class="sc-ai-rev-stamp" id="sc-ai-rev-stamp">just now</div>
+            </div>
+            <div class="sc-ai-rev-chips">
+                <span class="sc-ai-rev-chip" id="sc-ai-rev-plant" hidden><i class="ri-leaf-line"></i><span id="sc-ai-rev-plant-text">Plant</span></span>
+                <span class="sc-ai-rev-chip risk-healthy" id="sc-ai-rev-risk"><i class="ri-shield-check-line"></i><span id="sc-ai-rev-risk-text">Healthy</span></span>
+                <span class="sc-ai-rev-chip conf" id="sc-ai-rev-conf"><i class="ri-sparkling-2-line"></i><span id="sc-ai-rev-conf-text">--%</span></span>
+            </div>
+            <p class="sc-ai-rev-narr" id="sc-ai-rev-narr">It looks like the AI is still warming up. Hold the camera steady on a leaf for a moment.</p>
+            <div class="sc-ai-rev-dx-row" id="sc-ai-rev-dx-row" hidden>
+                <strong id="sc-ai-rev-dx-name"></strong>
+                <em id="sc-ai-rev-dx-sci"></em>
+            </div>
+            <div class="sc-ai-rev-recs">
+                <div class="sc-ai-rev-recs-head"><i class="ri-sparkling-line"></i> What to do</div>
+                <ul id="sc-ai-rev-recs-list">
+                    <li>Loading recommendations…</li>
+                </ul>
+            </div>
+        </section>
+
         <!-- Ready state: capture / upload -->
         <div id="ready-state" class="sc-state">
             <p class="sc-state-help">Point at a leaf, then capture or upload.</p>
@@ -822,7 +965,7 @@
     </script>
 
     <script src="js/app.js"></script>
-    <script type="module" src="js/scanner-db.js?v=41"></script>
+    <script type="module" src="js/scanner-db.js?v=42"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>
