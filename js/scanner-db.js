@@ -34,7 +34,7 @@ import { queueLearningFlush } from "./learning/scheduler.js";
 import { decorateNotificationForAmbient } from "./ambient/notification-decorator.js";
 import { enqueueSensoryCue } from "./ambient/sensory-hooks.js";
 import { runAiVisionScan } from "./ai/vision-scan.js?v=3";
-import { startLiveGeminiScan } from "./ai/live-vision-gemini.js?v=2";
+import { startLiveGeminiScan } from "./ai/live-vision-gemini.js?v=3";
 
 const SYMPTOMS = [
     { id: "leaf_spots", label: "Leaf spots", weight: 14, tags: ["fungal", "bacterial"] },
@@ -358,6 +358,22 @@ document.addEventListener("DOMContentLoaded", () => {
     // viewfinder. We bypass scanner-live-vision.js entirely now — that
     // module needed a separately-hosted FastAPI model that most users
     // don't have configured.
+    function liveErrorMessage(error) {
+        const e = String(error || "").toLowerCase();
+        if (e === "starting" || e === "warming_up") return "Warming up the camera…";
+        if (e === "camera_not_ready") return "Camera taking longer than usual — keep it pointed at a leaf";
+        if (e.startsWith("video_not_ready")) return "Camera frame not ready — retrying";
+        if (e === "no_video_element") return "Camera unavailable — refresh and re-allow access";
+        if (e === "draw_failed" || e.startsWith("draw_failed")) return "Couldn't read camera frame — retrying";
+        if (e === "encode_failed") return "Frame encode failed — retrying";
+        if (e === "all_providers_failed") return "AI reachable but returned no answer — hold steady";
+        if (e.startsWith("upstream_status_")) return "AI service " + e.replace("upstream_status_", "") + " — retrying";
+        if (e === "could_not_parse_json") return "AI replied but format was off — retrying";
+        if (e.startsWith("network")) return "Network blip — retrying";
+        if (e.startsWith("tick_threw")) return "Live loop hiccup — retrying";
+        if (e === "no_frame") return "No camera frame yet — hold steady";
+        return e ? "Retrying… (" + e.slice(0, 40) + ")" : "Hold steady on a leaf";
+    }
     function setLiveBadge({ ok, diagnosis, error }) {
         const badge = document.getElementById("sc-live-badge");
         const titleEl = document.getElementById("sc-live-title");
@@ -367,9 +383,7 @@ document.addEventListener("DOMContentLoaded", () => {
         badge.classList.remove("is-warn", "is-bad");
         if (!ok) {
             titleEl.textContent = "AI watching…";
-            subEl.textContent = error === "all_providers_failed"
-                ? "AI reachable, no answer — hold steady"
-                : "Hold steady on a leaf";
+            subEl.textContent = liveErrorMessage(error);
             return;
         }
         const d = diagnosis;
@@ -1016,6 +1030,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     const alertRef = doc(collection(db, "alerts"));
                     let alertSev = computed.severity?.level === "critical" ? "high" : "warn";
                     alertSev = gateAlertSeverity(alertSev, scanReliability.calibratedConfidence);
+                    const diagnosisCode = computed.diagnosis?.code || null;
+                    const homeRetention =
+                        diagnosisCode === "pest_damage" || diagnosisCode === "fungal_risk"
+                            ? "biosecurity"
+                            : null;
                     batch.set(alertRef, {
                         userId: currentUserId,
                         severity: alertSev,
@@ -1032,6 +1051,8 @@ document.addEventListener("DOMContentLoaded", () => {
                         reliability: scanReliability,
                         epistemicPrimary: scanReliability.primaryEpistemic,
                         dataScope: "inferred_from_symptoms",
+                        diagnosisCode,
+                        ...(homeRetention ? { homeRetention } : {}),
                     });
                 }
 
