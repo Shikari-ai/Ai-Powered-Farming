@@ -15,7 +15,7 @@ import {
   resolveWeatherLocation,
   resolveLocationApprox,
   searchPlacesNominatim,
-} from "./weather-location.js";
+} from "./weather-location.js?v=62";
 import { NAVIC_GPS_WEATHER, detectGNSSSource } from "./navic.js";
 
 /** Works on older mobile WebViews without AbortSignal.timeout. */
@@ -34,6 +34,30 @@ function createTimeoutSignal(ms) {
   return c.signal;
 }
 
+/** Same pattern as `weather-location.js` — some WebViews ignore PositionOptions.timeout. */
+function geolocationWithHardTimeout(options, hardMs) {
+  return Promise.race([
+    new Promise((resolve, reject) => {
+      try {
+        navigator.geolocation.getCurrentPosition(resolve, reject, options);
+      } catch (e) {
+        reject(e);
+      }
+    }),
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("gps-hard-timeout")), hardMs);
+    }),
+  ]);
+}
+
+function jsonWithTimeout(response, ms) {
+  const p = response.json();
+  const t = new Promise((_, rej) => {
+    setTimeout(() => rej(new Error("json-parse-timeout")), ms);
+  });
+  return Promise.race([p, t]);
+}
+
 const STORAGE_IMD_KEY = "agri_imd_api_key";
 const STORAGE_IMD_PROXY = "agri_imd_proxy";
 
@@ -45,8 +69,38 @@ let weatherLoadGen = 0;
 let pendingPickerPlace = null;
 let searchHits = [];
 let searchDebounce = null;
+/** Collapses `subscribeActiveLocation` bursts (initial + Firestore merge) so `weatherLoadGen` does not cancel the first paint. */
+let weatherLoadDebounce = null;
+
+function scheduleLoadWeather() {
+  clearTimeout(weatherLoadDebounce);
+  weatherLoadDebounce = setTimeout(() => {
+    weatherLoadDebounce = null;
+    loadWeather().catch(console.error);
+  }, 120);
+}
 
 const qs = (id) => document.getElementById(id);
+
+function clearWeatherNetBanner() {
+  const el = qs("weather-net-banner");
+  if (!el) return;
+  el.hidden = true;
+  el.textContent = "";
+  el.classList.remove("is-info");
+}
+
+function setWeatherNetBanner(message, info = false) {
+  const el = qs("weather-net-banner");
+  if (!el) return;
+  if (!message) {
+    clearWeatherNetBanner();
+    return;
+  }
+  el.hidden = false;
+  el.textContent = message;
+  el.classList.toggle("is-info", !!info);
+}
 
 function weatherDesc(code) {
   if (code === 0) return "Clear sky";
@@ -206,19 +260,24 @@ function fetchImdCityForecastLocWithTimeout(lat, lon, ms = 12_000) {
 
 /** Fast path: single Open-Meteo forecast request (matches dashboard-style first paint). */
 async function fetchOpenMeteoForecastOnly(lat, lon) {
-  // Mobile cellular can stall fetches indefinitely. Without a timeout the
-  // entire page hangs in "Loading realtime weather..." until the network
-  // gives up — that's why the live audit saw it work on desktop and freeze
-  // on phone. Air quality already has a timeout (see fetchOpenMeteoAir);
-  // the forecast path missed it.
   const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,is_day,surface_pressure,visibility&hourly=temperature_2m,precipitation_probability,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max&timezone=auto&forecast_days=10`;
-  const fRes = await fetch(forecastUrl, { signal: createTimeoutSignal(12_000) });
-  if (!fRes.ok) throw new Error("Weather API unavailable");
-  const forecast = await fRes.json();
-  if (forecast?.error || !forecast?.current || !forecast?.hourly || !forecast?.daily) {
-    throw new Error(forecast?.reason || "Weather API returned an incomplete forecast");
-  }
-  return forecast;
+
+  const fetchJson = (async () => {
+    const fRes = await fetch(forecastUrl, { signal: createTimeoutSignal(22_000) });
+    if (!fRes.ok) throw new Error("Weather API unavailable");
+    const forecast = await jsonWithTimeout(fRes, 14_000);
+    if (forecast?.error || !forecast?.current || !forecast?.hourly || !forecast?.daily) {
+      throw new Error(forecast?.reason || "Weather API returned an incomplete forecast");
+    }
+    return forecast;
+  })();
+
+  return Promise.race([
+    fetchJson,
+    new Promise((_, rej) => {
+      setTimeout(() => rej(new Error("Forecast timed out — check connection and tap refresh.")), 28_000);
+    }),
+  ]);
 }
 
 /** Deferred: air quality does not block hero / hourly / daily grid. */
@@ -227,7 +286,7 @@ async function fetchOpenMeteoAir(lat, lon) {
     const aqUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=pm2_5,pm10,ozone&timezone=auto`;
     const aqRes = await fetch(aqUrl, { signal: createTimeoutSignal(12_000) });
     if (!aqRes.ok) return null;
-    return await aqRes.json();
+    return await jsonWithTimeout(aqRes, 10_000);
   } catch {
     return null;
   }
@@ -566,6 +625,10 @@ function bindImdSetup() {
   save?.addEventListener("click", () => {
     localStorage.setItem(STORAGE_IMD_KEY, (keyIn?.value || "").trim());
     localStorage.setItem(STORAGE_IMD_PROXY, (proxyIn?.value || "").trim());
+    if (weatherLoadDebounce) {
+      clearTimeout(weatherLoadDebounce);
+      weatherLoadDebounce = null;
+    }
     loadWeather().catch(console.error);
   });
   clear?.addEventListener("click", () => {
@@ -573,6 +636,10 @@ function bindImdSetup() {
     localStorage.removeItem(STORAGE_IMD_PROXY);
     if (keyIn) keyIn.value = "";
     if (proxyIn) proxyIn.value = "";
+    if (weatherLoadDebounce) {
+      clearTimeout(weatherLoadDebounce);
+      weatherLoadDebounce = null;
+    }
     loadWeather().catch(console.error);
   });
 }
@@ -685,6 +752,7 @@ async function enrichWeatherPage(loc, forecast) {
 
 async function renderWeatherForLoc(loc) {
   lastWeatherLoc = loc;
+  clearWeatherNetBanner();
   setLocationLines(loc);
 
   const forecast = await fetchOpenMeteoForecastOnly(loc.lat, loc.lon);
@@ -766,20 +834,78 @@ async function renderWeatherForLoc(loc) {
   void enrichWeatherPage(loc, forecast).catch((e) => console.warn("[weather] enrich:", e?.message || e));
 }
 
+/**
+ * Mobile networks often drop mid-request; never leave the hero stuck on “Loading…”
+ * without a recovery path or visible error.
+ * @param {{ silentFallback?: boolean }} opts when true, do not show “approximate grid” banner (e.g. after IP already painted)
+ */
+async function tryRenderWeatherForLocWithFallback(loc, opts = {}) {
+  const silentFallback = !!opts.silentFallback;
+  try {
+    await renderWeatherForLoc(loc);
+    return true;
+  } catch (e) {
+    const msg = String(e?.message || e || "error");
+    console.warn("[weather] render failed:", msg);
+    const isFallbackCoord =
+      Math.abs((loc?.lat ?? 0) - FALLBACK_LOC.lat) < 1e-6 && Math.abs((loc?.lon ?? 0) - FALLBACK_LOC.lon) < 1e-6;
+    if (!isFallbackCoord) {
+      try {
+        await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" });
+        if (!silentFallback) {
+          setWeatherNetBanner(
+            "Showing approximate weather while the network was slow. Tap the map pin to set your exact location.",
+            true,
+          );
+        }
+        return true;
+      } catch (e2) {
+        console.warn("[weather] fallback render failed:", e2?.message || e2);
+      }
+    }
+    const hourly = qs("hourly-list");
+    if (hourly) hourly.innerHTML = `<div class="empty">Forecast unavailable</div>`;
+    const days = qs("days-list");
+    if (days) days.innerHTML = `<div class="empty">Forecast unavailable</div>`;
+    const curDesc = qs("cur-desc");
+    if (curDesc) {
+      curDesc.textContent = /timed out|timeout/i.test(msg)
+        ? msg
+        : "Could not load weather. Check internet and tap refresh.";
+    }
+    setWeatherNetBanner(
+      /timed out|timeout/i.test(msg)
+        ? msg
+        : "Weather forecast could not load. Check your connection or try again in a moment.",
+      false,
+    );
+    return false;
+  }
+}
+
 async function loadWeather() {
   const pinned = peekActiveWeatherLocation();
+  if (!pinned) {
+    const ll = qs("loc-line");
+    if (ll && /syncing location/i.test(ll.textContent)) {
+      ll.textContent = "Fetching location…";
+    }
+  }
   if (pinned) {
     weatherLoadGen++;
-    await renderWeatherForLoc(pinned).catch((e) => console.error(e));
+    await tryRenderWeatherForLocWithFallback(pinned);
     return;
   }
 
   const gen = ++weatherLoadGen;
   let showed = false;
   try {
-    const ipLoc = await resolveLocationApprox();
+    const ipLoc = await Promise.race([
+      resolveLocationApprox(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("location-ip-timeout")), 10_000)),
+    ]);
     if (peekActiveWeatherLocation() || gen !== weatherLoadGen) return;
-    await renderWeatherForLoc({ ...ipLoc, source: "ip" });
+    await tryRenderWeatherForLocWithFallback({ ...ipLoc, source: "ip" }, { silentFallback: true });
     showed = true;
   } catch (e) {
     console.warn("[weather] IP geo failed:", e?.message || e);
@@ -789,16 +915,16 @@ async function loadWeather() {
     .then(async (loc) => {
       if (peekActiveWeatherLocation() || gen !== weatherLoadGen) return;
       if (loc.source !== "fallback" && loc.source !== "insecure-context") {
-        await renderWeatherForLoc(loc);
+        await tryRenderWeatherForLocWithFallback(loc, { silentFallback: showed });
       } else if (!showed) {
-        await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" });
+        await tryRenderWeatherForLocWithFallback({ ...FALLBACK_LOC, source: "fallback" });
       }
     })
     .catch(async (e) => {
       console.error("Weather GPS upgrade failed:", e);
       if (peekActiveWeatherLocation() || gen !== weatherLoadGen) return;
       if (!showed) {
-        await renderWeatherForLoc({ ...FALLBACK_LOC, source: "fallback" });
+        await tryRenderWeatherForLocWithFallback({ ...FALLBACK_LOC, source: "fallback" });
       }
     });
 }
@@ -882,9 +1008,7 @@ async function pickerUseDeviceGps() {
   }
   setPickerStatus("Requesting GPS…", false);
   try {
-    const pos = await new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, NAVIC_GPS_WEATHER);
-    });
+    const pos = await geolocationWithHardTimeout(NAVIC_GPS_WEATHER, 14_000);
     const lat = pos.coords.latitude;
     const lon = pos.coords.longitude;
     const accuracyM = typeof pos.coords.accuracy === "number" ? pos.coords.accuracy : null;
@@ -896,9 +1020,9 @@ async function pickerUseDeviceGps() {
     try {
       const rg = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
-        { headers: { Accept: "application/json" } },
+        { headers: { Accept: "application/json" }, signal: createTimeoutSignal(10_000) },
       );
-      const data = await rg.json();
+      const data = await jsonWithTimeout(rg, 10_000);
       const a = data.address || {};
       city = a.city || a.town || a.village || a.county || a.suburb || city;
       district = a.state_district || a.county || "";
@@ -967,10 +1091,17 @@ function initWeatherPage() {
   bindLocationPicker();
   startActiveLocationRemoteSync();
   subscribeActiveLocation(() => {
+    scheduleLoadWeather();
+  });
+  scheduleLoadWeather();
+  const btn = qs("refresh-btn");
+  btn?.addEventListener("click", () => {
+    if (weatherLoadDebounce) {
+      clearTimeout(weatherLoadDebounce);
+      weatherLoadDebounce = null;
+    }
     loadWeather().catch(console.error);
   });
-  const btn = qs("refresh-btn");
-  btn?.addEventListener("click", () => loadWeather().catch(console.error));
 }
 
 if (document.readyState === "loading") {

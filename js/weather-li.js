@@ -128,7 +128,17 @@ function locationIntelOpts() {
   };
 }
 
-/* ── Boot ── */
+/** Prevent slow Overpass/Nominatim from blocking the rest of the weather page on mobile data. */
+function runLiWithTimeout(uid, onUpdate, opts) {
+  const ms = 32_000;
+  return Promise.race([
+    runLocationIntelligence(uid, onUpdate, opts),
+    new Promise((_, rej) => setTimeout(() => rej(new Error("location-intel-timeout")), ms)),
+  ]).catch(() => {
+    onUpdate({ error: true, phase: "approximate" });
+  });
+}
+
 let unsubPin = null;
 
 onAuthStateChanged(auth, (user) => {
@@ -139,7 +149,7 @@ onAuthStateChanged(auth, (user) => {
   if (!user) return;
 
   unsubPin = subscribeActiveLocation(() => {
-    runLocationIntelligence(user.uid, onUpdate, locationIntelOpts()).catch(console.error);
+    runLiWithTimeout(user.uid, onUpdate, locationIntelOpts()).catch(console.error);
   });
 
   const btn = qs("lic-refresh-btn");
@@ -149,7 +159,7 @@ onAuthStateChanged(auth, (user) => {
       btn.classList.add("spinning");
       const places = qs("lic-places");
       if (places) places.innerHTML = [1, 2, 3].map(() => '<div class="lic-skeleton"></div>').join("");
-      runLocationIntelligence(
+      runLiWithTimeout(
         user.uid,
         (data) => {
           btn.classList.remove("spinning");

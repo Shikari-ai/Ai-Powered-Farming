@@ -355,6 +355,26 @@
       color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
     }
 
+    .weather-net-banner {
+      margin: 0 16px 12px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.35;
+      text-align: center;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(248, 113, 113, 0.35);
+      color: #fecaca;
+    }
+    .weather-net-banner[hidden] {
+      display: none !important;
+    }
+    .weather-net-banner.is-info {
+      background: rgba(59, 130, 246, 0.12);
+      border-color: rgba(96, 165, 250, 0.35);
+      color: #bfdbfe;
+    }
+
     @media (prefers-reduced-motion: reduce) {
       .stars::before,
       .rain::before,
@@ -392,6 +412,8 @@
         <button type="button" class="icon-btn" id="refresh-btn"><i class="ri-refresh-line"></i></button>
       </div>
     </header>
+
+    <p id="weather-net-banner" class="weather-net-banner" role="status" aria-live="polite" hidden></p>
 
     <main class="content">
       <section class="hero">
@@ -516,9 +538,9 @@
     </div>
   </div>
 
-  <script type="module" src="js/weather.js?v=41"></script>
+  <script type="module" src="js/weather.js?v=44"></script>
   <script type="module" src="js/interaction-engine.js?v=20"></script>
-  <script type="module" src="js/weather-li.js?v=33"></script>
+  <script type="module" src="js/weather-li.js?v=34"></script>
 </body>
 </html>
 
