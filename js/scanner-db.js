@@ -33,7 +33,7 @@ import {
 import { queueLearningFlush } from "./learning/scheduler.js";
 import { decorateNotificationForAmbient } from "./ambient/notification-decorator.js";
 import { enqueueSensoryCue } from "./ambient/sensory-hooks.js";
-import { runAiVisionScan } from "./ai/vision-scan.js?v=3";
+import { runAiVisionScan } from "./ai/vision-scan.js?v=4";
 import { startLiveGeminiScan } from "./ai/live-vision-gemini.js?v=3";
 
 const SYMPTOMS = [
@@ -657,7 +657,21 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
     }
-    async function startAiVision(blob) {
+    function captureErrorMessage(error, raw) {
+      const e = String(error || "").toLowerCase();
+      if (e === "rate_limited") {
+        return "Gemini hit its free-tier rate limit — retrying in 30 seconds. Free quota is 15 calls/min and 1,500/day; if it keeps failing wait a minute or come back tomorrow.";
+      }
+      if (e.startsWith("upstream_status_5")) return "AI service unavailable right now — tap Capture again in a few seconds.";
+      if (e.startsWith("upstream_status_4")) return "AI rejected the image — try a clearer close-up of the affected leaf.";
+      if (e === "could_not_parse_json") return "AI replied but the format was off — try Capture again.";
+      if (e === "no_image") return "No image data — please retake the photo.";
+      if (e.startsWith("network")) return "Network blip — check your connection and tap Capture again.";
+      if (e === "encode_failed") return "Could not encode the photo — try Upload instead.";
+      if (e === "resize_failed") return "Could not process the photo — try a smaller image.";
+      return "AI vision unreachable (" + (e || "unknown") + ") — fill in symptoms below and tap Generate for the rules-based diagnosis.";
+    }
+    async function startAiVision(blob, isRetry = false) {
       if (!blob || aiVisionInFlight) return;
       aiVisionInFlight = true;
       try {
@@ -677,7 +691,14 @@ document.addEventListener("DOMContentLoaded", () => {
           console.warn("[scanner] AI vision failed:", result.error, result.raw?.slice(0, 200));
           if (visionText) {
             visionPanel?.classList.remove("hidden");
-            visionText.textContent = "AI vision unreachable — fill in symptoms below and tap Generate to use the local rules-based diagnosis instead.";
+            visionText.textContent = captureErrorMessage(result.error, result.raw);
+          }
+          // Auto-retry once on a rate limit — Gemini's per-minute quota
+          // resets every 60s, so a single retry 30s later usually clears it.
+          if (result.error === "rate_limited" && !isRetry) {
+            setTimeout(() => {
+              if (currentBlob === blob) startAiVision(blob, /*isRetry*/ true);
+            }, 30000);
           }
           return;
         }

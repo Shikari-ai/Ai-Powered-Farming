@@ -239,6 +239,13 @@ export async function runAiVisionScan(blob, opts = {}) {
   if (!res.ok) {
     let body = "";
     try { body = await res.text(); } catch {}
+    // Detect the most common cause: Gemini rate-limited (429) inside the
+    // val's attempts list. Surface as a specific error code so the
+    // scanner UI can show a helpful retry hint instead of a generic
+    // 'unreachable' message.
+    if (/\b429\b|quota|rate.?limit|exhausted/i.test(body)) {
+      return { ok: false, error: "rate_limited", status: res.status, raw: body.slice(0, 400) };
+    }
     return { ok: false, error: "upstream_status_" + res.status, status: res.status, raw: body.slice(0, 400) };
   }
 
@@ -247,7 +254,12 @@ export async function runAiVisionScan(blob, opts = {}) {
   catch (e) { return { ok: false, error: "bad_response_json" }; }
 
   if (data && data.error) {
-    return { ok: false, error: data.error, raw: JSON.stringify(data).slice(0, 400) };
+    // Same rate-limit detection but for valid-JSON error envelopes.
+    const blob = JSON.stringify(data);
+    if (/\b429\b|quota|rate.?limit|exhausted/i.test(blob)) {
+      return { ok: false, error: "rate_limited", raw: blob.slice(0, 400) };
+    }
+    return { ok: false, error: data.error, raw: blob.slice(0, 400) };
   }
 
   const replyText = typeof data?.reply === "string" ? data.reply : "";
