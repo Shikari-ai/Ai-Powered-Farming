@@ -545,6 +545,44 @@
             }
         }
 
+        /* ── Saved chats panel (hamburger popover) ── */
+        .aa-menu--left { right: auto; left: 12px; }
+        .aa-menu-section-title {
+            font-size: 10px; font-weight: 700; color: var(--aa-muted);
+            text-transform: uppercase; letter-spacing: 0.8px;
+            padding: 6px 12px 2px;
+        }
+        .aa-saved-chats-list {
+            max-height: 224px; overflow-y: auto;
+            overscroll-behavior: contain;
+        }
+        .aa-saved-empty {
+            display: flex; flex-direction: column; align-items: center; gap: 7px;
+            padding: 20px 14px 16px; color: var(--aa-muted);
+            font-size: 12px; text-align: center; line-height: 1.45;
+        }
+        .aa-saved-empty i { font-size: 24px; opacity: 0.45; }
+        .aa-saved-row {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 10px; border-radius: 12px;
+            transition: background 0.12s ease;
+        }
+        .aa-saved-row:hover { background: rgba(16, 185, 129, 0.08); }
+        .aa-saved-row-body { flex: 1; min-width: 0; }
+        .aa-saved-row-title {
+            font-size: 13px; font-weight: 600; color: var(--aa-text);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .aa-saved-row-meta { font-size: 11px; color: var(--aa-dim); margin-top: 2px; }
+        .aa-saved-row-del {
+            all: unset; cursor: pointer; box-sizing: border-box;
+            width: 30px; height: 30px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: rgba(244, 113, 99, 0.65); font-size: 15px; flex-shrink: 0;
+            transition: background 0.12s ease, color 0.12s ease;
+        }
+        .aa-saved-row-del:hover { background: rgba(244, 63, 94, 0.12); color: #fca5a5; }
+
         .hidden { display: none !important; }
     </style>
 </head>
@@ -616,10 +654,27 @@
             </button>
         </div>
 
-        <div id="aa-menu-popover" class="aa-menu hidden" role="menu" aria-label="Chat menu">
+        <!-- Hamburger popover: recent saved chats -->
+        <div id="aa-menu-popover" class="aa-menu aa-menu--left hidden" role="menu" aria-label="Recent chats">
+            <div class="aa-menu-section-title">Recent Chats</div>
+            <div id="aa-saved-chats-list" class="aa-saved-chats-list">
+                <div class="aa-saved-empty">
+                    <i class="ri-chat-3-line"></i>
+                    <span>No saved chats yet.<br>Tap ⚙︎ Settings → Save Chat.</span>
+                </div>
+            </div>
+            <div class="aa-menu-sep"></div>
             <button type="button" class="aa-menu-opt danger" id="assistant-clear" role="menuitem">
                 <i class="ri-delete-bin-line"></i>
                 <div class="aa-menu-meta"><strong>Clear chat</strong><span>Archive history and start fresh with the AI</span></div>
+            </button>
+        </div>
+
+        <!-- Settings popover -->
+        <div id="aa-settings-popover" class="aa-menu hidden" role="menu" aria-label="Assistant settings">
+            <button type="button" class="aa-menu-opt" id="aa-save-chat-btn" role="menuitem">
+                <i class="ri-save-3-line"></i>
+                <div class="aa-menu-meta"><strong>Save Chat</strong><span>Save this conversation to Recent Chats</span></div>
             </button>
         </div>
 
@@ -688,7 +743,7 @@
         <a href="profile.html" class="b-nav-item"><i class="ri-user-smile-line"></i><span data-i18n="navProfile">Profile</span></a>
     </nav>
 
-    <script type="module" src="js/assistant.js?v=99"></script>
+    <script type="module" src="js/assistant.js?v=100"></script>
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>

@@ -391,40 +391,57 @@ onAuthStateChanged(auth, (user) => {
   // Expose pref to the assistant-side request builder
   window.__agriGetModelPref = getModelPref;
 
-  // ── Chat menu popover (Clear chat with dust-bin icon) ──
-  // Both the hamburger (top-left) and the settings gear (top-right) open
-  // the same menu — two affordances, one action surface. The actual
-  // archive logic lives in the existing clearBtn handler (below in this
-  // file); this menu is just the UI to expose it.
+  // ── Hamburger menu (left) → Recent Chats popover ──
   const menuBtn = document.getElementById("aa-menu-btn");
-  const settingsBtn = document.getElementById("aa-settings-btn");
   const menuPop = document.getElementById("aa-menu-popover");
-  if (menuPop) {
-    const triggers = [menuBtn, settingsBtn].filter(Boolean);
-    const closeMenuPop = () => {
+  let closeMenuPop = () => {};
+  if (menuPop && menuBtn) {
+    const _closeMenu = () => {
       menuPop.classList.add("hidden");
-      triggers.forEach((t) => t.setAttribute("aria-expanded", "false"));
-      document.removeEventListener("click", onDocMenuClick, true);
+      menuBtn.setAttribute("aria-expanded", "false");
+      document.removeEventListener("click", _onDocMenuClick, true);
     };
-    function onDocMenuClick(e) {
-      if (menuPop.contains(e.target)) return;
-      if (triggers.some((t) => t.contains(e.target))) return;
-      closeMenuPop();
+    closeMenuPop = _closeMenu;
+    function _onDocMenuClick(e) {
+      if (menuPop.contains(e.target) || menuBtn.contains(e.target)) return;
+      _closeMenu();
     }
-    const openMenuPop = (anchor) => {
+    menuBtn.addEventListener("click", () => {
       const isOpen = !menuPop.classList.contains("hidden");
-      if (isOpen) { closeMenuPop(); return; }
-      // Close model menu if open
+      if (isOpen) { _closeMenu(); return; }
       modelMenu?.classList.add("hidden");
       modelBtn?.setAttribute("aria-expanded", "false");
       menuPop.classList.remove("hidden");
-      anchor?.setAttribute("aria-expanded", "true");
-      setTimeout(() => document.addEventListener("click", onDocMenuClick, true), 0);
+      menuBtn.setAttribute("aria-expanded", "true");
+      setTimeout(() => document.addEventListener("click", _onDocMenuClick, true), 0);
+    });
+    // Close after "Clear chat" is tapped
+    document.getElementById("assistant-clear")?.addEventListener("click", () => _closeMenu());
+  }
+
+  // ── Settings button (right) → Settings popover ──
+  const settingsBtn = document.getElementById("aa-settings-btn");
+  const settingsPop = document.getElementById("aa-settings-popover");
+  let closeSettingsPop = () => {};
+  if (settingsPop && settingsBtn) {
+    const _closeSettings = () => {
+      settingsPop.classList.add("hidden");
+      settingsBtn.setAttribute("aria-expanded", "false");
+      document.removeEventListener("click", _onDocSettingsClick, true);
     };
-    triggers.forEach((t) => t.addEventListener("click", () => openMenuPop(t)));
-    // After Clear chat clicked, close the popover.
-    document.getElementById("assistant-clear")?.addEventListener("click", () => {
-      closeMenuPop();
+    closeSettingsPop = _closeSettings;
+    function _onDocSettingsClick(e) {
+      if (settingsPop.contains(e.target) || settingsBtn.contains(e.target)) return;
+      _closeSettings();
+    }
+    settingsBtn.addEventListener("click", () => {
+      const isOpen = !settingsPop.classList.contains("hidden");
+      if (isOpen) { _closeSettings(); return; }
+      modelMenu?.classList.add("hidden");
+      modelBtn?.setAttribute("aria-expanded", "false");
+      settingsPop.classList.remove("hidden");
+      settingsBtn.setAttribute("aria-expanded", "true");
+      setTimeout(() => document.addEventListener("click", _onDocSettingsClick, true), 0);
     });
   }
 
@@ -1130,5 +1147,125 @@ onAuthStateChanged(auth, (user) => {
       alert(`Failed to archive: ${e.message}`);
     }
   });
+
+  // ── Saved chats feature ──
+
+  function formatSavedChatDate(ms) {
+    if (!ms) return "";
+    const d = new Date(ms);
+    const diffMs = Date.now() - d.getTime();
+    if (diffMs < 60 * 60 * 1000) return "Just now";
+    if (diffMs < 24 * 60 * 60 * 1000) return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    if (diffMs < 7 * 24 * 60 * 60 * 1000) return ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
+    return d.toLocaleDateString([], { month: "short", day: "numeric" });
+  }
+
+  const savedChatsListEl = el("aa-saved-chats-list");
+
+  function renderSavedChats(sessions) {
+    if (!savedChatsListEl) return;
+    if (!sessions.length) {
+      savedChatsListEl.innerHTML = `
+        <div class="aa-saved-empty">
+          <i class="ri-chat-3-line"></i>
+          <span>No saved chats yet.<br>Tap ⚙︎ Settings → Save Chat.</span>
+        </div>`;
+      return;
+    }
+    savedChatsListEl.innerHTML = sessions.map((s) => {
+      const ms = s.createdAt?.toMillis?.() ?? 0;
+      const dateStr = formatSavedChatDate(ms);
+      const count = s.messageCount || 0;
+      const safeTitle = String(s.title || "Saved Chat").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+      return `<div class="aa-saved-row">
+        <div class="aa-saved-row-body">
+          <div class="aa-saved-row-title">${safeTitle}</div>
+          <div class="aa-saved-row-meta">${count} message${count !== 1 ? "s" : ""} · ${dateStr}</div>
+        </div>
+        <button type="button" class="aa-saved-row-del" aria-label="Delete saved chat" data-del-id="${s.id}">
+          <i class="ri-delete-bin-line"></i>
+        </button>
+      </div>`;
+    }).join("");
+
+    savedChatsListEl.querySelectorAll(".aa-saved-row-del").forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const sid = btn.getAttribute("data-del-id");
+        if (!sid) return;
+        if (!confirm("Delete this saved chat? This cannot be undone.")) return;
+        try {
+          await deleteDoc(doc(db, "saved_chat_sessions", sid));
+        } catch (err) {
+          console.error("[assistant] delete saved chat:", err);
+          alert("Couldn't delete. Try again.");
+        }
+      });
+    });
+  }
+
+  // Real-time listener for saved chats
+  const savedChatsQ = query(
+    collection(db, "saved_chat_sessions"),
+    where("userId", "==", user.uid),
+    orderBy("createdAt", "desc"),
+    limit(20),
+  );
+  activeSubscriptions.push(
+    onSnapshot(
+      savedChatsQ,
+      (snap) => {
+        const sessions = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        renderSavedChats(sessions);
+      },
+      (err) => console.warn("[assistant] saved chats listener:", err?.message || err),
+    ),
+  );
+
+  async function saveCurrentChat() {
+    const activeMsgs = chatMessages.filter((m) => !m.archivedAt);
+    if (!activeMsgs.length) {
+      alert("No messages to save yet. Start a conversation first!");
+      return;
+    }
+    const firstUser = activeMsgs.find((m) => m.role === "user");
+    const rawTitle = (firstUser?.text || "Chat").trim();
+    const title = rawTitle.length > 50 ? rawTitle.slice(0, 47) + "…" : rawTitle;
+    const firstAssist = activeMsgs.find((m) => m.role === "assistant");
+    const preview = (firstAssist?.text || "").slice(0, 120);
+
+    const saveBtn = el("aa-save-chat-btn");
+    try {
+      await addDoc(collection(db, "saved_chat_sessions"), {
+        userId: user.uid,
+        title,
+        preview,
+        messageCount: activeMsgs.length,
+        createdAt: serverTimestamp(),
+        messages: activeMsgs.slice(0, 100).map((m) => ({
+          role: m.role,
+          text: m.text || "",
+        })),
+      });
+      // Show brief success state in the button, then close
+      if (saveBtn) {
+        const origHTML = saveBtn.innerHTML;
+        saveBtn.innerHTML = `<i class="ri-check-line" style="color:var(--aa-emerald);font-size:18px;flex-shrink:0;"></i><div class="aa-menu-meta"><strong style="color:var(--aa-emerald)">Saved!</strong><span>Appears in Recent Chats</span></div>`;
+        settingsPop?.classList.remove("hidden");
+        settingsBtn?.setAttribute("aria-expanded", "true");
+        setTimeout(() => {
+          if (saveBtn) saveBtn.innerHTML = origHTML;
+          closeSettingsPop();
+        }, 1400);
+      } else {
+        closeSettingsPop();
+      }
+    } catch (err) {
+      console.error("[assistant] save chat:", err);
+      alert("Couldn't save chat. Try again.");
+    }
+  }
+
+  el("aa-save-chat-btn")?.addEventListener("click", saveCurrentChat);
 });
 

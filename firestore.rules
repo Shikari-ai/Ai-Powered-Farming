@@ -157,6 +157,14 @@ service cloud.firestore {
       allow delete: if isOwnerByField("userId");
     }
 
+    // Saved chat snapshots (user-initiated "bookmark" of current conversation)
+    match /saved_chat_sessions/{docId} {
+      allow create: if isOwnerNewByField("userId");
+      allow read: if isOwnerByField("userId");
+      allow delete: if isOwnerByField("userId");
+      allow update: if false; // immutable snapshots
+    }
+
     match /ai_inference_jobs/{docId} {
       allow create: if isOwnerNewByField("userId");
       allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
