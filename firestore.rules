@@ -165,6 +165,15 @@ service cloud.firestore {
       allow update: if false; // immutable snapshots
     }
 
+    // Support tickets: users create; developer reads/updates/deletes all
+    match /support_tickets/{docId} {
+      allow create: if isOwnerNewByField("userId");
+      allow read: if isOwnerByField("userId")
+               || (signedIn() && request.auth.token.email == 'parganihaharshwardhan@gmail.com');
+      allow update: if signedIn() && request.auth.token.email == 'parganihaharshwardhan@gmail.com';
+      allow delete: if signedIn() && request.auth.token.email == 'parganihaharshwardhan@gmail.com';
+    }
+
     match /ai_inference_jobs/{docId} {
       allow create: if isOwnerNewByField("userId");
       allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");

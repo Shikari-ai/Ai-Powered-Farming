@@ -1038,9 +1038,9 @@
     </div>
 
     <div class="sec-h">Get Help</div>
-    <div class="help-card" onclick="openPanel('panel-chat-support')">
+    <div class="help-card" onclick="openSubmitTicket('chat_support')">
       <div class="hc-ic"><i class="ri-customer-service-2-line"></i></div>
-      <div class="hc-body"><div class="hc-title">Chat with Support</div><div class="hc-sub">We're online</div></div>
+      <div class="hc-body"><div class="hc-title">Chat with Support</div><div class="hc-sub">We usually reply quickly</div></div>
       <i class="ri-arrow-right-s-line" style="color:var(--dim);"></i>
     </div>
     <div class="help-card" id="help-center-btn">
@@ -1048,12 +1048,12 @@
       <div class="hc-body"><div class="hc-title">Help Center</div><div class="hc-sub">Browse articles</div></div>
       <i class="ri-arrow-right-s-line" style="color:var(--dim);"></i>
     </div>
-    <div class="help-card" id="report-issue-btn">
+    <div class="help-card" onclick="openSubmitTicket('issue')">
       <div class="hc-ic" style="background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.2);"><i class="ri-bug-line" style="color:var(--red);"></i></div>
-      <div class="hc-body"><div class="hc-title">Report an Issue</div><div class="hc-sub">Let us know</div></div>
+      <div class="hc-body"><div class="hc-title">Report an Issue</div><div class="hc-sub">Let us know what went wrong</div></div>
       <i class="ri-arrow-right-s-line" style="color:var(--dim);"></i>
     </div>
-    <div class="help-card" id="feedback-btn">
+    <div class="help-card" onclick="openSubmitTicket('feedback')">
       <div class="hc-ic" style="background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.2);"><i class="ri-star-smile-line" style="color:var(--purple);"></i></div>
       <div class="hc-body"><div class="hc-title">Feedback</div><div class="hc-sub">Share your experience</div></div>
       <i class="ri-arrow-right-s-line" style="color:var(--dim);"></i>
@@ -1072,6 +1072,58 @@
     </div>
     <div style="height:8px;"></div>
   </div><!-- /panel-help -->
+
+
+  <!-- ════════════════════════════════════════
+       PANEL: SUBMIT TICKET (chat / issue / feedback)
+  ════════════════════════════════════════ -->
+  <div id="panel-submit-ticket" class="panel">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="closePanel('panel-submit-ticket')"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title" id="submit-panel-title">Chat with Support</span>
+      </div>
+      <div style="width:38px;"></div>
+    </div>
+
+    <!-- form state -->
+    <div id="ticket-form-state" style="padding:20px 16px 0;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+        <div id="submit-type-icon" style="width:48px;height:48px;border-radius:14px;background:rgba(16,185,129,.10);border:1px solid rgba(16,185,129,.20);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--primary);flex-shrink:0;"></div>
+        <div>
+          <div style="font-size:15px;font-weight:600;" id="submit-type-label">Chat with Support</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:3px;line-height:1.4;" id="submit-type-sub">Describe your problem and we'll get back to you.</div>
+        </div>
+      </div>
+
+      <textarea id="ticket-message"
+        style="width:100%;min-height:150px;background:var(--surface2);border:1px solid var(--border);border-radius:16px;color:var(--txt);font-size:13.5px;font-family:'Outfit',sans-serif;padding:14px 16px;resize:none;outline:none;line-height:1.55;transition:border-color .2s;"
+        placeholder="Type your message here…"></textarea>
+      <div style="font-size:10px;color:var(--dim);text-align:right;margin-top:5px;" id="ticket-char-count">0 / 1000</div>
+
+      <button id="submit-ticket-btn"
+        style="width:100%;margin-top:14px;padding:15px;border-radius:16px;background:linear-gradient(180deg,#34d399,#10b981);border:none;color:#062019;font-size:14px;font-weight:700;font-family:'Outfit',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .15s,transform .12s;">
+        <i class="ri-send-plane-fill"></i> Send Message
+      </button>
+    </div>
+
+    <!-- success state -->
+    <div id="ticket-success" class="hidden" style="padding:40px 24px 20px;text-align:center;">
+      <div style="width:72px;height:72px;border-radius:50%;background:rgba(16,185,129,.10);border:2px solid rgba(16,185,129,.28);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:32px;color:var(--primary);">
+        <i class="ri-check-line"></i>
+      </div>
+      <div style="font-size:20px;font-weight:600;margin-bottom:10px;">Message Sent!</div>
+      <div style="font-size:13px;color:var(--dim);line-height:1.6;max-width:260px;margin:0 auto;">
+        Your message has been received. We'll review it and get back to you shortly.
+      </div>
+      <button onclick="closePanel('panel-submit-ticket')"
+        style="margin-top:28px;padding:11px 28px;border-radius:99px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.25);color:var(--primary);font-size:13px;font-weight:600;font-family:'Outfit',sans-serif;cursor:pointer;">
+        Done
+      </button>
+    </div>
+
+    <div style="height:32px;"></div>
+  </div><!-- /panel-submit-ticket -->
 
 
   <!-- ════════════════════════════════════════
@@ -1453,5 +1505,125 @@
 </script>
 <script>window.refreshAiDiag = function () {};</script>
 <script type="module" src="js/profile.js?v=41"></script>
+
+<!-- ── Support ticket submission ── -->
+<script type="module">
+  import { auth, db } from "./js/auth.js?v=32";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+  let currentUser = null;
+  onAuthStateChanged(auth, u => { currentUser = u; });
+
+  const TYPE_CFG = {
+    chat_support: {
+      title:    "Chat with Support",
+      label:    "Chat with Support",
+      sub:      "Describe your problem and we'll get back to you.",
+      icon:     "ri-customer-service-2-line",
+      iconBg:   "rgba(16,185,129,.10)", iconBorder:"rgba(16,185,129,.20)", iconColor:"var(--primary)",
+    },
+    issue: {
+      title:    "Report an Issue",
+      label:    "Report an Issue",
+      sub:      "Tell us exactly what went wrong and we'll fix it.",
+      icon:     "ri-bug-line",
+      iconBg:   "rgba(239,68,68,.08)", iconBorder:"rgba(239,68,68,.20)", iconColor:"var(--red)",
+    },
+    feedback: {
+      title:    "Leave Feedback",
+      label:    "Share Feedback",
+      sub:      "Tell us what you love or what could be better.",
+      icon:     "ri-star-smile-line",
+      iconBg:   "rgba(139,92,246,.10)", iconBorder:"rgba(139,92,246,.20)", iconColor:"var(--purple)",
+    },
+  };
+
+  let activeType = "chat_support";
+
+  window.openSubmitTicket = function(type) {
+    activeType = type;
+    const cfg = TYPE_CFG[type] || TYPE_CFG.chat_support;
+
+    const titleEl   = document.getElementById("submit-panel-title");
+    const iconEl    = document.getElementById("submit-type-icon");
+    const labelEl   = document.getElementById("submit-type-label");
+    const subEl     = document.getElementById("submit-type-sub");
+    const msgEl     = document.getElementById("ticket-message");
+    const sendBtn   = document.getElementById("submit-ticket-btn");
+    const formEl    = document.getElementById("ticket-form-state");
+    const successEl = document.getElementById("ticket-success");
+    const countEl   = document.getElementById("ticket-char-count");
+
+    if (titleEl) titleEl.textContent = cfg.title;
+    if (iconEl) {
+      iconEl.style.background   = cfg.iconBg;
+      iconEl.style.borderColor  = cfg.iconBorder;
+      iconEl.style.color        = cfg.iconColor;
+      iconEl.innerHTML = `<i class="${cfg.icon}"></i>`;
+    }
+    if (labelEl) labelEl.textContent  = cfg.label;
+    if (subEl)   subEl.textContent    = cfg.sub;
+    if (msgEl)   { msgEl.value = ""; }
+    if (countEl) countEl.textContent  = "0 / 1000";
+    if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = `<i class="ri-send-plane-fill"></i> Send Message`; }
+    if (formEl)    formEl.classList.remove("hidden");
+    if (successEl) successEl.classList.add("hidden");
+
+    openPanel("panel-submit-ticket");
+  };
+
+  // Character counter
+  document.getElementById("ticket-message")?.addEventListener("input", () => {
+    const msgEl   = document.getElementById("ticket-message");
+    const countEl = document.getElementById("ticket-char-count");
+    let len = (msgEl.value || "").length;
+    if (len > 1000) { msgEl.value = msgEl.value.slice(0, 1000); len = 1000; }
+    if (countEl) countEl.textContent = `${len} / 1000`;
+  });
+
+  // Focus style for textarea
+  document.getElementById("ticket-message")?.addEventListener("focus", function() {
+    this.style.borderColor = "rgba(16,185,129,.40)";
+  });
+  document.getElementById("ticket-message")?.addEventListener("blur", function() {
+    this.style.borderColor = "var(--border)";
+  });
+
+  // Submit
+  document.getElementById("submit-ticket-btn")?.addEventListener("click", async () => {
+    const msgEl   = document.getElementById("ticket-message");
+    const sendBtn = document.getElementById("submit-ticket-btn");
+    const formEl  = document.getElementById("ticket-form-state");
+    const successEl = document.getElementById("ticket-success");
+
+    const text = (msgEl?.value || "").trim();
+    if (!text) { msgEl?.focus(); return; }
+    if (!currentUser) { alert("Please log in first."); return; }
+
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = `<i class="ri-loader-4-line" style="animation:spin 1s linear infinite;display:inline-block;"></i> Sending…`;
+
+    try {
+      await addDoc(collection(db, "support_tickets"), {
+        userId:    currentUser.uid,
+        userEmail: currentUser.email     || null,
+        userName:  currentUser.displayName || null,
+        type:      activeType,
+        message:   text,
+        status:    "open",
+        createdAt: serverTimestamp(),
+      });
+      if (formEl)    formEl.classList.add("hidden");
+      if (successEl) successEl.classList.remove("hidden");
+      if (msgEl)     msgEl.value = "";
+    } catch (err) {
+      console.error("[profile] ticket submit:", err);
+      alert("Couldn't send. Please check your connection and try again.");
+      sendBtn.disabled = false;
+      sendBtn.innerHTML = `<i class="ri-send-plane-fill"></i> Send Message`;
+    }
+  });
+</script>
 </body>
 </html>

@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+  <title>Dev Console — AgriTech AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #02080a;
+      --surface: rgba(8,16,14,0.80);
+      --surface2: rgba(12,20,18,0.92);
+      --em: #10b981;
+      --em-glow: rgba(16,185,129,0.35);
+      --em-dim: rgba(16,185,129,0.14);
+      --txt: #ecfdf5;
+      --dim: rgba(236,253,245,0.50);
+      --muted: rgba(236,253,245,0.32);
+      --line: rgba(16,185,129,0.13);
+      --red: #ef4444;
+      --purple: #8b5cf6;
+      --yellow: #f59e0b;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; font-family:'Outfit',sans-serif; -webkit-tap-highlight-color:transparent; }
+    body { background:var(--bg); color:var(--txt); min-height:100dvh; overflow-x:hidden; }
+
+    /* ── ambient ── */
+    .amb {
+      position:fixed; inset:0; z-index:0; pointer-events:none;
+      background:
+        radial-gradient(ellipse 70% 40% at 50% 0%, rgba(16,185,129,0.14) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 50% at 100% 20%, rgba(13,148,136,0.10) 0%, transparent 60%),
+        linear-gradient(180deg,#02080a 0%,#010608 100%);
+    }
+
+    /* ── loading / denied ── */
+    .overlay {
+      position:fixed; inset:0; z-index:100;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:16px; background:var(--bg);
+    }
+    .overlay i { font-size:40px; color:var(--em); }
+    .overlay p { font-size:13px; color:var(--dim); }
+    .denied-box {
+      text-align:center; max-width:320px; padding:32px 24px;
+      background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.20);
+      border-radius:22px;
+    }
+    .denied-box i { font-size:48px; color:var(--red); margin-bottom:14px; display:block; }
+    .denied-box h2 { font-size:18px; font-weight:600; margin-bottom:8px; }
+    .denied-box p { font-size:12px; color:var(--dim); line-height:1.5; }
+    .denied-box a { display:inline-block; margin-top:20px; padding:10px 24px; border-radius:99px; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.25); color:var(--em); font-size:13px; text-decoration:none; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .spin { animation:spin 1.1s linear infinite; display:inline-block; }
+
+    /* ── main shell ── */
+    .dev-app {
+      position:relative; z-index:1;
+      max-width:480px; margin:0 auto;
+      min-height:100dvh;
+      padding-bottom:40px;
+    }
+
+    /* ── header ── */
+    .dev-hdr {
+      position:sticky; top:0; z-index:50;
+      padding:calc(14px + env(safe-area-inset-top,0px)) 18px 14px;
+      display:flex; align-items:center; justify-content:space-between;
+      background:linear-gradient(180deg,rgba(2,8,10,0.95) 0%,rgba(2,8,10,0.0) 100%);
+      backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+    }
+    .dev-hdr-left { display:flex; align-items:center; gap:10px; }
+    .dev-back {
+      width:38px; height:38px; border-radius:50%;
+      background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+      display:flex; align-items:center; justify-content:center;
+      color:var(--txt); font-size:18px; cursor:pointer;
+      text-decoration:none; flex-shrink:0;
+      transition:background 0.15s;
+    }
+    .dev-back:hover { background:rgba(16,185,129,0.10); }
+    .dev-hdr-title { font-size:17px; font-weight:600; display:flex; align-items:center; gap:8px; }
+    .dev-badge {
+      font-size:9px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase;
+      padding:3px 7px; border-radius:99px;
+      background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.30);
+      color:var(--em);
+    }
+    .dev-logout {
+      all:unset; cursor:pointer; box-sizing:border-box;
+      padding:7px 14px; border-radius:99px;
+      background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.20);
+      color:#fca5a5; font-size:12px; font-weight:500;
+      display:flex; align-items:center; gap:5px;
+      transition:background 0.15s;
+    }
+    .dev-logout:hover { background:rgba(239,68,68,0.14); }
+
+    /* ── stats row ── */
+    .dev-stats {
+      display:flex; gap:10px; padding:4px 16px 16px;
+    }
+    .dev-stat {
+      flex:1; padding:12px 10px; border-radius:16px;
+      background:var(--surface); border:1px solid var(--line);
+      text-align:center;
+      backdrop-filter:blur(12px);
+    }
+    .dev-stat-val { font-size:22px; font-weight:700; }
+    .dev-stat-lbl { font-size:10px; color:var(--dim); margin-top:3px; letter-spacing:0.3px; text-transform:uppercase; }
+    .dev-stat.s-open .dev-stat-val { color:var(--em); }
+    .dev-stat.s-today .dev-stat-val { color:var(--yellow); }
+    .dev-stat.s-resolved .dev-stat-val { color:var(--dim); }
+
+    /* ── filter tabs ── */
+    .dev-filters {
+      display:flex; gap:8px; padding:0 16px 14px;
+      overflow-x:auto; scrollbar-width:none;
+    }
+    .dev-filters::-webkit-scrollbar { display:none; }
+    .dev-filter-tab {
+      all:unset; cursor:pointer; box-sizing:border-box;
+      padding:6px 14px; border-radius:99px;
+      font-size:12px; font-weight:500; white-space:nowrap;
+      background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+      color:var(--dim); transition:background 0.14s, color 0.14s, border-color 0.14s;
+      display:flex; align-items:center; gap:5px;
+    }
+    .dev-filter-tab:hover { color:var(--txt); border-color:rgba(255,255,255,0.14); }
+    .dev-filter-tab.active {
+      background:rgba(16,185,129,0.12); border-color:rgba(16,185,129,0.30);
+      color:var(--em); font-weight:600;
+    }
+    .dev-filter-tab .tab-count {
+      font-size:10px; background:rgba(255,255,255,0.08); border-radius:99px;
+      padding:1px 6px; font-weight:600;
+    }
+    .dev-filter-tab.active .tab-count {
+      background:rgba(16,185,129,0.18); color:var(--em);
+    }
+
+    /* ── ticket list ── */
+    .dev-list { padding:0 12px; display:flex; flex-direction:column; gap:10px; }
+
+    .dev-empty {
+      display:flex; flex-direction:column; align-items:center; gap:10px;
+      padding:60px 20px; color:var(--muted); text-align:center;
+    }
+    .dev-empty i { font-size:44px; opacity:0.35; }
+    .dev-empty span { font-size:13px; }
+
+    /* ── ticket card ── */
+    .dev-ticket {
+      background:var(--surface); border:1px solid var(--line);
+      border-radius:18px; overflow:hidden;
+      transition:border-color 0.15s;
+      backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+      cursor:pointer;
+    }
+    .dev-ticket:hover { border-color:rgba(16,185,129,0.22); }
+    .dev-ticket.resolved { opacity:0.65; }
+    .dev-ticket.resolved:hover { opacity:0.85; }
+
+    .dev-ticket-top {
+      display:flex; align-items:center; gap:7px; flex-wrap:wrap;
+      padding:12px 14px 8px;
+    }
+    .dev-type-chip {
+      display:inline-flex; align-items:center; gap:4px;
+      padding:3px 9px; border-radius:99px; font-size:11px; font-weight:600;
+      flex-shrink:0;
+    }
+    .dev-user {
+      flex:1; min-width:0;
+      font-size:11px; color:var(--dim);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .dev-time { font-size:10px; color:var(--muted); flex-shrink:0; }
+    .dev-open-badge {
+      font-size:9px; font-weight:700; letter-spacing:0.6px; text-transform:uppercase;
+      padding:2px 7px; border-radius:99px;
+      background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.22);
+      color:var(--em); flex-shrink:0;
+    }
+    .dev-status-badge {
+      font-size:9px; font-weight:700; letter-spacing:0.6px; text-transform:uppercase;
+      padding:2px 7px; border-radius:99px; flex-shrink:0;
+    }
+    .dev-status-badge.resolved { background:rgba(236,253,245,0.06); border:1px solid rgba(236,253,245,0.10); color:var(--muted); }
+    .dev-status-badge.replied { background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.22); color:#93c5fd; }
+
+    .dev-ticket-msg {
+      padding:0 14px 10px;
+      font-size:13px; color:rgba(236,253,245,0.88); line-height:1.55;
+      display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
+    }
+    .dev-ticket.expanded .dev-ticket-msg {
+      -webkit-line-clamp:unset; overflow:visible;
+    }
+
+    /* dev reply preview */
+    .dev-reply-preview {
+      margin:0 14px 10px;
+      padding:8px 12px; border-radius:10px;
+      background:rgba(59,130,246,0.07); border:1px solid rgba(59,130,246,0.15);
+      font-size:11.5px; color:#93c5fd; line-height:1.45;
+      display:flex; gap:6px; align-items:flex-start;
+    }
+    .dev-reply-preview i { flex-shrink:0; margin-top:1px; }
+
+    /* expand area */
+    .dev-ticket-expand {
+      display:none;
+      padding:0 12px 12px;
+      flex-direction:column; gap:8px;
+    }
+    .dev-ticket.expanded .dev-ticket-expand { display:flex; }
+
+    .dev-reply-input {
+      width:100%; min-height:72px;
+      background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.10);
+      border-radius:12px; color:var(--txt); font-size:12.5px;
+      font-family:'Outfit',sans-serif; padding:10px 12px; resize:none; outline:none;
+      line-height:1.5; transition:border-color 0.15s;
+    }
+    .dev-reply-input:focus { border-color:rgba(16,185,129,0.35); }
+    .dev-reply-input::placeholder { color:var(--muted); }
+
+    .dev-ticket-actions {
+      display:flex; gap:7px; align-items:center;
+    }
+    .dev-btn {
+      all:unset; cursor:pointer; box-sizing:border-box;
+      display:inline-flex; align-items:center; gap:5px;
+      padding:7px 13px; border-radius:10px; font-size:12px; font-weight:500;
+      transition:background 0.13s, opacity 0.13s;
+    }
+    .dev-btn:active { opacity:0.75; }
+    .dev-btn[disabled] { opacity:0.45; cursor:default; }
+    .dev-btn-reply {
+      background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.25);
+      color:var(--em);
+    }
+    .dev-btn-reply:hover { background:rgba(16,185,129,0.20); }
+    .dev-btn-resolve {
+      background:rgba(59,130,246,0.10); border:1px solid rgba(59,130,246,0.22);
+      color:#93c5fd;
+    }
+    .dev-btn-resolve:hover { background:rgba(59,130,246,0.18); }
+    .dev-btn-delete {
+      margin-left:auto;
+      background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.18);
+      color:#fca5a5; padding:7px 10px;
+    }
+    .dev-btn-delete:hover { background:rgba(239,68,68,0.16); }
+
+    /* ── section header ── */
+    .dev-sec { padding:0 16px 10px; font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.7px; }
+
+    .hidden { display:none !important; }
+  </style>
+</head>
+<body>
+<div class="amb" aria-hidden="true"></div>
+
+<!-- Loading -->
+<div class="overlay" id="dev-loading">
+  <i class="ri-loader-4-line spin"></i>
+  <p>Authenticating…</p>
+</div>
+
+<!-- Access denied -->
+<div class="overlay hidden" id="dev-denied">
+  <div class="denied-box">
+    <i class="ri-shield-keyhole-line"></i>
+    <h2>Access Restricted</h2>
+    <p>This page is private. You need the developer account to view it.</p>
+    <a href="index.html">Go to App</a>
+  </div>
+</div>
+
+<!-- Main dashboard -->
+<div class="dev-app hidden" id="dev-app">
+
+  <!-- Header -->
+  <header class="dev-hdr">
+    <div class="dev-hdr-left">
+      <a href="index.html" class="dev-back" aria-label="Back to app"><i class="ri-arrow-left-line"></i></a>
+      <div class="dev-hdr-title">
+        Dev Console
+        <span class="dev-badge">Private</span>
+      </div>
+    </div>
+    <button type="button" class="dev-logout" id="dev-logout-btn">
+      <i class="ri-logout-box-r-line"></i> Sign out
+    </button>
+  </header>
+
+  <!-- Stats -->
+  <div class="dev-stats">
+    <div class="dev-stat s-open">
+      <div class="dev-stat-val" id="stat-open">–</div>
+      <div class="dev-stat-lbl">Open</div>
+    </div>
+    <div class="dev-stat s-today">
+      <div class="dev-stat-val" id="stat-today">–</div>
+      <div class="dev-stat-lbl">Today</div>
+    </div>
+    <div class="dev-stat s-resolved">
+      <div class="dev-stat-val" id="stat-resolved">–</div>
+      <div class="dev-stat-lbl">Resolved</div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="dev-filters">
+    <button type="button" class="dev-filter-tab active" data-filter="all">
+      All <span class="tab-count" id="count-all">0</span>
+    </button>
+    <button type="button" class="dev-filter-tab" data-filter="chat_support">
+      <i class="ri-customer-service-2-line"></i> Chat <span class="tab-count" id="count-chat_support">0</span>
+    </button>
+    <button type="button" class="dev-filter-tab" data-filter="issue">
+      <i class="ri-bug-line"></i> Issues <span class="tab-count" id="count-issue">0</span>
+    </button>
+    <button type="button" class="dev-filter-tab" data-filter="feedback">
+      <i class="ri-star-smile-line"></i> Feedback <span class="tab-count" id="count-feedback">0</span>
+    </button>
+  </div>
+
+  <!-- Ticket list -->
+  <div class="dev-sec" id="dev-list-label">All tickets</div>
+  <div class="dev-list" id="ticket-list">
+    <div class="dev-empty">
+      <i class="ri-inbox-line"></i>
+      <span>Loading tickets…</span>
+    </div>
+  </div>
+
+</div><!-- /dev-app -->
+
+<script type="module">
+  import { auth, db } from "./js/auth.js?v=32";
+  import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import {
+    collection, query, orderBy, limit,
+    onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp,
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+  const DEV_EMAIL = "parganihaharshwardhan@gmail.com";
+
+  const TYPE_META = {
+    chat_support: { label:"Chat",     icon:"ri-customer-service-2-line", color:"#10b981", bg:"rgba(16,185,129,.14)" },
+    issue:        { label:"Issue",    icon:"ri-bug-line",                 color:"#ef4444", bg:"rgba(239,68,68,.14)"  },
+    feedback:     { label:"Feedback", icon:"ri-star-smile-line",          color:"#8b5cf6", bg:"rgba(139,92,246,.14)" },
+  };
+
+  function esc(s) {
+    return String(s || "").replace(/[&<>"']/g, c =>
+      ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":`&#39;` }[c])
+    );
+  }
+
+  function relTime(ms) {
+    if (!ms) return "";
+    const diff = Date.now() - ms;
+    if (diff < 60000)           return "Just now";
+    if (diff < 3600000)         return `${Math.floor(diff/60000)}m ago`;
+    if (diff < 86400000)        return `${Math.floor(diff/3600000)}h ago`;
+    if (diff < 7*86400000)      return `${Math.floor(diff/86400000)}d ago`;
+    return new Date(ms).toLocaleDateString([], { month:"short", day:"numeric" });
+  }
+
+  function fullDate(ms) {
+    if (!ms) return "";
+    return new Date(ms).toLocaleString([], { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" });
+  }
+
+  function ticketHTML(t) {
+    const meta = TYPE_META[t.type] || TYPE_META.chat_support;
+    const ms   = t.createdAt?.toMillis?.() ?? 0;
+    const user = t.userEmail || (t.userId ? t.userId.slice(0,8)+"…" : "Anonymous");
+    const isResolved = t.status === "resolved";
+    const isReplied  = t.status === "replied";
+    const isDone     = isResolved || isReplied;
+
+    const statusBadge = isDone
+      ? `<span class="dev-status-badge ${t.status}">${isReplied ? "Replied" : "Resolved"}</span>`
+      : `<span class="dev-open-badge">Open</span>`;
+
+    const replyPreview = t.devReply
+      ? `<div class="dev-reply-preview"><i class="ri-reply-line"></i><span>${esc(t.devReply)}</span></div>`
+      : "";
+
+    const resolveBtn = !isDone
+      ? `<button type="button" class="dev-btn dev-btn-resolve" data-resolve="${t.id}"><i class="ri-check-line"></i> Resolve</button>`
+      : "";
+
+    return `
+      <div class="dev-ticket${isDone ? " resolved" : ""}" data-id="${t.id}" title="${fullDate(ms)}">
+        <div class="dev-ticket-top">
+          <span class="dev-type-chip" style="background:${meta.bg};color:${meta.color};">
+            <i class="${meta.icon}"></i>${meta.label}
+          </span>
+          <span class="dev-user">${esc(user)}</span>
+          <span class="dev-time">${relTime(ms)}</span>
+          ${statusBadge}
+        </div>
+        <div class="dev-ticket-msg">${esc(t.message)}</div>
+        ${replyPreview}
+        <div class="dev-ticket-expand">
+          <textarea class="dev-reply-input" data-reply-input="${t.id}" placeholder="Type a reply to this user…"></textarea>
+          <div class="dev-ticket-actions">
+            <button type="button" class="dev-btn dev-btn-reply" data-send-reply="${t.id}">
+              <i class="ri-send-plane-line"></i> Reply
+            </button>
+            ${resolveBtn}
+            <button type="button" class="dev-btn dev-btn-delete" data-delete="${t.id}" aria-label="Delete">
+              <i class="ri-delete-bin-line"></i>
+            </button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  onAuthStateChanged(auth, (user) => {
+    const loadEl   = document.getElementById("dev-loading");
+    const deniedEl = document.getElementById("dev-denied");
+    const appEl    = document.getElementById("dev-app");
+
+    if (!user) {
+      window.location.href = "login.html";
+      return;
+    }
+    if (user.email !== DEV_EMAIL) {
+      loadEl.classList.add("hidden");
+      deniedEl.classList.remove("hidden");
+      return;
+    }
+
+    // ── Authenticated as developer ──
+    loadEl.classList.add("hidden");
+    appEl.classList.remove("hidden");
+
+    document.getElementById("dev-logout-btn").addEventListener("click", async () => {
+      await signOut(auth);
+      window.location.href = "login.html";
+    });
+
+    let allTickets = [];
+    let activeFilter = "all";
+
+    // Real-time listener — reads ALL tickets (no userId filter; allowed by Firestore rule for dev email)
+    const q = query(collection(db, "support_tickets"), orderBy("createdAt", "desc"), limit(200));
+    onSnapshot(q, (snap) => {
+      allTickets = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      updateStats();
+      updateCounts();
+      renderTickets();
+    }, (err) => console.error("[dev] tickets listener:", err));
+
+    function updateStats() {
+      const open     = allTickets.filter(t => t.status === "open").length;
+      const today    = allTickets.filter(t => {
+        const ms = t.createdAt?.toMillis?.() ?? 0;
+        return Date.now() - ms < 86400000;
+      }).length;
+      const resolved = allTickets.filter(t => t.status === "resolved" || t.status === "replied").length;
+      document.getElementById("stat-open").textContent     = open;
+      document.getElementById("stat-today").textContent    = today;
+      document.getElementById("stat-resolved").textContent = resolved;
+    }
+
+    function updateCounts() {
+      document.getElementById("count-all").textContent          = allTickets.length;
+      document.getElementById("count-chat_support").textContent = allTickets.filter(t => t.type === "chat_support").length;
+      document.getElementById("count-issue").textContent        = allTickets.filter(t => t.type === "issue").length;
+      document.getElementById("count-feedback").textContent     = allTickets.filter(t => t.type === "feedback").length;
+    }
+
+    function visibleTickets() {
+      return activeFilter === "all" ? allTickets : allTickets.filter(t => t.type === activeFilter);
+    }
+
+    function renderTickets() {
+      const listEl = document.getElementById("ticket-list");
+      const labelEl = document.getElementById("dev-list-label");
+      const tickets = visibleTickets();
+
+      const LABEL = { all:"All tickets", chat_support:"Chat support", issue:"Issue reports", feedback:"Feedback" };
+      if (labelEl) labelEl.textContent = `${LABEL[activeFilter] || "Tickets"} (${tickets.length})`;
+
+      if (!tickets.length) {
+        listEl.innerHTML = `<div class="dev-empty"><i class="ri-inbox-2-line"></i><span>No tickets here yet</span></div>`;
+        return;
+      }
+
+      listEl.innerHTML = tickets.map(ticketHTML).join("");
+      wireButtons(listEl);
+    }
+
+    function wireButtons(listEl) {
+      // Expand / collapse on card tap
+      listEl.querySelectorAll(".dev-ticket").forEach(card => {
+        card.addEventListener("click", (e) => {
+          if (e.target.closest("button") || e.target.closest("textarea")) return;
+          card.classList.toggle("expanded");
+          if (card.classList.contains("expanded")) {
+            card.querySelector(".dev-reply-input")?.focus();
+          }
+        });
+      });
+
+      // Reply
+      listEl.querySelectorAll("[data-send-reply]").forEach(btn => {
+        btn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute("data-send-reply");
+          const textarea = listEl.querySelector(`[data-reply-input="${id}"]`);
+          const text = (textarea?.value || "").trim();
+          if (!text) { textarea?.focus(); return; }
+          btn.disabled = true;
+          btn.innerHTML = `<i class="ri-loader-4-line spin"></i> Sending…`;
+          try {
+            await updateDoc(doc(db, "support_tickets", id), {
+              devReply: text,
+              repliedAt: serverTimestamp(),
+              status: "replied",
+            });
+            if (textarea) textarea.value = "";
+          } catch (err) {
+            console.error("[dev] reply:", err);
+            btn.disabled = false;
+            btn.innerHTML = `<i class="ri-send-plane-line"></i> Reply`;
+          }
+        });
+      });
+
+      // Resolve
+      listEl.querySelectorAll("[data-resolve]").forEach(btn => {
+        btn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute("data-resolve");
+          btn.disabled = true;
+          try {
+            await updateDoc(doc(db, "support_tickets", id), {
+              status: "resolved",
+              resolvedAt: serverTimestamp(),
+            });
+          } catch (err) {
+            console.error("[dev] resolve:", err);
+            btn.disabled = false;
+          }
+        });
+      });
+
+      // Delete
+      listEl.querySelectorAll("[data-delete]").forEach(btn => {
+        btn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute("data-delete");
+          if (!confirm("Permanently delete this ticket?")) return;
+          btn.disabled = true;
+          try {
+            await deleteDoc(doc(db, "support_tickets", id));
+          } catch (err) {
+            console.error("[dev] delete:", err);
+            btn.disabled = false;
+          }
+        });
+      });
+    }
+
+    // Filter tabs
+    document.querySelectorAll(".dev-filter-tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        activeFilter = tab.getAttribute("data-filter");
+        document.querySelectorAll(".dev-filter-tab").forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+        renderTickets();
+      });
+    });
+  });
+</script>
+</body>
+</html>
