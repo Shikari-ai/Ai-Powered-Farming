@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "static",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-c", "import os, http.server, socketserver; os.chdir(r'C:\Users\super\Documents\experiments\world\smart-agri'); socketserver.TCPServer.allow_reuse_address=True; httpd=socketserver.TCPServer(('127.0.0.1', 5173), http.server.SimpleHTTPRequestHandler); print('serving'); httpd.serve_forever()"],
+      "port": 5173
+    }
+  ]
+}

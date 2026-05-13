@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script>
+    (function () {
+      var h = location.hostname || "";
+      if (!h.endsWith("github.io")) return;
+      var path = location.pathname;
+      var parts = path.split("/").filter(Boolean);
+      var repo = parts[0];
+      if (!repo || repo.indexOf(".") !== -1) return;
+      if (path === "/" + repo) {
+        location.replace("/" + repo + "/" + location.search + location.hash);
+        return;
+      }
+      var b = document.createElement("base");
+      b.href = "/" + repo + "/";
+      var head = document.head || document.getElementsByTagName("head")[0];
+      if (head) head.insertBefore(b, head.firstChild);
+    })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#050708">
+    <meta name="agri-copilot" content="multimodal-voice-vision">
+    <script>
+    (function () {
+      try {
+        var low = false;
+        if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) low = true;
+        if (navigator.deviceMemory != null && navigator.deviceMemory <= 4) low = true;
+        if (navigator.hardwareConcurrency != null && navigator.hardwareConcurrency <= 3) low = true;
+        document.documentElement.dataset.agriPerf = low ? "low" : "high";
+      } catch (e) {
+        document.documentElement.dataset.agriPerf = "low";
+      }
+    })();
+    </script>
+    <title>AI Copilot — Field Vision</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/design-tokens.css?v=2">
+    <script src="js/device-adaptive-shell.js?v=1"></script>
+    <link rel="stylesheet" href="css/adaptive-shell.css?v=1">
+    <style>
+        :root {
+            --void: #050708;
+            --glass: rgba(8, 12, 18, 0.52);
+            --neon: #22d3ee;
+            --neon-dim: rgba(34, 211, 238, 0.12);
+            --text: #f1f5f9;
+            --muted: rgba(148, 163, 184, 0.92);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body {
+            height: 100%;
+            background: var(--void);
+            color: var(--text);
+            font-family: Outfit, system-ui, sans-serif;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+        .copilot-root {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            background: var(--void);
+        }
+        .feed {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        .feed video {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: #000;
+        }
+        .feed canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .vignette {
+            pointer-events: none;
+            position: absolute;
+            inset: 0;
+            box-shadow: inset 0 0 120px rgba(0,0,0,0.65);
+        }
+        .top-bar {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.75), transparent);
+            z-index: 5;
+        }
+        .icon-btn {
+            width: 44px; height: 44px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: var(--glass);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .title-col { flex: 1; text-align: center; }
+        .title-col h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
+        .title-col p { font-size: 10px; color: var(--muted); margin-top: 2px; }
+        .live-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--neon);
+            margin-top: 4px;
+        }
+        .live-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--neon);
+            box-shadow: 0 0 12px var(--neon);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.85); }
+        }
+        .banner {
+            position: absolute;
+            top: calc(72px + env(safe-area-inset-top, 0px));
+            left: 16px; right: 16px;
+            padding: 10px 14px;
+            border-radius: 14px;
+            background: rgba(15, 23, 42, 0.82);
+            border: 1px solid rgba(34, 211, 238, 0.22);
+            font-size: 12px;
+            line-height: 1.45;
+            color: var(--muted);
+            z-index: 4;
+            display: none;
+        }
+        .banner.show { display: block; }
+        .bottom-dock {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            padding: 16px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+            background: linear-gradient(to top, rgba(0,0,0,0.88), transparent);
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+        }
+        .caption {
+            padding: 14px 16px;
+            border-radius: 18px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.06);
+            min-height: 56px;
+        }
+        .caption .lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+        .caption .txt { font-size: 13px; line-height: 1.5; color: rgba(248,250,252,0.95); }
+        .controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+        }
+        .mic {
+            width: 68px; height: 68px;
+            border-radius: 50%;
+            border: 1px solid rgba(34, 211, 238, 0.45);
+            background: radial-gradient(circle at 30% 30%, var(--neon-dim), rgba(8,12,18,0.95));
+            color: var(--neon);
+            font-size: 28px;
+            cursor: pointer;
+            box-shadow: 0 0 40px rgba(34, 211, 238, 0.15);
+        }
+        .mic.listening {
+            animation: mic-pulse 1.2s ease-in-out infinite;
+            border-color: #f472b6;
+            color: #f472b6;
+        }
+        @keyframes mic-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(244, 114, 182, 0.35); }
+            50% { box-shadow: 0 0 0 14px rgba(244, 114, 182, 0); }
+        }
+        .toggle-walk {
+            font-size: 11px;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+        }
+        .toggle-walk input { accent-color: var(--neon); }
+    </style>
+</head>
+<body>
+    <div class="copilot-root">
+        <div class="feed" id="copilot-feed">
+            <video id="copilot-video" autoplay playsinline muted></video>
+            <canvas id="copilot-overlay" aria-hidden="true"></canvas>
+            <div class="vignette"></div>
+        </div>
+
+        <header class="top-bar">
+            <button type="button" class="icon-btn" id="copilot-back" title="Exit" aria-label="Exit copilot"><i class="ri-arrow-left-line"></i></button>
+            <div class="title-col">
+                <h1>AI Field Copilot</h1>
+                <p class="live-pill"><span class="live-dot"></span> Multimodal</p>
+            </div>
+            <button type="button" class="icon-btn" id="copilot-flip" title="Flip camera" aria-label="Flip camera"><i class="ri-camera-switch-line"></i></button>
+        </header>
+
+        <div class="banner" id="copilot-banner" role="status"></div>
+
+        <footer class="bottom-dock">
+            <div class="caption" id="copilot-caption">
+                <div class="lbl">Live understanding</div>
+                <div class="txt" id="copilot-caption-text">Starting camera…</div>
+            </div>
+            <label class="toggle-walk" style="justify-content: center;">
+                <input type="checkbox" id="copilot-walk" checked />
+                Field walk mode (fewer interruptions, longer pauses)
+            </label>
+            <label class="toggle-walk" style="justify-content: center;">
+                <input type="checkbox" id="copilot-proactive" checked />
+                Proactive voice guidance
+            </label>
+            <div class="controls">
+                <button type="button" class="mic" id="copilot-mic" title="Speak" aria-label="Speak to copilot"><i class="ri-mic-line"></i></button>
+            </div>
+        </footer>
+    </div>
+
+    <script type="module" src="js/copilot.js?v=36"></script>
+</body>
+</html>

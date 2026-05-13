@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script>
+    (function () {
+      var h = location.hostname || "";
+      if (!h.endsWith("github.io")) return;
+      var path = location.pathname;
+      var parts = path.split("/").filter(Boolean);
+      var repo = parts[0];
+      if (!repo || repo.indexOf(".") !== -1) return;
+      if (path === "/" + repo) {
+        location.replace("/" + repo + "/" + location.search + location.hash);
+        return;
+      }
+      var b = document.createElement("base");
+      b.href = "/" + repo + "/";
+      var head = document.head || document.getElementsByTagName("head")[0];
+      if (head) head.insertBefore(b, head.firstChild);
+    })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+    <!-- Connect your FastAPI host: <meta name="agri-inference-url" content="https://api.example.com"> -->
+    <script>
+    (function () {
+      try {
+        var low = false;
+        if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) low = true;
+        if (navigator.deviceMemory != null && navigator.deviceMemory <= 4) low = true;
+        if (navigator.hardwareConcurrency != null && navigator.hardwareConcurrency <= 3) low = true;
+        document.documentElement.dataset.agriPerf = low ? "low" : "high";
+      } catch (e) {
+        document.documentElement.dataset.agriPerf = "low";
+      }
+    })();
+    </script>
+    <title>Scan Field — AgriTech AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/design-tokens.css?v=2">
+    <script src="js/device-adaptive-shell.js?v=1"></script>
+    <link rel="stylesheet" href="css/adaptive-shell.css?v=1">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/nav.css?v=21">
+    <style>
+        :root {
+            --sc-bg: #02080a;
+            --sc-emerald: #10b981;
+            --sc-emerald-glow: rgba(16, 185, 129, 0.45);
+            --sc-text: #ecfdf5;
+            --sc-dim: rgba(236, 253, 245, 0.55);
+            --sc-muted: rgba(236, 253, 245, 0.40);
+            --sc-amber: #f59e0b;
+            --sc-glass: rgba(8, 16, 14, 0.62);
+        }
+        * { box-sizing: border-box; }
+        body.scanner-page {
+            margin: 0; padding: 0;
+            font-family: 'Outfit', system-ui, sans-serif;
+            background: var(--sc-bg);
+            color: var(--sc-text);
+            overflow-x: hidden;
+            min-height: 100vh;
+            min-height: 100dvh;
+        }
+
+        /* Ambient layered glow */
+        .sc-ambient {
+            position: fixed; inset: 0; z-index: 0;
+            pointer-events: none; overflow: hidden;
+            background:
+                radial-gradient(ellipse 80% 50% at 50% 0%, rgba(16, 185, 129, 0.16) 0%, transparent 55%),
+                radial-gradient(ellipse 60% 50% at 100% 30%, rgba(13, 148, 136, 0.10) 0%, transparent 55%),
+                linear-gradient(180deg, #02080a 0%, #010608 100%);
+        }
+        .sc-aurora {
+            position: absolute; inset: -20% -20%;
+            background: conic-gradient(from 0deg at 50% 50%, rgba(16, 185, 129, 0.10) 0deg, transparent 60deg, rgba(34, 211, 238, 0.07) 180deg, transparent 240deg, rgba(16, 185, 129, 0.09) 360deg);
+            filter: blur(80px);
+            animation: scAuroraSpin 80s linear infinite;
+            opacity: 0.5;
+        }
+        @keyframes scAuroraSpin { to { transform: rotate(360deg); } }
+
+        /* ── App shell ── */
+        .sc-app {
+            position: relative; z-index: 1;
+            max-width: 480px;
+            margin: 0 auto;
+            min-height: 100vh; min-height: 100dvh;
+            padding: 0 16px 110px;
+            box-sizing: border-box;
+        }
+
+        /* ── Header ── */
+        .sc-header {
+            position: sticky; top: 0; z-index: 30;
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 12px;
+            padding: calc(16px + env(safe-area-inset-top, 0px)) 0 14px;
+            background: linear-gradient(180deg, rgba(2, 8, 10, 0.95) 0%, rgba(2, 8, 10, 0.0) 100%);
+            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+        }
+        .sc-hdr-mid { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+        .sc-hdr-title {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 22px; font-weight: 600; letter-spacing: 0.2px;
+        }
+        .sc-hdr-title .sc-scan-glyph {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 26px; height: 26px; border-radius: 8px;
+            background: rgba(16, 185, 129, 0.10);
+            border: 1px solid rgba(16, 185, 129, 0.30);
+            color: var(--sc-emerald); font-size: 15px;
+        }
+        .sc-hdr-sub { font-size: 13px; color: var(--sc-dim); }
+        .sc-iconbtn {
+            width: 44px; height: 44px; border-radius: 50%;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.07);
+            display: inline-flex; align-items: center; justify-content: center;
+            color: var(--sc-text); font-size: 20px;
+            cursor: pointer; flex-shrink: 0;
+            transition: background 0.18s ease, transform 0.12s;
+            text-decoration: none;
+        }
+        .sc-iconbtn:active { transform: scale(0.92); }
+        .sc-iconbtn:hover { background: rgba(16, 185, 129, 0.10); border-color: rgba(16, 185, 129, 0.20); }
+
+        /* ── Progress card ── */
+        .sc-progress-card {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 16px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.07) 0%, rgba(255, 255, 255, 0.02) 100%);
+            border: 1px solid rgba(16, 185, 129, 0.22);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        }
+        .sc-ai-orb {
+            width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            background: radial-gradient(circle at 40% 35%, rgba(167, 243, 208, 0.4), transparent 70%), rgba(8, 16, 14, 0.7);
+            border: 1.5px solid rgba(16, 185, 129, 0.55);
+            box-shadow: inset 0 0 18px rgba(16, 185, 129, 0.18), 0 0 14px rgba(16, 185, 129, 0.25);
+            color: var(--sc-text); font-weight: 700; font-size: 14px; letter-spacing: 1px;
+        }
+        .sc-progress-body { flex: 1; min-width: 0; }
+        .sc-progress-title { font-size: 15.5px; font-weight: 500; line-height: 1.25; }
+        .sc-progress-title .em { color: var(--sc-emerald); font-weight: 600; }
+        .sc-progress-title .dim { color: var(--sc-dim); font-weight: 400; }
+        .sc-progress-sub { font-size: 12px; color: var(--sc-dim); margin-top: 3px; }
+        .sc-progress-bar {
+            height: 6px; border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            margin-top: 10px; overflow: hidden;
+            position: relative;
+        }
+        .sc-progress-bar span {
+            display: block; height: 100%;
+            background: linear-gradient(90deg, #10b981, #34d399);
+            border-radius: 6px;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
+            width: 78%;
+            animation: scProgressSweep 2.4s ease-in-out infinite;
+        }
+        @keyframes scProgressSweep {
+            0%, 100% { width: 18%; }
+            50%      { width: 92%; }
+        }
+        .sc-progress-pct {
+            font-size: 24px; font-weight: 600; color: var(--sc-emerald);
+            flex-shrink: 0;
+        }
+
+        /* ── Viewfinder ── */
+        .sc-viewfinder {
+            position: relative;
+            margin-top: 16px;
+            aspect-ratio: 1 / 1;
+            border-radius: 22px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.15);
+            box-shadow: 0 14px 32px rgba(0, 0, 0, 0.5);
+        }
+        .sc-viewfinder video,
+        .sc-viewfinder .vision-overlay-canvas {
+            position: absolute; inset: 0;
+            width: 100%; height: 100%; object-fit: cover;
+        }
+        .sc-vf-overlay {
+            position: absolute; inset: 14px;
+            pointer-events: none;
+        }
+        .sc-corner {
+            position: absolute;
+            width: 32px; height: 32px;
+            border-color: rgba(16, 185, 129, 0.85);
+            border-style: solid;
+            filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.5));
+        }
+        .sc-corner.tl { top: 0; left: 0; border-width: 3px 0 0 3px; border-top-left-radius: 14px; }
+        .sc-corner.tr { top: 0; right: 0; border-width: 3px 3px 0 0; border-top-right-radius: 14px; }
+        .sc-corner.bl { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-bottom-left-radius: 14px; }
+        .sc-corner.br { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-bottom-right-radius: 14px; }
+        /* Crosshair */
+        .sc-cross {
+            position: absolute;
+            background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.32), transparent);
+        }
+        .sc-cross.h { left: 0; right: 0; top: 50%; height: 1px; transform: translateY(-50%); }
+        .sc-cross.v { top: 0; bottom: 0; left: 50%; width: 1px; transform: translateX(-50%); background: linear-gradient(180deg, transparent, rgba(16, 185, 129, 0.32), transparent); }
+        /* Center scan rings (pulsing concentric rings) */
+        .sc-scan-rings {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 160px; height: 160px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .sc-scan-rings span {
+            position: absolute;
+            width: 30px; height: 30px;
+            border-radius: 50%;
+            border: 1px solid rgba(16, 185, 129, 0.6);
+            animation: scRingExpand 2.6s ease-out infinite;
+            opacity: 0;
+        }
+        .sc-scan-rings span:nth-child(2) { animation-delay: 0.65s; }
+        .sc-scan-rings span:nth-child(3) { animation-delay: 1.30s; }
+        .sc-scan-rings span:nth-child(4) { animation-delay: 1.95s; }
+        @keyframes scRingExpand {
+            0%   { width: 28px; height: 28px; opacity: 0.9; border-color: rgba(16, 185, 129, 0.85); }
+            100% { width: 150px; height: 150px; opacity: 0; border-color: rgba(16, 185, 129, 0.05); }
+        }
+        .sc-scan-center {
+            width: 12px; height: 12px; border-radius: 50%;
+            background: var(--sc-emerald);
+            box-shadow: 0 0 14px rgba(16, 185, 129, 0.8), 0 0 28px rgba(16, 185, 129, 0.4);
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .sc-scan-rings span, .sc-aurora { animation: none !important; }
+        }
+
+        /* Camera floating controls (top-right inside viewfinder) */
+        .sc-vf-actions {
+            position: absolute; top: 12px; right: 12px;
+            display: flex; gap: 8px; z-index: 4;
+        }
+        .sc-vf-btn {
+            width: 38px; height: 38px; border-radius: 12px;
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid rgba(16, 185, 129, 0.30);
+            color: var(--sc-emerald); font-size: 16px;
+            display: inline-flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+        }
+        .sc-vf-btn.live-active {
+            background: rgba(16, 185, 129, 0.18);
+            box-shadow: 0 0 14px rgba(16, 185, 129, 0.35);
+        }
+
+        /* Preserve existing camera flash + focus HUD overlays so the JS pipeline still works */
+        .cam-shutter-flash { position: absolute; inset: 0; background: rgba(255, 255, 255, 0); pointer-events: none; transition: background 0.05s; }
+        .cam-shutter-flash.cam-shutter-active { background: rgba(255, 255, 255, 0.6); }
+        .cam-focus-hud { position: absolute; inset: 0; pointer-events: none; }
+        .cam-roi { position: absolute; border: 1px dashed rgba(255, 255, 255, 0.2); border-radius: 8px; }
+        .cam-assist-badge {
+            position: absolute; bottom: 14px; left: 14px; z-index: 5;
+            padding: 7px 10px; border-radius: 14px;
+            background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.12);
+            color: rgba(255, 255, 255, 0.92); font-size: 11px;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+
+        /* Live AI detection badge — top-left of viewfinder while live mode on */
+        .sc-live-badge[hidden] { display: none; }
+        .sc-live-badge {
+            position: absolute; top: 12px; left: 12px; z-index: 6;
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 14px 8px 10px;
+            border-radius: 999px;
+            background: rgba(8, 16, 14, 0.78);
+            border: 1px solid rgba(16, 185, 129, 0.45);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 14px rgba(16, 185, 129, 0.22);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            max-width: calc(100% - 110px);
+        }
+        .sc-live-pulse {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: var(--sc-emerald);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.9), 0 0 0 4px rgba(16, 185, 129, 0.15);
+            animation: scLivePulse 1.4s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+        @keyframes scLivePulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 8px rgba(16, 185, 129, 0.9), 0 0 0 4px rgba(16, 185, 129, 0.15); }
+            50%      { transform: scale(1.25); box-shadow: 0 0 14px rgba(16, 185, 129, 1), 0 0 0 6px rgba(16, 185, 129, 0.20); }
+        }
+        .sc-live-body { display: flex; flex-direction: column; min-width: 0; }
+        .sc-live-title {
+            font-size: 12.5px; font-weight: 600; color: var(--sc-emerald);
+            line-height: 1.2;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .sc-live-sub {
+            font-size: 10.5px; color: var(--sc-dim);
+            margin-top: 1px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            max-width: 220px;
+        }
+        .sc-live-badge.is-warn { border-color: rgba(245, 158, 11, 0.55); }
+        .sc-live-badge.is-warn .sc-live-pulse { background: var(--sc-amber); box-shadow: 0 0 8px rgba(245, 158, 11, 0.9), 0 0 0 4px rgba(245, 158, 11, 0.15); }
+        .sc-live-badge.is-warn .sc-live-title { color: var(--sc-amber); }
+        .sc-live-badge.is-bad { border-color: rgba(244, 63, 94, 0.55); }
+        .sc-live-badge.is-bad .sc-live-pulse { background: #f87171; box-shadow: 0 0 8px rgba(244, 63, 94, 0.9), 0 0 0 4px rgba(244, 63, 94, 0.15); }
+        .sc-live-badge.is-bad .sc-live-title { color: #f87171; }
+        @media (prefers-reduced-motion: reduce) {
+            .sc-live-pulse { animation: none !important; }
+        }
+
+        /* ── AI Review panel ──
+           Sits between the viewfinder and the bottom dock. Shows a richer,
+           conversational "It looks like…" verdict whenever live detect or
+           capture/upload produces a fresh diagnosis. Hidden until the
+           first detection arrives. */
+        .sc-ai-review[hidden] { display: none; }
+        .sc-ai-review {
+            margin-top: 18px;
+            padding: 16px;
+            border-radius: 20px;
+            background: linear-gradient(160deg, rgba(16, 185, 129, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+            border: 1px solid rgba(16, 185, 129, 0.28);
+            box-shadow:
+                0 14px 36px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.04),
+                0 0 24px rgba(16, 185, 129, 0.12);
+            animation: scReviewIn 0.35s ease-out;
+        }
+        @keyframes scReviewIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: none; }
+        }
+        .sc-ai-rev-head {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 12px;
+        }
+        .sc-ai-rev-pulse {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: var(--sc-emerald);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.9), 0 0 0 4px rgba(16, 185, 129, 0.15);
+            animation: scLivePulse 1.4s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+        .sc-ai-rev-tag {
+            font-size: 12.5px; font-weight: 700;
+            letter-spacing: 0.6px; text-transform: uppercase;
+            color: var(--sc-emerald);
+        }
+        .sc-ai-rev-stamp {
+            margin-left: auto;
+            font-size: 10.5px; color: var(--sc-muted);
+            font-family: 'SF Mono', Consolas, monospace;
+        }
+        .sc-ai-rev-chips {
+            display: flex; flex-wrap: wrap; gap: 7px;
+            margin-bottom: 12px;
+        }
+        .sc-ai-rev-chip {
+            font-size: 11.5px; font-weight: 500;
+            padding: 5px 10px; border-radius: 999px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: rgba(236, 253, 245, 0.85);
+            display: inline-flex; align-items: center; gap: 5px;
+        }
+        .sc-ai-rev-chip i { font-size: 13px; opacity: 0.75; }
+        .sc-ai-rev-chip[hidden] { display: none; }
+        .sc-ai-rev-chip.risk-healthy { background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.45); color: var(--sc-emerald); }
+        .sc-ai-rev-chip.risk-low     { background: rgba(16, 185, 129, 0.10); border-color: rgba(16, 185, 129, 0.35); color: var(--sc-emerald); }
+        .sc-ai-rev-chip.risk-medium  { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.45); color: var(--sc-amber); }
+        .sc-ai-rev-chip.risk-high    { background: rgba(244, 63, 94, 0.12); border-color: rgba(244, 63, 94, 0.50); color: #f87171; }
+        .sc-ai-rev-chip.conf {
+            background: rgba(34, 211, 238, 0.10); border-color: rgba(34, 211, 238, 0.35); color: #67e8f9;
+            font-variant-numeric: tabular-nums;
+        }
+        .sc-ai-rev-narr {
+            font-size: 14px; line-height: 1.55;
+            color: rgba(236, 253, 245, 0.94);
+            margin: 0 0 12px;
+        }
+        .sc-ai-rev-narr strong { color: var(--sc-emerald); font-weight: 600; }
+        .sc-ai-rev-dx-row {
+            display: flex; align-items: baseline; gap: 8px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.30);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            margin-bottom: 12px;
+        }
+        .sc-ai-rev-dx-row[hidden] { display: none; }
+        .sc-ai-rev-dx-row strong {
+            font-size: 14px; font-weight: 600; color: var(--sc-text);
+        }
+        .sc-ai-rev-dx-row em {
+            font-size: 12px; color: var(--sc-dim);
+            font-style: italic;
+        }
+        .sc-ai-rev-recs {
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            padding-top: 12px;
+        }
+        .sc-ai-rev-recs-head {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 12px; color: var(--sc-emerald);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .sc-ai-rev-recs ul {
+            list-style: none; padding: 0; margin: 0;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .sc-ai-rev-recs li {
+            display: flex; align-items: flex-start; gap: 9px;
+            font-size: 13px; line-height: 1.45;
+            color: rgba(236, 253, 245, 0.92);
+        }
+        .sc-ai-rev-recs li::before {
+            content: ""; flex-shrink: 0;
+            width: 16px; height: 16px; border-radius: 50%;
+            margin-top: 3px;
+            background: rgba(16, 185, 129, 0.18);
+            border: 1.5px solid rgba(16, 185, 129, 0.55);
+            box-shadow: inset 0 0 0 3px rgba(16, 185, 129, 0.55);
+        }
+
+        /* ── Scan to Search — premium card button ── */
+        .sc-lens-live-btn {
+            position: relative; overflow: hidden;
+            width: 100%;
+            display: flex; align-items: center; gap: 14px;
+            padding: 16px 18px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(12, 22, 20, 0.72);
+            backdrop-filter: blur(20px);
+            color: var(--sc-text);
+            font-family: inherit;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            transition: transform 0.14s, box-shadow 0.2s, border-color 0.2s;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.06);
+        }
+        /* Animated aurora shimmer across the card */
+        .sc-lens-live-btn::before {
+            content: "";
+            position: absolute; inset: 0;
+            background: linear-gradient(110deg,
+                rgba(66,133,244,0.14) 0%,
+                rgba(52,168,83,0.10) 30%,
+                rgba(251,188,5,0.08) 60%,
+                rgba(234,67,53,0.10) 100%);
+            opacity: 0.9;
+            pointer-events: none;
+        }
+        /* Sweeping gloss line */
+        .sc-lens-live-btn::after {
+            content: "";
+            position: absolute;
+            top: 0; left: -75%;
+            width: 50%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent);
+            transform: skewX(-18deg);
+            transition: left 0.6s ease;
+            pointer-events: none;
+        }
+        .sc-lens-live-btn:hover::after { left: 130%; }
+        .sc-lens-live-btn:hover:not([disabled]) {
+            border-color: rgba(66,133,244,0.38);
+            box-shadow: 0 6px 32px rgba(66,133,244,0.22), 0 2px 8px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.10);
+        }
+        .sc-lens-live-btn:active:not([disabled]) { transform: scale(0.975); }
+        .sc-lens-live-btn[disabled] { opacity: 0.5; cursor: default; }
+        /* Icon orb */
+        .sc-lens-g {
+            position: relative; z-index: 1; flex-shrink: 0;
+            width: 44px; height: 44px; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(140deg, rgba(66,133,244,0.22), rgba(52,168,83,0.14));
+            border: 1px solid rgba(66,133,244,0.28);
+            box-shadow: 0 2px 10px rgba(66,133,244,0.20);
+        }
+        .sc-lens-g i {
+            font-size: 20px;
+            background: linear-gradient(135deg, #4285F4 0%, #34A853 50%, #FBBC04 80%, #EA4335 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        /* Text stack */
+        .sc-lens-text-wrap {
+            position: relative; z-index: 1;
+            display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+            flex: 1;
+        }
+        .sc-lens-label {
+            font-size: 15px; font-weight: 700; letter-spacing: 0.01em;
+            color: rgba(255,255,255,0.95);
+        }
+        .sc-lens-hint {
+            font-size: 11.5px; font-weight: 400;
+            color: rgba(255,255,255,0.42);
+            letter-spacing: 0.01em;
+        }
+        /* Arrow chevron */
+        .sc-lens-arrow {
+            position: relative; z-index: 1; flex-shrink: 0;
+            width: 30px; height: 30px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.10);
+            color: rgba(255,255,255,0.50);
+            font-size: 14px;
+            transition: background 0.18s, color 0.18s;
+        }
+        .sc-lens-live-btn:hover:not([disabled]) .sc-lens-arrow {
+            background: rgba(66,133,244,0.18);
+            color: rgba(255,255,255,0.80);
+        }
+        /* Uploading state */
+        .sc-lens-live-btn.is-uploading .sc-lens-hint { opacity: 0.65; }
+        @keyframes scLensDots {
+            0%   { content: ""; }
+            25%  { content: "."; }
+            50%  { content: ".."; }
+            75%  { content: "..."; }
+        }
+        .sc-lens-live-btn.is-uploading .sc-lens-hint::after {
+            content: ""; display: inline-block;
+            animation: scLensDots 1.4s infinite steps(4, end);
+        }
+
+        /* ── Inline Scan-to-Search result card ── */
+        .sc-search-box {
+            margin-top: 14px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.07);
+            background: rgba(10,20,18,0.80);
+            backdrop-filter: blur(18px);
+            overflow: hidden;
+            animation: scSearchSlideIn 0.30s cubic-bezier(0.22,1,0.36,1);
+        }
+        @keyframes scSearchSlideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Loading shimmer */
+        .sc-search-box.is-loading .sc-search-body {
+            min-height: 80px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .sc-search-loading-ring {
+            width: 30px; height: 30px; border-radius: 50%;
+            border: 2.5px solid rgba(66,133,244,0.18);
+            border-top-color: #4285F4;
+            animation: scSearchSpin 0.9s linear infinite;
+        }
+        @keyframes scSearchSpin { to { transform: rotate(360deg); } }
+        /* Head strip */
+        .sc-search-head {
+            display: flex; align-items: center; gap: 8px;
+            padding: 11px 14px 0;
+        }
+        .sc-search-head-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: #4285F4;
+            box-shadow: 0 0 6px rgba(66,133,244,0.70);
+            flex-shrink: 0;
+        }
+        .sc-search-head-label {
+            font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+            text-transform: uppercase; color: rgba(255,255,255,0.35);
+            flex: 1;
+        }
+        .sc-search-head-conf {
+            font-size: 11px; font-weight: 600;
+            color: rgba(255,255,255,0.40);
+        }
+        /* Body */
+        .sc-search-body { padding: 10px 14px 14px; }
+        .sc-search-chips {
+            display: flex; flex-wrap: wrap; gap: 6px;
+            margin-bottom: 10px;
+        }
+        .sc-search-chip {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 4px 10px; border-radius: 999px;
+            font-size: 11px; font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.10);
+            background: rgba(255,255,255,0.05);
+            color: rgba(255,255,255,0.70);
+        }
+        .sc-search-chip.is-healthy { border-color: rgba(16,185,129,0.40); background: rgba(16,185,129,0.10); color: rgb(52,211,153); }
+        .sc-search-chip.is-low     { border-color: rgba(52,211,153,0.30); background: rgba(52,211,153,0.08); color: rgb(52,211,153); }
+        .sc-search-chip.is-medium  { border-color: rgba(251,191,36,0.35); background: rgba(251,191,36,0.08); color: rgb(251,191,36); }
+        .sc-search-chip.is-high    { border-color: rgba(239,68,68,0.35);  background: rgba(239,68,68,0.08);  color: rgb(248,113,113); }
+        .sc-search-narr {
+            font-size: 13.5px; line-height: 1.55;
+            color: rgba(255,255,255,0.82);
+            margin-bottom: 10px;
+        }
+        .sc-search-recs {
+            list-style: none; margin: 0; padding: 0;
+            display: flex; flex-direction: column; gap: 5px;
+        }
+        .sc-search-recs li {
+            display: flex; align-items: flex-start; gap: 7px;
+            font-size: 12px; color: rgba(255,255,255,0.55); line-height: 1.45;
+        }
+        .sc-search-recs li::before {
+            content: "›"; font-size: 14px; color: rgba(66,133,244,0.70);
+            flex-shrink: 0; line-height: 1.3;
+        }
+        .sc-search-error {
+            padding: 16px 14px;
+            font-size: 13px; color: rgba(239,68,68,0.80);
+            text-align: center;
+        }
+        /* Treatments section */
+        .sc-treat-section {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .sc-treat-head {
+            font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+            text-transform: uppercase; color: rgba(255,255,255,0.30);
+            display: flex; align-items: center; gap: 5px;
+            margin-bottom: 4px;
+        }
+        .sc-treat-row {
+            display: flex; align-items: flex-start; gap: 10px;
+        }
+        .sc-treat-icon {
+            width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px;
+        }
+        .sc-treat-chemical  { background: rgba(239,68,68,0.12);  color: rgb(248,113,113); border: 1px solid rgba(239,68,68,0.20); }
+        .sc-treat-fertilizer{ background: rgba(16,185,129,0.12); color: rgb(52,211,153);  border: 1px solid rgba(16,185,129,0.20); }
+        .sc-treat-organic   { background: rgba(132,204,22,0.12); color: rgb(163,230,53);  border: 1px solid rgba(132,204,22,0.20); }
+        .sc-treat-general   { background: rgba(99,102,241,0.12); color: rgb(165,180,252); border: 1px solid rgba(99,102,241,0.20); }
+        .sc-treat-info {
+            display: flex; flex-direction: column; gap: 1px; flex: 1;
+        }
+        .sc-treat-name  { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.88); }
+        .sc-treat-type  { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255,255,255,0.30); }
+        .sc-treat-usage { font-size: 11.5px; color: rgba(255,255,255,0.50); line-height: 1.45; margin-top: 2px; }
+
+        /* ── State containers ── */
+        .sc-state { margin-top: 16px; }
+        .hidden { display: none !important; }
+
+        /* Ready state */
+        .sc-state-help {
+            text-align: center; color: var(--sc-dim);
+            font-size: 13px; margin: 8px 0 14px;
+        }
+        .sc-ready-btns { display: flex; gap: 10px; }
+        .sc-live-detect-row {
+            margin-bottom: 10px;
+        }
+        .sc-live-detect-btn {
+            width: 100%;
+            justify-content: center;
+        }
+        .sc-live-detect-btn.live-active {
+            background: rgba(16, 185, 129, 0.18);
+            border-color: rgba(16, 185, 129, 0.55);
+            box-shadow: 0 0 14px rgba(16, 185, 129, 0.3);
+        }
+        .sc-btn {
+            flex: 1;
+            display: inline-flex; align-items: center; justify-content: center;
+            gap: 8px;
+            padding: 14px 16px;
+            border-radius: 16px;
+            font-size: 14px; font-weight: 600;
+            font-family: inherit;
+            cursor: pointer; user-select: none;
+            transition: transform 0.12s, box-shadow 0.18s, background 0.18s;
+            -webkit-tap-highlight-color: transparent;
+            border: 1px solid transparent;
+            text-decoration: none;
+        }
+        .sc-btn:active { transform: scale(0.97); }
+        .sc-btn-primary {
+            background: linear-gradient(180deg, #34d399, #10b981);
+            color: #062019;
+            box-shadow: 0 10px 24px rgba(16, 185, 129, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+        .sc-btn-primary:hover { box-shadow: 0 12px 28px rgba(16, 185, 129, 0.55); }
+        .sc-btn-outline {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--sc-text);
+            border-color: rgba(255, 255, 255, 0.10);
+        }
+        .sc-btn-outline:hover { border-color: rgba(16, 185, 129, 0.30); background: rgba(16, 185, 129, 0.05); }
+
+        /* Analyze form state */
+        .sc-analyze-top {
+            display: flex; gap: 12px; align-items: center; margin-bottom: 14px;
+        }
+        .sc-analyze-top img {
+            width: 72px; height: 72px; border-radius: 16px; object-fit: cover;
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            background: rgba(0, 0, 0, 0.4);
+        }
+        .sc-analyze-top h3 { font-size: 16px; font-weight: 600; margin: 0 0 3px; }
+        .sc-analyze-top p { font-size: 12px; color: var(--sc-dim); margin: 0; }
+        .sc-dim { color: var(--sc-dim); font-weight: 400; font-size: 11px; }
+        .vision-result-panel {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(16, 185, 129, 0.20);
+            border-radius: 14px;
+            padding: 10px 14px;
+            margin-bottom: 12px;
+        }
+        .vrp-head { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--sc-emerald); margin-bottom: 4px; }
+        .vrp-text { font-size: 13px; color: rgba(236, 253, 245, 0.85); line-height: 1.4; margin: 0; }
+        .sc-form-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+        .sc-form-row label { font-size: 12px; color: var(--sc-dim); display: flex; justify-content: space-between; align-items: center; }
+        .sc-select {
+            width: 100%; padding: 12px 14px; border-radius: 14px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            color: var(--sc-text); font-size: 13.5px; font-family: inherit;
+            outline: none;
+        }
+        .sc-select:focus { border-color: rgba(16, 185, 129, 0.50); }
+        .sc-symptom-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+        .sc-symptom-chips button {
+            padding: 8px 14px; border-radius: 999px;
+            background: rgba(0, 0, 0, 0.22);
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            color: rgba(236, 253, 245, 0.85);
+            font-size: 12.5px; font-family: inherit;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .sc-symptom-chips button:hover { border-color: rgba(16, 185, 129, 0.32); }
+        .sc-form-actions { display: flex; gap: 10px; margin-top: 14px; }
+
+        /* ── Result card ── */
+        .sc-result-card {
+            padding: 16px;
+            border-radius: 22px;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+            border: 1px solid rgba(16, 185, 129, 0.22);
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+        }
+        .sc-result-head {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 12px; align-items: start;
+        }
+        .sc-result-shield {
+            width: 56px; height: 64px;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .sc-result-shield::before {
+            content: ""; position: absolute; inset: 0;
+            background:
+                linear-gradient(180deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.04));
+            border: 1.5px solid rgba(16, 185, 129, 0.55);
+            border-radius: 14px 14px 28px 28px / 14px 14px 36px 36px;
+            box-shadow: inset 0 0 14px rgba(16, 185, 129, 0.18);
+        }
+        .sc-result-shield i {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 26px; color: var(--sc-emerald);
+            filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.6));
+        }
+        .sc-result-titles { min-width: 0; }
+        .sc-result-tag {
+            font-size: 13px; color: var(--sc-emerald); font-weight: 600;
+            letter-spacing: 0.2px; margin-bottom: 2px;
+        }
+        .sc-result-title {
+            font-size: 21px; font-weight: 600; line-height: 1.2;
+            color: var(--sc-text);
+        }
+        .sc-result-sci {
+            font-size: 12.5px; color: var(--sc-dim);
+            margin-top: 3px; font-style: italic;
+        }
+        .sc-result-risk {
+            align-self: start;
+            padding: 8px 12px; border-radius: 999px;
+            background: rgba(245, 158, 11, 0.10);
+            border: 1px solid rgba(245, 158, 11, 0.45);
+            color: var(--sc-amber);
+            font-size: 11.5px; font-weight: 600;
+            display: inline-flex; align-items: center; gap: 5px;
+            white-space: nowrap;
+        }
+        .sc-result-risk.risk-good { background: rgba(16, 185, 129, 0.10); border-color: rgba(16, 185, 129, 0.45); color: var(--sc-emerald); }
+        .sc-result-risk.risk-bad { background: rgba(244, 63, 94, 0.10); border-color: rgba(244, 63, 94, 0.45); color: #f87171; }
+
+        .sc-conf-row {
+            margin-top: 14px;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .sc-conf-label { font-size: 13px; color: var(--sc-text); flex-shrink: 0; }
+        .sc-conf-bar {
+            flex: 1; height: 8px; border-radius: 8px;
+            background: rgba(255, 255, 255, 0.07);
+            overflow: hidden;
+        }
+        .sc-conf-bar span {
+            display: block; height: 100%;
+            background: linear-gradient(90deg, #10b981, #34d399);
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.45);
+            transition: width 0.6s ease;
+        }
+        .sc-conf-pct { font-size: 13px; font-weight: 600; color: var(--sc-text); flex-shrink: 0; min-width: 42px; text-align: right; }
+
+        /* Recommendation grid */
+        .sc-rec-grid {
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            display: grid;
+            grid-template-columns: 1fr 100px;
+            gap: 12px;
+            align-items: start;
+        }
+        .sc-rec-head {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 13px; color: var(--sc-emerald);
+            margin-bottom: 8px;
+        }
+        .rec-list {
+            list-style: none; padding: 0; margin: 0;
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .rec-list li {
+            display: flex; align-items: flex-start; gap: 8px;
+            font-size: 13px;
+            color: rgba(236, 253, 245, 0.92);
+        }
+        .rec-list li::before {
+            content: "";
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            background: rgba(16, 185, 129, 0.18);
+            border: 1.5px solid rgba(16, 185, 129, 0.55);
+            position: relative;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .rec-list li.is-todo::before {
+            background: transparent;
+        }
+        .rec-list li.is-done::after {
+            content: "\f00c"; /* Remix-style check would use icon; use unicode fallback */
+        }
+        /* Use ri-check-line via pseudo only on .is-done — simpler: replace ::before with icon */
+        .rec-list li.is-done::before {
+            background: rgba(16, 185, 129, 0.35);
+            border-color: rgba(16, 185, 129, 0.75);
+            box-shadow: inset 0 0 0 3px var(--sc-emerald);
+        }
+        .sc-rec-plant {
+            position: relative;
+            height: 100px;
+            display: flex; align-items: center; justify-content: center;
+            background:
+                radial-gradient(ellipse at 50% 80%, rgba(16, 185, 129, 0.32), transparent 60%);
+            border-radius: 14px;
+        }
+        .sc-rec-plant i {
+            font-size: 56px;
+            color: var(--sc-emerald);
+            filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.8));
+            animation: scPlantPulse 3s ease-in-out infinite;
+        }
+        .sc-rec-plant::after {
+            content: "";
+            position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
+            width: 60px; height: 8px;
+            border-radius: 50%;
+            border: 1px solid rgba(16, 185, 129, 0.45);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.25);
+        }
+        @keyframes scPlantPulse {
+            50% { transform: translateY(-3px); filter: drop-shadow(0 0 18px rgba(16, 185, 129, 1)); }
+        }
+
+        /* Privacy footer */
+        .sc-privacy {
+            text-align: center;
+            font-size: 11px;
+            color: var(--sc-muted);
+            margin: 18px 0 8px;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        .sc-privacy i { color: var(--sc-dim); }
+
+        /* Hide progress card unless analyze-state is the active state.
+           Simple approach: scanner-db.js toggles `.hidden` on the state
+           divs. We piggyback on body data flags set by a tiny script
+           below that watches state visibility. */
+        body:not([data-sc-state="analyze"]) .sc-progress-card {
+            display: none;
+        }
+
+        @media (max-width: 360px) {
+            .sc-rec-grid { grid-template-columns: 1fr; }
+            .sc-rec-plant { height: 80px; }
+            .sc-result-title { font-size: 19px; }
+        }
+    </style>
+</head>
+<body class="scanner-page">
+
+    <!-- Ambient cinematic background -->
+    <div class="sc-ambient" aria-hidden="true">
+        <div class="sc-aurora"></div>
+    </div>
+
+    <div class="sc-app">
+
+        <!-- Header -->
+        <header class="sc-header">
+            <a href="index.html" class="sc-iconbtn" aria-label="Back"><i class="ri-arrow-left-line"></i></a>
+            <div class="sc-hdr-mid">
+                <div class="sc-hdr-title">Scan Field <span class="sc-scan-glyph"><i class="ri-focus-3-line"></i></span></div>
+                <div class="sc-hdr-sub" id="sc-hdr-sub">Point camera at your crop</div>
+            </div>
+            <a href="fields.html" class="sc-iconbtn" aria-label="Scan history" title="Scan history"><i class="ri-history-line"></i></a>
+        </header>
+
+        <!-- Progress card (visible during analyze-state) -->
+        <div class="sc-progress-card">
+            <div class="sc-ai-orb">AI</div>
+            <div class="sc-progress-body">
+                <div class="sc-progress-title"><span class="em">AI Scanning</span> <span class="dim">in progress</span></div>
+                <div class="sc-progress-sub">Detecting issues and assessing risk…</div>
+                <div class="sc-progress-bar"><span></span></div>
+            </div>
+            <div class="sc-progress-pct">Live</div>
+        </div>
+
+        <!-- Camera viewfinder -->
+        <div class="sc-viewfinder" id="camera-feed">
+            <video id="videoElement" autoplay playsinline muted></video>
+            <canvas id="vision-overlay" class="vision-overlay-canvas" aria-hidden="true"></canvas>
+            <!-- Corner brackets + crosshair + center rings -->
+            <div class="sc-vf-overlay">
+                <div class="sc-corner tl"></div>
+                <div class="sc-corner tr"></div>
+                <div class="sc-corner bl"></div>
+                <div class="sc-corner br"></div>
+                <div class="sc-cross h"></div>
+                <div class="sc-cross v"></div>
+                <div class="sc-scan-rings">
+                    <span></span><span></span><span></span><span></span>
+                    <div class="sc-scan-center"></div>
+                </div>
+            </div>
+            <!-- Preserved JS-owned overlays so scanner-db.js + scanner-live-vision.js keep working -->
+            <div class="cam-shutter-flash" id="cam-shutter-flash" aria-hidden="true"></div>
+            <div class="cam-focus-hud" aria-hidden="true">
+                <div class="cam-roi" id="cam-roi"></div>
+                <div class="cam-scan-pulse"></div>
+            </div>
+            <div class="cam-assist-badge" id="cam-assist-badge" hidden>
+                <i class="ri-contrast-2-line"></i><span id="cam-assist-text"></span>
+            </div>
+            <!-- Live Gemini detection badge — populated by startLiveGeminiScan
+                 once every ~6s while the Detect toggle is on. Hidden otherwise. -->
+            <div class="sc-live-badge" id="sc-live-badge" hidden>
+                <div class="sc-live-pulse"></div>
+                <div class="sc-live-body">
+                    <div class="sc-live-title" id="sc-live-title">AI watching…</div>
+                    <div class="sc-live-sub" id="sc-live-sub">Hold steady on a leaf</div>
+                </div>
+            </div>
+            <!-- Camera controls (top-right inside viewfinder) -->
+            <div class="sc-vf-actions">
+                <button type="button" class="sc-vf-btn" id="flip-camera" title="Flip camera" aria-label="Flip camera"><i class="ri-camera-switch-line"></i></button>
+            </div>
+        </div>
+
+        <!-- AI Review panel — appears once the AI has produced a verdict
+             (live detect tick, capture, or upload). Sits between the
+             viewfinder and the ready-state buttons so it's always above
+             the bottom dock and easy to read. -->
+        <section class="sc-ai-review" id="sc-ai-review" hidden aria-live="polite">
+            <div class="sc-ai-rev-head">
+                <div class="sc-ai-rev-pulse"></div>
+                <div class="sc-ai-rev-tag">AI Review</div>
+                <div class="sc-ai-rev-stamp" id="sc-ai-rev-stamp">just now</div>
+            </div>
+            <div class="sc-ai-rev-chips">
+                <span class="sc-ai-rev-chip" id="sc-ai-rev-plant" hidden><i class="ri-leaf-line"></i><span id="sc-ai-rev-plant-text">Plant</span></span>
+                <span class="sc-ai-rev-chip risk-healthy" id="sc-ai-rev-risk"><i class="ri-shield-check-line"></i><span id="sc-ai-rev-risk-text">Healthy</span></span>
+                <span class="sc-ai-rev-chip conf" id="sc-ai-rev-conf"><i class="ri-sparkling-2-line"></i><span id="sc-ai-rev-conf-text">--%</span></span>
+            </div>
+            <p class="sc-ai-rev-narr" id="sc-ai-rev-narr">It looks like the AI is still warming up. Hold the camera steady on a leaf for a moment.</p>
+            <div class="sc-ai-rev-dx-row" id="sc-ai-rev-dx-row" hidden>
+                <strong id="sc-ai-rev-dx-name"></strong>
+                <em id="sc-ai-rev-dx-sci"></em>
+            </div>
+            <div class="sc-ai-rev-recs">
+                <div class="sc-ai-rev-recs-head"><i class="ri-sparkling-line"></i> What to do</div>
+                <ul id="sc-ai-rev-recs-list">
+                    <li>Loading recommendations…</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Ready state: capture / upload -->
+        <div id="ready-state" class="sc-state">
+            <p class="sc-state-help">Point at a leaf, then capture or upload.</p>
+            <div class="sc-live-detect-row">
+                <!-- Captures current video frame → uploads → opens Google Lens -->
+                <button class="sc-lens-live-btn" id="sc-open-lens-btn" aria-label="Scan to Search">
+                    <span class="sc-lens-g"><i class="ri-search-eye-line"></i></span>
+                    <span class="sc-lens-text-wrap">
+                        <span class="sc-lens-label">Scan to Search</span>
+                        <span class="sc-lens-hint" id="sc-lens-hint">Point at a leaf, then tap</span>
+                    </span>
+                    <span class="sc-lens-arrow"><i class="ri-arrow-right-s-line"></i></span>
+                </button>
+            </div>
+            <div class="sc-ready-btns">
+                <button class="sc-btn sc-btn-primary" id="capture-btn"><i class="ri-camera-3-line"></i> Capture</button>
+                <label class="sc-btn sc-btn-outline">
+                    <input type="file" id="upload-input" accept="image/*" hidden>
+                    <i class="ri-upload-2-line"></i> Upload
+                </label>
+            </div>
+
+            <!-- Inline result card for Scan to Search — hidden until tapped -->
+            <div class="sc-search-box hidden" id="sc-search-box">
+                <div class="sc-search-head">
+                    <div class="sc-search-head-dot"></div>
+                    <span class="sc-search-head-label">Scan Result</span>
+                    <span class="sc-search-head-conf" id="sc-search-conf"></span>
+                </div>
+                <div class="sc-search-body" id="sc-search-body">
+                    <div class="sc-search-loading-ring"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analyze state: form fields -->
+        <div id="analyze-state" class="sc-state hidden">
+            <div class="sc-analyze-top">
+                <img id="scan-preview" alt="Scan preview">
+                <div>
+                    <h3>Scan details</h3>
+                    <p>Tell us what you're seeing. We'll fuse it with vision + your saved history.</p>
+                </div>
+            </div>
+
+            <div id="vision-result-panel" class="vision-result-panel hidden">
+                <div class="vrp-head"><i class="ri-eye-2-line"></i> Vision model</div>
+                <p id="vision-result-text" class="vrp-text"></p>
+            </div>
+
+            <div class="sc-form-row">
+                <label>Field <span class="sc-dim">(optional)</span></label>
+                <select id="scan-field" class="sc-select">
+                    <option value="">No field selected</option>
+                </select>
+            </div>
+            <div class="sc-form-row">
+                <label>Crop type</label>
+                <select id="scan-crop" class="sc-select">
+                    <option value="">Select crop</option>
+                    <option>Tomato</option>
+                    <option>Wheat</option>
+                    <option>Cotton</option>
+                    <option>Corn</option>
+                    <option>Soybean</option>
+                    <option>Rice</option>
+                    <option>Other</option>
+                </select>
+            </div>
+            <div class="sc-form-row">
+                <label>Observed symptoms <span class="sc-dim" id="symptom-count">0 selected</span></label>
+                <div id="symptoms" class="sc-symptom-chips"></div>
+            </div>
+
+            <div class="sc-form-actions">
+                <button class="sc-btn sc-btn-outline" id="retake-btn"><i class="ri-refresh-line"></i> Retake</button>
+                <button class="sc-btn sc-btn-primary" id="analyze-btn"><i class="ri-sparkling-line"></i> Generate</button>
+            </div>
+        </div>
+
+        <!-- Result state: Analysis Complete card -->
+        <div id="result-state" class="sc-state hidden">
+            <div class="sc-result-card">
+                <div class="sc-result-head">
+                    <div class="sc-result-shield"><i class="ri-leaf-fill"></i></div>
+                    <div class="sc-result-titles">
+                        <div class="sc-result-tag">Analysis Complete</div>
+                        <div class="sc-result-title result-badge" id="result-title">Scan result</div>
+                        <div class="sc-result-sci" id="result-sci">Tap a recommendation below for details.</div>
+                    </div>
+                    <div class="sc-result-risk" id="sc-result-risk">
+                        <i class="ri-error-warning-line"></i>
+                        <span id="sc-risk-label">Medium Risk</span>
+                    </div>
+                </div>
+                <div class="sc-conf-row">
+                    <div class="sc-conf-label">AI Confidence</div>
+                    <div class="sc-conf-bar"><span id="sc-conf-fill" style="width:0%"></span></div>
+                    <div class="sc-conf-pct"><span id="result-health">--</span>%</div>
+                </div>
+                <div class="sc-rec-grid">
+                    <div class="sc-rec-list">
+                        <div class="sc-rec-head"><i class="ri-sparkling-line"></i> AI Recommendation</div>
+                        <ul class="rec-list">
+                            <li class="is-todo">No recommendations yet.</li>
+                        </ul>
+                    </div>
+                    <div class="sc-rec-plant" aria-hidden="true">
+                        <i class="ri-plant-fill"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sc-form-actions">
+                <button class="sc-btn sc-btn-outline" id="back-to-edit-btn"><i class="ri-refresh-line"></i> Scan Again</button>
+                <button class="sc-btn sc-btn-primary" id="save-scan-btn"><i class="ri-file-text-line"></i> Save Report</button>
+            </div>
+        </div>
+
+        <div class="sc-privacy">
+            <i class="ri-lock-2-line"></i> All analysis runs on-device • Your data stays private
+        </div>
+    </div>
+
+    <!-- Shared floating dock — same as every other page -->
+    <nav class="bottom-nav">
+        <a href="index.html" class="b-nav-item"><i class="ri-home-5-line"></i><span data-i18n="navHome">Home</span></a>
+        <a href="fields.html" class="b-nav-item"><i class="ri-leaf-line"></i><span data-i18n="navFields">Fields</span></a>
+        <a href="scanner.html" class="b-nav-scan active-tab" aria-label="Scan" aria-current="page"><i class="ri-leaf-fill"></i></a>
+        <a href="assistant.html" class="b-nav-item"><i class="ri-sparkling-line"></i><span data-i18n="navAi">AI</span></a>
+        <a href="profile.html" class="b-nav-item"><i class="ri-user-smile-line"></i><span data-i18n="navProfile">Profile</span></a>
+    </nav>
+
+    <!-- Tiny state observer: reflects the active state on <body data-sc-state>
+         so CSS can show/hide the progress card and tune the subtitle.
+         Doesn't change any wired behavior — purely watches existing .hidden
+         class toggles on the three state divs. -->
+    <script>
+    (function () {
+      const map = { "ready-state": "ready", "analyze-state": "analyze", "result-state": "result" };
+      const subEl = document.getElementById("sc-hdr-sub");
+      const subText = {
+        ready:   "Point camera at your crop",
+        analyze: "AI is analyzing your crop",
+        result:  "Analysis complete",
+      };
+      function reflect() {
+        for (const [id, name] of Object.entries(map)) {
+          const el = document.getElementById(id);
+          if (el && !el.classList.contains("hidden")) {
+            document.body.dataset.scState = name;
+            if (subEl) subEl.textContent = subText[name];
+            return;
+          }
+        }
+      }
+      const mo = new MutationObserver(reflect);
+      for (const id of Object.keys(map)) {
+        const el = document.getElementById(id);
+        if (el) mo.observe(el, { attributes: true, attributeFilter: ["class"] });
+      }
+      reflect();
+    })();
+    </script>
+
+    <script src="js/app.js"></script>
+    <script type="module" src="js/scanner-db.js?v=52"></script>
+    <script type="module" src="js/interaction-engine.js?v=20"></script>
+</body>
+</html>

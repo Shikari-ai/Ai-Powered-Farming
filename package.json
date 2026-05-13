@@ -1,0 +1,15 @@
+{
+  "name": "smart-agri",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "api": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-api.ps1",
+    "test": "node .claude/lang-core-smoke.mjs",
+    "test:lang": "node .claude/lang-core-smoke.mjs",
+    "test:profile-panels": "node .claude/profile-panels-playwright.mjs",
+    "test:profile-panels:ci": "node .claude/run-profile-panels-local.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.59.1"
+  }
+}

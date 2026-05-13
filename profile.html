@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script>
+  (function(){var h=location.hostname||"";if(!h.endsWith("github.io"))return;var path=location.pathname;var parts=path.split("/").filter(Boolean);var repo=parts[0];if(!repo||repo.indexOf(".")!==-1)return;if(path==="/"+repo){location.replace("/"+repo+"/"+location.search+location.hash);return;}var b=document.createElement("base");b.href="/"+repo+"/";var head=document.head||document.getElementsByTagName("head")[0];if(head)head.insertBefore(b,head.firstChild);})();
+  </script>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+  <title>Profile – Smart Farming</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/design-tokens.css?v=2">
+  <script src="js/device-adaptive-shell.js?v=1"></script>
+  <link rel="stylesheet" href="css/adaptive-shell.css?v=1">
+  <link rel="stylesheet" href="css/nav.css?v=21">
+  <link rel="stylesheet" href="css/reliability.css">
+  <style>
+    :root{
+      --bg:var(--color-bg-deep);--surface:var(--color-surface);--surface2:rgba(10,17,24,.7);
+      --primary:var(--color-primary);--primary-glow:rgba(var(--color-primary-rgb),.35);
+      --yellow:#F59E0B;--blue:#3B82F6;--purple:#8B5CF6;--red:#EF4444;
+      --txt:var(--color-text);--dim:var(--color-text-muted);--border:rgba(255,255,255,.07);
+      --card:var(--surface);
+    }
+    *{margin:0;padding:0;box-sizing:border-box;font-family:'Outfit',sans-serif;-webkit-tap-highlight-color:transparent;}
+    body{background:var(--bg);color:var(--txt);overflow:hidden;height:100dvh;}
+
+    /* ── SHELL ── */
+    .shell{
+      position:relative;max-width:var(--layout-max-width);margin:0 auto;
+      height:100dvh;overflow:hidden;
+      background:var(--bg);box-shadow:var(--shadow-shell);
+    }
+
+    /* ── SCREEN / PANEL LAYER ── */
+    .screen,.panel{
+      position:absolute;inset:0;
+      overflow-y:auto;overflow-x:hidden;
+      overscroll-behavior:contain;
+      scrollbar-width:none;
+      background:var(--bg);
+      transform:translateX(100%);
+      transition:transform .32s cubic-bezier(.4,0,.2,1);
+      will-change:transform;
+      padding-bottom:88px;
+    }
+    .screen::-webkit-scrollbar,.panel::-webkit-scrollbar{display:none;}
+    .screen.active,.panel.active{transform:translateX(0);}
+    #screen-main{transform:translateX(0);}
+
+    /* ── HEADER ── */
+    .hdr{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:20px 20px 14px;
+      background:rgba(3,6,9,.92);backdrop-filter:blur(20px);
+      position:sticky;top:0;z-index:50;
+      border-bottom:1px solid var(--border);
+    }
+    .hdr-back{width:38px;height:38px;border-radius:50%;background:var(--surface2);
+      border:1px solid var(--border);display:flex;align-items:center;justify-content:center;
+      font-size:20px;cursor:pointer;color:var(--txt);}
+    .hdr-title{font-size:17px;font-weight:500;}
+    .hdr-action{width:38px;height:38px;border-radius:50%;background:var(--surface2);
+      border:1px solid var(--border);display:flex;align-items:center;justify-content:center;
+      font-size:18px;cursor:pointer;color:var(--primary);}
+
+    /* ── PROFILE HERO ── */
+    .hero{
+      margin:16px 16px 0;border-radius:22px;padding:20px;
+      background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(10,17,24,1));
+      border:1px solid rgba(16,185,129,.25);overflow:hidden;position:relative;
+      box-shadow:inset 0 0 40px rgba(16,185,129,.07),0 8px 30px rgba(0,0,0,.5);
+    }
+    .hero-bg{position:absolute;inset:0;pointer-events:none;
+      background:repeating-radial-gradient(circle at 0 50%,transparent 0,transparent 20px,rgba(16,185,129,.025) 21px,rgba(16,185,129,.025) 22px);}
+    .hero-row{display:flex;gap:14px;align-items:center;position:relative;z-index:2;}
+    .av-wrap{position:relative;flex-shrink:0;}
+    .av{width:76px;height:76px;border-radius:50%;border:3px solid var(--primary);
+      background-size:cover;background-position:center;background-color:var(--surface);}
+    .av-ring{position:absolute;inset:-5px;border-radius:50%;
+      border:2px solid var(--primary);border-left-color:transparent;
+      animation:spin 6s linear infinite;box-shadow:0 0 18px var(--primary-glow);}
+    .av-cam{position:absolute;bottom:0;right:0;width:24px;height:24px;border-radius:50%;
+      background:var(--surface);border:1px solid var(--primary);color:var(--primary);
+      display:flex;align-items:center;justify-content:center;font-size:11px;z-index:3;cursor:pointer;}
+    .hero-info{flex:1;}
+    .hero-name{font-size:17px;font-weight:500;display:flex;align-items:center;gap:6px;}
+    .hero-role{font-size:10px;color:var(--primary);font-weight:500;margin:3px 0 8px;}
+    .hero-contact{display:flex;flex-direction:column;gap:4px;}
+    .hero-c{font-size:9.5px;color:var(--dim);display:flex;align-items:center;gap:5px;}
+    .hero-c i{color:var(--primary);font-size:11px;}
+
+    /* ── AI SCORE CARD ── */
+    .score-card{
+      margin:14px 16px 0;border-radius:18px;padding:16px 18px;
+      background:var(--surface);border:1px solid var(--border);
+      display:flex;align-items:center;gap:14px;
+      position:relative;overflow:hidden;
+    }
+    .score-card::before{
+      content:'';position:absolute;right:-20px;top:-20px;
+      width:100px;height:100px;border-radius:50%;
+      background:radial-gradient(circle,rgba(16,185,129,.15),transparent 70%);
+    }
+    .score-left{display:flex;flex-direction:column;align-items:center;
+      background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);
+      border-radius:14px;padding:10px 14px;min-width:72px;}
+    .score-num{font-size:28px;font-weight:300;color:var(--primary);line-height:1;}
+    .score-lbl{font-size:9px;color:var(--primary);margin-top:2px;font-weight:500;}
+    .score-right{flex:1;}
+    .score-title{font-size:13px;font-weight:500;margin-bottom:2px;}
+    .score-sub{font-size:9.5px;color:var(--dim);margin-bottom:8px;}
+    .score-stars{display:flex;gap:2px;margin-bottom:2px;}
+    .score-stars i{color:var(--yellow);font-size:14px;}
+    .score-ai-lbl{font-size:9px;color:var(--dim);}
+    .score-icon{position:absolute;right:16px;top:50%;transform:translateY(-50%);
+      font-size:36px;color:rgba(16,185,129,.12);}
+
+    /* ── MENU LIST ── */
+    .menu-list{margin:14px 16px 0;display:flex;flex-direction:column;gap:10px;}
+    .menu-item{
+      background:var(--surface);border:1px solid var(--border);border-radius:14px;
+      padding:14px;display:flex;align-items:center;gap:12px;
+      cursor:pointer;transition:background .2s,transform .15s;
+    }
+    .menu-item:active{transform:scale(.98);background:rgba(255,255,255,.05);}
+    .mi-ic{width:38px;height:38px;border-radius:10px;
+      background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);
+      display:flex;align-items:center;justify-content:center;font-size:17px;}
+    .mi-body{flex:1;}
+    .mi-body h4{font-size:14px;font-weight:400;margin-bottom:2px;}
+    .mi-body p{font-size:10px;color:var(--dim);}
+    .mi-arr{
+      width:6px;height:6px;border-radius:50%;
+      background:rgba(16,185,129,.5);
+      box-shadow:0 0 8px var(--primary-glow);
+      flex-shrink:0;
+    }
+    .premium-globe-ic{box-shadow:0 0 14px rgba(16,185,129,.18);}
+
+    /* ── BOTTOM NAV ── */
+    /* nav styles → css/nav.css */
+
+    /* ── SECTION HEADING ── */
+    .sec-h{font-size:11px;color:var(--dim);font-weight:500;
+      letter-spacing:.06em;text-transform:uppercase;
+      padding:18px 16px 8px;}
+
+    /* ── INFO ROWS (account-settings, about) ── */
+    .info-card{margin:0 16px 12px;background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
+    .info-row{display:flex;align-items:center;padding:14px 16px;gap:12px;border-bottom:1px solid var(--border);}
+    .info-row:last-child{border-bottom:none;}
+    .ir-ic{width:34px;height:34px;border-radius:9px;background:rgba(16,185,129,.1);
+      display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--primary);flex-shrink:0;}
+    .ir-body{flex:1;}
+    .ir-label{font-size:10px;color:var(--dim);margin-bottom:2px;}
+    .ir-val{font-size:14px;color:var(--txt);}
+    .ir-btn{font-size:9.5px;color:var(--primary);background:rgba(16,185,129,.1);
+      border:1px solid rgba(16,185,129,.3);border-radius:8px;padding:5px 10px;
+      cursor:pointer;white-space:nowrap;}
+
+    /* ── Premium language picker (account settings) ── */
+    .lang-premium-wrap{width:100%;margin-top:2px;}
+    .lang-search-shell{
+      display:flex;align-items:center;gap:10px;
+      background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(10,17,24,.92));
+      border:1px solid rgba(16,185,129,.28);border-radius:14px;
+      padding:10px 14px;margin-bottom:12px;
+      box-shadow:0 4px 28px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.07);
+    }
+    .lang-search-shell>i{color:var(--primary);font-size:18px;opacity:.95;flex-shrink:0;}
+    .lang-search-shell input{
+      flex:1;min-width:0;background:transparent;border:none;outline:none;
+      font-size:14px;color:var(--txt);font-family:inherit;
+    }
+    .lang-search-shell input::placeholder{color:var(--dim);}
+    .lang-list{
+      max-height:min(48vh,340px);overflow-y:auto;border-radius:14px;
+      border:1px solid var(--border);
+      background:linear-gradient(180deg,rgba(10,17,24,.9),rgba(3,6,9,.75));
+      scrollbar-width:thin;
+    }
+    .lang-list::-webkit-scrollbar{width:5px;}
+    .lang-list::-webkit-scrollbar-thumb{background:rgba(16,185,129,.25);border-radius:4px;}
+    .lang-row{
+      display:flex;align-items:center;gap:12px;padding:12px 14px;
+      cursor:pointer;border-bottom:1px solid var(--border);
+      transition:background .15s;
+    }
+    .lang-row:last-child{border-bottom:none;}
+    .lang-row:active{background:rgba(255,255,255,.04);}
+    .lang-row.selected{
+      background:linear-gradient(90deg,rgba(16,185,129,.16),rgba(16,185,129,.02));
+      box-shadow:inset 3px 0 0 var(--primary);
+    }
+    .lang-row-flag{
+      width:40px;height:40px;border-radius:12px;
+      background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);
+      display:flex;align-items:center;justify-content:center;
+      font-size:20px;flex-shrink:0;line-height:1;
+    }
+    .lang-row-meta{flex:1;min-width:0;}
+    .lang-row-meta strong{display:block;font-size:14px;font-weight:600;}
+    .lang-row-meta .lang-row-sub{font-size:12px;color:var(--dim);display:block;margin-top:2px;}
+    .lang-row-meta .lang-row-region{font-size:10px;color:rgba(148,163,184,.85);margin-top:3px;display:block;}
+    .lang-row-check{
+      width:22px;height:22px;border-radius:50%;
+      border:2px solid rgba(255,255,255,.22);flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;
+      font-size:13px;color:transparent;transition:.2s;
+    }
+    .lang-row.selected .lang-row-check{
+      background:var(--primary);border-color:var(--primary);color:#020617;
+    }
+    /* ── Ripple (language list rows) ── */
+    .rw{position:relative;overflow:hidden;}
+    .ripple-el{
+      position:absolute;border-radius:50%;transform:scale(0);
+      animation:rippleAnim .5s linear;
+      background:rgba(255,255,255,.1);pointer-events:none;
+    }
+    @keyframes rippleAnim{to{transform:scale(4);opacity:0;}}
+
+    /* Inline account row */
+    .as-lang-touch{cursor:pointer;}
+    .as-lang-touch:active{background:rgba(255,255,255,.03);}
+
+    /* ── Language modal (sub-sheet — no extra slide panel over account) ── */
+    .lang-picker-overlay{
+      position:fixed;inset:0;z-index:4000;
+      display:flex;align-items:flex-end;justify-content:center;
+      pointer-events:none;visibility:hidden;opacity:0;
+      transition:opacity .22s ease,visibility .22s;
+    }
+    .lang-picker-overlay.active{
+      pointer-events:auto;visibility:visible;opacity:1;
+    }
+    .lang-picker-backdrop{
+      position:absolute;inset:0;background:rgba(2,6,12,.74);
+      backdrop-filter:blur(8px);
+    }
+    .lang-picker-sheet{
+      position:relative;z-index:1;
+      width:100%;max-width:var(--layout-max-width);max-height:min(90dvh,720px);
+      background:linear-gradient(180deg,#0f172a 0%,#0b1220 100%);
+      border:1px solid rgba(148,163,184,.22);
+      border-radius:20px 20px 0 0;
+      display:flex;flex-direction:column;
+      box-shadow:0 -12px 48px rgba(0,0,0,.55);
+    }
+    .lang-picker-head{
+      display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+      padding:18px 18px 12px;border-bottom:1px solid rgba(148,163,184,.15);
+    }
+    .lang-picker-title-wrap{flex:1;min-width:0;}
+    .lang-picker-title{font-size:18px;font-weight:600;color:var(--txt);letter-spacing:-.02em;}
+    .lang-picker-sub{
+      font-size:12px;color:var(--dim);line-height:1.45;margin-top:6px;
+    }
+    .lang-picker-close{
+      width:40px;height:40px;border-radius:12px;flex-shrink:0;
+      border:1px solid rgba(148,163,184,.25);background:rgba(30,41,59,.65);
+      color:var(--txt);font-size:20px;display:flex;align-items:center;justify-content:center;
+      cursor:pointer;
+    }
+    .lang-picker-close:active{background:rgba(255,255,255,.08);}
+    .lang-picker-body{padding:14px 16px 0;flex:1;min-height:0;display:flex;flex-direction:column;}
+    .lang-picker-body .lang-search-shell{margin-bottom:12px;}
+    .lang-picker-list{
+      flex:1;min-height:180px;max-height:min(46dvh,380px);
+      overflow-y:auto;border-radius:14px;border:1px solid var(--border);
+      background:rgba(3,6,9,.55);-webkit-overflow-scrolling:touch;
+    }
+    .lang-picker-list .lang-row{border-radius:0;border-bottom:1px solid var(--border);}
+    .lang-picker-list .lang-row:first-child{border-radius:14px 14px 0 0;}
+    .lang-picker-list .lang-row:last-child{border-radius:0 0 14px 14px;border-bottom:none;}
+    .lang-picker-actions{
+      display:flex;gap:10px;padding:14px 16px 18px;
+      border-top:1px solid rgba(148,163,184,.12);
+      background:rgba(15,23,42,.6);
+    }
+    .lang-picker-actions .btn-secondary{
+      flex:1;padding:13px 16px;border-radius:12px;border:1px solid rgba(148,163,184,.28);
+      background:rgba(255,255,255,.05);color:var(--txt);font-size:14px;font-weight:500;
+      font-family:inherit;cursor:pointer;
+    }
+    .lang-picker-actions .btn-secondary:active{background:rgba(255,255,255,.08);}
+    .lang-picker-actions .btn-lang-save{
+      flex:1;padding:13px 16px;border-radius:12px;border:none;
+      background:var(--primary);color:#020617;font-size:14px;font-weight:600;
+      font-family:inherit;cursor:pointer;transition:opacity .2s;
+    }
+    .lang-picker-actions .btn-lang-save:disabled{opacity:.38;cursor:not-allowed;}
+    .lang-picker-actions .btn-lang-save:not(:disabled):active{opacity:.88;}
+
+    .form-wrap{margin:0 16px;display:flex;flex-direction:column;gap:12px;}
+    .field-group{display:flex;flex-direction:column;gap:6px;}
+    .field-group label{font-size:11px;color:var(--dim);font-weight:500;}
+    .field-group input,.field-group select{
+      background:var(--surface);border:1px solid var(--border);border-radius:12px;
+      padding:12px 14px;font-size:14px;color:var(--txt);outline:none;
+      transition:border-color .2s;
+    }
+    .field-group input:focus,.field-group select:focus{border-color:var(--primary);}
+    .field-group select option{background:var(--surface);}
+    .btn-primary{
+      background:var(--primary);color:#000;border:none;border-radius:12px;
+      padding:14px;font-size:15px;font-weight:600;width:100%;
+      cursor:pointer;transition:opacity .2s;margin-top:4px;
+    }
+    .btn-primary:active{opacity:.85;}
+    .btn-danger{
+      background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.3);
+      border-radius:12px;padding:14px;font-size:15px;font-weight:500;width:100%;
+      cursor:pointer;transition:.2s;
+    }
+
+    /* ── FARM CARDS (my-farms) ── */
+    .farm-card{
+      margin:0 16px 10px;background:var(--surface);border:1px solid var(--border);
+      border-radius:16px;overflow:hidden;cursor:pointer;transition:.2s;
+      display:flex;align-items:center;gap:0;
+    }
+    .farm-card:active{transform:scale(.99);background:rgba(255,255,255,.04);}
+    .farm-thumb{width:72px;height:72px;background-size:cover;background-position:center;flex-shrink:0;
+      background-color:rgba(16,185,129,.1);}
+    .farm-body{flex:1;padding:10px 12px;}
+    .farm-name{font-size:14px;font-weight:500;margin-bottom:2px;}
+    .farm-area{font-size:10px;color:var(--dim);}
+    .farm-ring-wrap{padding:0 14px;display:flex;flex-direction:column;align-items:center;gap:4px;}
+    .ring-svg{width:44px;height:44px;}
+    .ring-pct{font-size:10px;font-weight:600;}
+    .health-pill{
+      font-size:9px;font-weight:500;padding:2px 8px;border-radius:6px;
+      display:inline-block;margin-top:2px;
+    }
+    .hp-good{background:rgba(16,185,129,.15);color:var(--primary);}
+    .hp-mod{background:rgba(245,158,11,.15);color:var(--yellow);}
+    .hp-risk{background:rgba(239,68,68,.15);color:var(--red);}
+
+    /* ── TOGGLE ROWS (ai-prefs, notifications) ── */
+    .toggle-card{margin:0 16px 12px;background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
+    .toggle-row{display:flex;align-items:center;padding:13px 16px;gap:12px;border-bottom:1px solid var(--border);}
+    .toggle-row:last-child{border-bottom:none;}
+    .tr-ic{width:32px;height:32px;border-radius:8px;background:rgba(16,185,129,.1);
+      display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--primary);flex-shrink:0;}
+    .tr-body{flex:1;}
+    .tr-title{font-size:13px;font-weight:400;}
+    .tr-sub{font-size:9.5px;color:var(--dim);margin-top:1px;}
+    /* toggle switch */
+    .sw{position:relative;width:42px;height:24px;flex-shrink:0;}
+    .sw input{opacity:0;width:0;height:0;position:absolute;}
+    .sw-track{position:absolute;inset:0;border-radius:12px;background:rgba(255,255,255,.1);
+      transition:.25s;cursor:pointer;}
+    .sw input:checked+.sw-track{background:var(--primary);}
+    .sw-track::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;
+      border-radius:50%;background:#fff;transition:.25s;box-shadow:0 1px 4px rgba(0,0,0,.4);}
+    .sw input:checked+.sw-track::after{transform:translateX(18px);}
+
+    /* ── STATS GRID (farm-overview) ── */
+    .stats-grid{margin:0 16px 14px;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    .stat-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;}
+    .sb-lbl{font-size:10px;color:var(--dim);margin-bottom:4px;}
+    .sb-val{font-size:22px;font-weight:300;color:var(--txt);}
+    .sb-sub{font-size:9.5px;color:var(--dim);margin-top:2px;}
+    .sb-pill{display:inline-block;font-size:9px;font-weight:500;padding:2px 7px;border-radius:6px;margin-top:4px;}
+
+    /* ── ACTIVITY LIST ── */
+    .act-list{margin:0 16px;display:flex;flex-direction:column;gap:8px;}
+    .act-item{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+      padding:12px;display:flex;align-items:flex-start;gap:10px;}
+    .act-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+    .act-body{flex:1;}
+    .act-title{font-size:13px;}
+    .act-time{font-size:9.5px;color:var(--dim);margin-top:2px;}
+
+    /* ── SUBSCRIPTION ── */
+    .sub-crown{
+      margin:20px 16px 14px;background:var(--surface);border:1px solid rgba(245,158,11,.3);
+      border-radius:20px;padding:24px;text-align:center;
+      background:linear-gradient(135deg,rgba(245,158,11,.1),rgba(10,17,24,1));
+      position:relative;overflow:hidden;
+    }
+    .sub-crown i{font-size:48px;color:var(--yellow);filter:drop-shadow(0 0 20px rgba(245,158,11,.5));}
+    .sub-plan{font-size:18px;font-weight:600;color:var(--yellow);margin-top:8px;}
+    .sub-valid{font-size:10px;color:var(--dim);margin-top:4px;}
+    .feat-list{margin:0 16px 14px;background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
+    .feat-row{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);}
+    .feat-row:last-child{border-bottom:none;}
+    .feat-row i{color:var(--primary);font-size:15px;flex-shrink:0;}
+    .feat-row span{font-size:13px;}
+
+    /* ── HELP & SUPPORT ── */
+    .help-card{
+      margin:0 16px 10px;background:var(--surface);border:1px solid var(--border);
+      border-radius:14px;padding:16px;display:flex;align-items:center;gap:12px;
+      cursor:pointer;transition:.2s;
+    }
+    .help-card:active{transform:scale(.98);}
+    .hc-ic{width:40px;height:40px;border-radius:12px;background:rgba(16,185,129,.1);
+      border:1px solid rgba(16,185,129,.2);display:flex;align-items:center;justify-content:center;
+      font-size:18px;color:var(--primary);}
+    .hc-body{flex:1;}
+    .hc-title{font-size:14px;font-weight:400;}
+    .hc-sub{font-size:10px;color:var(--dim);margin-top:2px;}
+
+    /* ── ABOUT ── */
+    .about-logo{text-align:center;padding:28px 0 16px;}
+    .about-logo i{font-size:56px;color:var(--primary);filter:drop-shadow(0 0 24px var(--primary-glow));}
+    .about-app{font-size:20px;font-weight:600;margin-top:8px;}
+    .about-ver{font-size:11px;color:var(--dim);margin-top:4px;}
+    .about-tagline{font-size:12px;color:var(--dim);margin-top:12px;}
+    .link-list{margin:0 16px;background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
+    .link-row{display:flex;align-items:center;padding:14px 16px;gap:10px;
+      border-bottom:1px solid var(--border);cursor:pointer;transition:.15s;}
+    .link-row:last-child{border-bottom:none;}
+    .link-row:active{background:rgba(255,255,255,.04);}
+    .link-row span{flex:1;font-size:13px;}
+    .link-row i.ri-arrow-right-s-line{color:var(--dim);}
+    .made-with{text-align:center;font-size:11px;color:var(--dim);padding:20px;margin-top:4px;}
+    .made-with i{color:var(--red);}
+
+    /* ── MISC ── */
+    @keyframes spin{100%{transform:rotate(360deg);}}
+    .hidden{display:none!important;}
+    .pb16{padding-bottom:16px;}
+    /* farm-detail tabs */
+    .tab-bar{display:flex;border-bottom:1px solid var(--border);margin:0 16px 14px;}
+    .tab{flex:1;text-align:center;padding:10px 0;font-size:12px;color:var(--dim);
+      cursor:pointer;border-bottom:2px solid transparent;transition:.2s;}
+    .tab.active{color:var(--primary);border-bottom-color:var(--primary);}
+    .tab-pane{display:none;padding:0 16px;}
+    .tab-pane.active{display:block;}
+    /* add-farm stepper */
+    .stepper{display:flex;gap:6px;align-items:center;padding:16px;}
+    .step{flex:1;height:4px;border-radius:2px;background:var(--border);}
+    .step.done{background:var(--primary);}
+
+    /* frequency select */
+    .freq-row{display:flex;align-items:center;justify-content:space-between;
+      padding:13px 16px;border-bottom:1px solid var(--border);}
+    .freq-row select{background:var(--surface2);border:1px solid var(--border);
+      border-radius:8px;color:var(--txt);padding:6px 10px;font-size:12px;outline:none;}
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ════════════════════════════════════════
+       SCREEN: MAIN PROFILE
+  ════════════════════════════════════════ -->
+  <div id="screen-main" class="screen active" style="transform:translateX(0);">
+
+    <!-- header -->
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="window.location.href='fields.html'"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title">Profile</span>
+      </div>
+      <div class="hdr-action" id="main-settings-btn" title="Account settings"><i class="ri-settings-4-line"></i></div>
+    </div>
+
+    <!-- hero -->
+    <div class="hero">
+      <div class="hero-bg"></div>
+      <div class="hero-row">
+        <div class="av-wrap">
+          <div class="av" id="main-av"></div>
+          <div class="av-ring"></div>
+          <div class="av-cam" id="main-cam-btn"><i class="ri-camera-fill"></i></div>
+        </div>
+        <div class="hero-info">
+          <div class="hero-name">
+            <span id="main-name">--</span>
+            <i class="ri-checkbox-circle-fill hidden" id="main-verified" style="color:var(--primary);font-size:15px;"></i>
+          </div>
+          <div class="hero-role">Farm Owner</div>
+          <div class="hero-contact">
+            <div class="hero-c"><i class="ri-mail-line"></i><span id="main-email">--</span></div>
+            <div class="hero-c"><i class="ri-phone-line"></i><span id="main-phone">Not set</span></div>
+            <div class="hero-c"><i class="ri-map-pin-line"></i><span id="main-location">Location not set</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI score -->
+    <div class="score-card">
+      <div class="score-left">
+        <div class="score-num" id="score-num">--</div>
+        <div class="score-lbl" id="score-lbl">Loading</div>
+      </div>
+      <div class="score-right">
+        <div class="score-title">Farm Intelligence Score</div>
+        <div class="score-sub">AI-powered farm health index</div>
+        <div class="score-stars" id="score-stars">
+          <i class="ri-star-fill"></i><i class="ri-star-fill"></i><i class="ri-star-fill"></i>
+          <i class="ri-star-fill"></i><i class="ri-star-line" style="opacity:.4;"></i>
+        </div>
+        <div class="score-ai-lbl">AI Rating</div>
+      </div>
+      <i class="ri-leaf-fill score-icon"></i>
+    </div>
+
+    <!-- menu -->
+    <div class="menu-list">
+      <div class="menu-item" onclick="openPanel('panel-farm-overview')">
+        <div class="mi-ic" style="color:var(--primary);"><i class="ri-home-4-line"></i></div>
+        <div class="mi-body"><h4>Farm Overview</h4><p>Your farm at a glance</p></div>
+        <span class="mi-arr"></span>
+      </div>
+      <div class="menu-item" onclick="openPanel('panel-account-settings')">
+        <div class="mi-ic" style="color:var(--blue);"><i class="ri-user-settings-line"></i></div>
+        <div class="mi-body"><h4>Account Settings</h4><p>Manage your personal info</p></div>
+        <span class="mi-arr"></span>
+      </div>
+      <div class="menu-item" onclick="openPanel('panel-my-farms')">
+        <div class="mi-ic" style="color:#84CC16;"><i class="ri-layout-grid-line"></i></div>
+        <div class="mi-body"><h4>My Farms</h4><p>View and manage your farms</p></div>
+        <span class="mi-arr"></span>
+      </div>
+      <div class="menu-item" onclick="openPanel('panel-subscription')">
+        <div class="mi-ic" style="color:var(--yellow);"><i class="ri-vip-crown-line"></i></div>
+        <div class="mi-body"><h4>Subscription</h4><p>Manage your plan</p></div>
+        <span class="mi-arr"></span>
+      </div>
+      <div class="menu-item" onclick="openPanel('panel-ai-prefs')">
+        <div class="mi-ic" style="color:var(--purple);"><i class="ri-brain-line"></i></div>
+        <div class="mi-body"><h4>AI Settings</h4><p>Customize AI recommendations</p></div>
+        <span class="mi-arr"></span>
+      </div>
+      <div class="menu-item" onclick="openPanel('panel-ai-diagnostics'); refreshAiDiag();">
+        <div class="mi-ic" style="color:#67d4f0;"><i class="ri-shield-check-line"></i></div>
+        <div class="mi-body"><h4>AI reliability</h4><p>System health &amp; data freshness</p></div>
+        <span class="mi-arr"></span>
+      </div>
+      <div class="menu-item" onclick="openPanel('panel-learning-evolution')">
+        <div class="mi-ic" style="color:#A78BFA;"><i class="ri-git-branch-line"></i></div>
+        <div class="mi-body"><h4>Learning evolution</h4><p>Reflections, audit trail &amp; refresh</p></div>
+        <span class="mi-arr"></span>
+      </div>
+      <div class="menu-item" onclick="openPanel('panel-notifications')">
+        <div class="mi-ic" style="color:var(--primary);"><i class="ri-notification-3-line"></i></div>
+        <div class="mi-body"><h4>Notifications</h4><p>Manage alerts and updates</p></div>
+        <span class="mi-arr"></span>
+      </div>
+      <div class="menu-item" onclick="openPanel('panel-help')">
+        <div class="mi-ic" style="color:var(--dim);"><i class="ri-question-line"></i></div>
+        <div class="mi-body"><h4>Help &amp; Support</h4><p>Get help and contact support</p></div>
+        <span class="mi-arr"></span>
+      </div>
+      <div class="menu-item" onclick="openPanel('panel-about')">
+        <div class="mi-ic" style="color:var(--primary);"><i class="ri-information-line"></i></div>
+        <div class="mi-body"><h4>About Smart Farming</h4><p>App info and version</p></div>
+        <span class="mi-arr"></span>
+      </div>
+      <!-- logout -->
+      <div class="menu-item" id="logout-btn" style="border-color:rgba(239,68,68,.25);">
+        <div class="mi-ic" style="color:var(--red);background:rgba(239,68,68,.08);"><i class="ri-logout-box-r-line"></i></div>
+        <div class="mi-body"><h4 style="color:var(--red);">Logout</h4><p>Sign out of your smart farm</p></div>
+      </div>
+    </div>
+    <div style="height:8px;"></div>
+  </div><!-- /screen-main -->
+
+
+  <!-- ════════════════════════════════════════
+       PANEL: FARM OVERVIEW
+  ════════════════════════════════════════ -->
+  <div id="panel-farm-overview" class="panel">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="closePanel('panel-farm-overview')"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title">Farm Overview</span>
+      </div>
+      <div class="hdr-action" onclick="closePanel('panel-farm-overview')"><i class="ri-refresh-line" id="overview-refresh"></i></div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="sb-lbl">Total Farms</div>
+        <div class="sb-val" id="ov-farms">--</div>
+        <div class="sb-sub" id="ov-farms-sub">active</div>
+        <span class="sb-pill" style="background:rgba(16,185,129,.15);color:var(--primary);" id="ov-farms-pill">—</span>
+      </div>
+      <div class="stat-box">
+        <div class="sb-lbl">Total Area</div>
+        <div class="sb-val" id="ov-area">--</div>
+        <div class="sb-sub">acres</div>
+        <span class="sb-pill" style="background:rgba(59,130,246,.15);color:var(--blue);">Mapped</span>
+      </div>
+      <div class="stat-box">
+        <div class="sb-lbl">Crops</div>
+        <div class="sb-val" id="ov-crops">--</div>
+        <div class="sb-sub">types tracked</div>
+        <span class="sb-pill" style="background:rgba(132,204,22,.15);color:#84CC16;" id="ov-crops-pill">—</span>
+      </div>
+      <div class="stat-box">
+        <div class="sb-lbl">Avg. Health</div>
+        <div class="sb-val" id="ov-health">--</div>
+        <div class="sb-sub">last 30 days</div>
+        <span class="sb-pill hp-good" id="ov-health-pill">—</span>
+      </div>
+    </div>
+
+    <div class="sec-h">Recent Activity</div>
+    <div class="act-list" id="ov-activity">
+      <div class="act-item">
+        <div class="act-dot" style="background:var(--dim);"></div>
+        <div class="act-body"><div class="act-title" style="color:var(--dim);">No activity yet</div><div class="act-time">Add fields and run scans to see activity</div></div>
+      </div>
+    </div>
+    <div style="height:8px;"></div>
+  </div><!-- /panel-farm-overview -->
+
+
+  <!-- ════════════════════════════════════════
+       PANEL: ACCOUNT SETTINGS
+  ════════════════════════════════════════ -->
+  <div id="panel-account-settings" class="panel">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="closePanel('panel-account-settings')"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title">Account Settings</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="hdr-action" onclick="openPanel('panel-edit-profile')" title="Edit profile"><i class="ri-edit-line"></i></div>
+      </div>
+    </div>
+    <div class="sec-h">Personal Info</div>
+    <div class="info-card">
+      <div class="info-row">
+        <div class="ir-ic"><i class="ri-user-line"></i></div>
+        <div class="ir-body"><div class="ir-label">Full Name</div><div class="ir-val" id="as-name">--</div></div>
+        <div class="ir-btn" onclick="openPanel('panel-edit-profile')">Edit</div>
+      </div>
+      <div class="info-row">
+        <div class="ir-ic"><i class="ri-mail-line"></i></div>
+        <div class="ir-body"><div class="ir-label">Email</div><div class="ir-val" id="as-email">--</div></div>
+      </div>
+      <div class="info-row">
+        <div class="ir-ic"><i class="ri-phone-line"></i></div>
+        <div class="ir-body"><div class="ir-label">Phone Number</div><div class="ir-val" id="as-phone">Not set</div></div>
+        <div class="ir-btn" onclick="openPanel('panel-edit-profile')">Edit</div>
+      </div>
+      <div class="info-row">
+        <div class="ir-ic"><i class="ri-map-pin-line"></i></div>
+        <div class="ir-body"><div class="ir-label">Location</div><div class="ir-val" id="as-location">Not set</div></div>
+        <div class="ir-btn" onclick="openPanel('panel-edit-profile')">Edit</div>
+      </div>
+    </div>
+    <div class="sec-h">Language</div>
+    <div class="info-card" style="padding:0;overflow:hidden;">
+      <div class="info-row as-lang-touch" onclick="openLangPicker()" role="button" tabindex="0">
+        <div class="ir-ic premium-globe-ic"><i class="ri-global-line"></i></div>
+        <div class="ir-body" style="flex:1;min-width:0;">
+          <div class="ir-label">App language</div>
+          <div class="ir-val" id="as-lang-summary">English</div>
+          <div class="ir-label" style="margin-top:6px;">Tap to choose — changes apply after you save</div>
+        </div>
+        <i class="ri-arrow-right-s-line" style="color:var(--dim);font-size:18px;"></i>
+      </div>
+    </div>
+    <div class="sec-h">Security</div>
+    <div class="info-card">
+      <div class="info-row" style="cursor:pointer;" id="change-pw-btn">
+        <div class="ir-ic" style="background:rgba(59,130,246,.1);"><i class="ri-lock-line" style="color:var(--blue);"></i></div>
+        <div class="ir-body"><div class="ir-label">Password</div><div class="ir-val">Change Password</div></div>
+        <i class="ri-arrow-right-s-line" style="color:var(--dim);"></i>
+      </div>
+    </div>
+    <div style="margin:0 16px;display:flex;flex-direction:column;gap:10px;">
+      <button class="btn-danger" id="as-logout-btn">
+        <i class="ri-logout-box-r-line"></i>&nbsp; Logout
+      </button>
+    </div>
+    <div style="height:8px;"></div>
+  </div><!-- /panel-account-settings -->
+
+
+  <!-- ════════════════════════════════════════
+       PANEL: EDIT PROFILE
+  ════════════════════════════════════════ -->
+  <div id="panel-edit-profile" class="panel">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="closePanel('panel-edit-profile')"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title">Edit Profile</span>
+      </div>
+      <div class="hdr-action" id="ep-save-hdr-btn"><i class="ri-check-line"></i></div>
+    </div>
+
+    <!-- avatar picker -->
+    <div style="display:flex;flex-direction:column;align-items:center;padding:20px 0 16px;gap:10px;">
+      <div style="position:relative;">
+        <div id="ep-av" class="av" style="width:80px;height:80px;border:2px solid var(--primary);"></div>
+        <div class="av-cam" id="ep-cam-btn" style="width:26px;height:26px;"><i class="ri-camera-fill"></i></div>
+      </div>
+      <div style="font-size:11px;color:var(--dim);">Tap to change photo</div>
+    </div>
+
+    <div class="form-wrap">
+      <div class="field-group">
+        <label>Full Name</label>
+        <input type="text" id="ep-name" placeholder="Enter your name">
+      </div>
+      <div class="field-group">
+        <label>Email</label>
+        <input type="email" id="ep-email" placeholder="Email address" disabled style="opacity:.5;">
+      </div>
+      <div class="field-group">
+        <label>Phone Number</label>
+        <input type="tel" id="ep-phone" placeholder="+91 98765 43210">
+      </div>
+      <div class="field-group">
+        <label>Location</label>
+        <input type="text" id="ep-location" placeholder="Village, District, State">
+      </div>
+      <button class="btn-primary" id="ep-save-btn">Save Changes</button>
+    </div>
+    <div style="height:8px;"></div>
+  </div><!-- /panel-edit-profile -->
+
+
+  <!-- ════════════════════════════════════════
+       PANEL: MY FARMS
+  ════════════════════════════════════════ -->
+  <div id="panel-my-farms" class="panel">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="closePanel('panel-my-farms')"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title">My Farms</span>
+      </div>
+      <div class="hdr-action" onclick="window.location.href='fields.html'"><i class="ri-add-line"></i></div>
+    </div>
+    <div id="farms-list" style="margin-top:4px;"></div>
+    <div style="margin:10px 16px 0;">
+      <button class="btn-primary" onclick="window.location.href='fields.html'">
+        <i class="ri-add-circle-line"></i>&nbsp; Add New Farm / Field
+      </button>
+    </div>
+    <div style="height:8px;"></div>
+  </div><!-- /panel-my-farms -->
+
+
+  <!-- ════════════════════════════════════════
+       PANEL: SUBSCRIPTION
+  ════════════════════════════════════════ -->
+  <div id="panel-subscription" class="panel">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="closePanel('panel-subscription')"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title">Subscription</span>
+      </div>
+      <div style="width:38px;"></div>
+    </div>
+    <div class="sub-crown">
+      <i class="ri-vip-crown-fill"></i>
+      <div class="sub-plan">Premium Plan</div>
+      <div class="sub-valid">Valid till 24 May 2026</div>
+    </div>
+    <div class="sec-h">Plan Features</div>
+    <div class="feat-list">
+      <div class="feat-row"><i class="ri-checkbox-circle-fill"></i><span>AI Recommendations</span></div>
+      <div class="feat-row"><i class="ri-checkbox-circle-fill"></i><span>Unlimited Fields</span></div>
+      <div class="feat-row"><i class="ri-checkbox-circle-fill"></i><span>Advanced Analytics</span></div>
+      <div class="feat-row"><i class="ri-checkbox-circle-fill"></i><span>Priority Support</span></div>
+      <div class="feat-row"><i class="ri-checkbox-circle-fill"></i><span>Weather Intelligence</span></div>
+      <div class="feat-row"><i class="ri-checkbox-circle-fill"></i><span>Pest Prediction</span></div>
+    </div>
+    <div style="margin:0 16px;">
+      <button class="btn-primary" style="background:linear-gradient(135deg,#F59E0B,#D97706);" onclick="alert('Billing portal coming soon.')">
+        <i class="ri-vip-crown-line"></i>&nbsp; Upgrade Plan
+      </button>
+    </div>
+    <div style="height:8px;"></div>
+  </div><!-- /panel-subscription -->
+
+
+  <!-- ════════════════════════════════════════
+       PANEL: AI SETTINGS
+  ════════════════════════════════════════ -->
+  <div id="panel-ai-prefs" class="panel">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="closePanel('panel-ai-prefs')"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title">AI Settings</span>
+      </div>
+      <div class="hdr-action" id="ai-prefs-save-btn"><i class="ri-check-line"></i></div>
+    </div>
+
+    <div class="sec-h">Recommendation Frequency</div>
+    <div class="toggle-card">
+      <div class="freq-row">
+        <span style="font-size:13px;">Update frequency</span>
+        <select id="ai-freq">
+          <option value="high">High</option>
+          <option value="medium" selected>Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="sec-h">Focus Areas</div>
+    <div class="toggle-card">
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-plant-line"></i></div>
+        <div class="tr-body"><div class="tr-title">Crop Health</div><div class="tr-sub">Monitor crop conditions</div></div>
+        <label class="sw"><input type="checkbox" id="ai-crop" checked><div class="sw-track"></div></label>
+      </div>
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-bug-line"></i></div>
+        <div class="tr-body"><div class="tr-title">Pest Prediction</div><div class="tr-sub">Early warning system</div></div>
+        <label class="sw"><input type="checkbox" id="ai-pest" checked><div class="sw-track"></div></label>
+      </div>
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-cloud-windy-line"></i></div>
+        <div class="tr-body"><div class="tr-title">Weather Alerts</div><div class="tr-sub">Extreme weather warnings</div></div>
+        <label class="sw"><input type="checkbox" id="ai-weather" checked><div class="sw-track"></div></label>
+      </div>
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-drop-line"></i></div>
+        <div class="tr-body"><div class="tr-title">Irrigation</div><div class="tr-sub">Watering schedule advice</div></div>
+        <label class="sw"><input type="checkbox" id="ai-irr"><div class="sw-track"></div></label>
+      </div>
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-test-tube-line"></i></div>
+        <div class="tr-body"><div class="tr-title">Fertilization</div><div class="tr-sub">Soil nutrient guidance</div></div>
+        <label class="sw"><input type="checkbox" id="ai-fert" checked><div class="sw-track"></div></label>
+      </div>
+    </div>
+
+    <div class="sec-h">AI Learning</div>
+    <div class="toggle-card">
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-brain-line"></i></div>
+        <div class="tr-body"><div class="tr-title">Use my farm data for better predictions</div><div class="tr-sub">Anonymous data helps improve AI</div></div>
+        <label class="sw"><input type="checkbox" id="ai-learn" checked><div class="sw-track"></div></label>
+      </div>
+    </div>
+    <div style="margin:4px 16px 0;">
+      <button class="btn-primary" id="ai-prefs-save-main">Save changes</button>
+    </div>
+    <div style="height:8px;"></div>
+  </div><!-- /panel-ai-prefs -->
+
+
+  <!-- ════════════════════════════════════════
+       PANEL: AI RELIABILITY / DIAGNOSTICS
+  ════════════════════════════════════════ -->
+  <div id="panel-ai-diagnostics" class="panel">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="closePanel('panel-ai-diagnostics')"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title">AI reliability</span>
+      </div>
+      <div class="hdr-action" onclick="refreshAiDiag()" title="Refresh"><i class="ri-refresh-line"></i></div>
+    </div>
+    <p style="margin:12px 16px 0;font-size:12px;line-height:1.5;color:var(--dim);">
+      Calm, non-alarming snapshot for this device session. Used for graceful degradation — not medical or legal advice.
+    </p>
+    <pre id="ai-diag-body" class="ai-diag-pre" aria-live="polite">Loading…</pre>
+    <div style="margin:0 16px 20px;font-size:10px;color:var(--dim);line-height:1.45;">
+      Observed = your inputs or raw readings. Inferred = fused heuristics. Predicted = forward estimates — always verify in the field.
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       PANEL: LEARNING EVOLUTION
+  ════════════════════════════════════════ -->
+  <div id="panel-learning-evolution" class="panel">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="closePanel('panel-learning-evolution')"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title">Learning evolution</span>
+      </div>
+      <div class="hdr-action" onclick="closePanel('panel-learning-evolution')" title="Close"><i class="ri-close-line"></i></div>
+    </div>
+    <p style="margin:12px 16px 0;font-size:12px;line-height:1.5;color:var(--dim);">
+      Bounded notes from your scans, interventions, and weather co-occurrence — for transparency, not hype. Nothing here runs in the field automatically.
+    </p>
+    <div class="info-card" style="margin-top:12px;">
+      <div class="info-row">
+        <div class="ir-ic"><i class="ri-time-line"></i></div>
+        <div class="ir-body">
+          <div class="ir-label">Last merged</div>
+          <div class="ir-val" id="learn-ev-last-agg">—</div>
+        </div>
+      </div>
+      <div class="info-row">
+        <div class="ir-ic"><i class="ri-node-tree"></i></div>
+        <div class="ir-body">
+          <div class="ir-label">Relationship links (sample)</div>
+          <div class="ir-val" id="learn-ev-edge-teaser" style="font-size:12px;line-height:1.45;">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="sec-h">Latest reflections</div>
+    <div class="toggle-card" style="margin:0 16px;">
+      <ul id="learn-ev-reflections" style="margin:0;padding:12px 14px 14px 22px;font-size:12px;line-height:1.5;color:var(--txt);list-style:disc;">
+        <li style="color:var(--dim);list-style:none;margin-left:-10px;">No reflections yet — save scans or refresh below.</li>
+      </ul>
+    </div>
+    <div class="sec-h">Timeline (recent)</div>
+    <div class="toggle-card" style="margin:0 16px;">
+      <ul id="learn-ev-timeline" style="margin:0;padding:12px 14px 14px 22px;font-size:11px;line-height:1.45;color:var(--dim);list-style:disc;"></ul>
+    </div>
+    <div class="sec-h">Why it evolved (audit)</div>
+    <div class="toggle-card" style="margin:0 16px;">
+      <ul id="learn-ev-audit" style="margin:0;padding:12px 14px 14px 22px;font-size:11px;line-height:1.45;color:var(--dim);list-style:disc;"></ul>
+    </div>
+    <div class="toggle-card" style="margin:12px 16px 0;">
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-flask-line"></i></div>
+        <div class="tr-body">
+          <div class="tr-title">Sandbox preview (this device)</div>
+          <div class="tr-sub">Mirrors <code style="font-size:10px;opacity:.85;">agri_learning_preview</code> — optional test multipliers only</div>
+        </div>
+        <label class="sw"><input type="checkbox" id="learn-ev-sandbox"><div class="sw-track"></div></label>
+      </div>
+    </div>
+    <div style="margin:16px;padding-bottom:8px;">
+      <button class="btn-primary" type="button" id="learn-ev-refresh" style="width:100%;">
+        <i class="ri-refresh-line"></i>&nbsp; Refresh learning
+      </button>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════
+       PANEL: NOTIFICATIONS
+  ════════════════════════════════════════ -->
+  <div id="panel-notifications" class="panel">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="closePanel('panel-notifications')"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title">Notifications</span>
+      </div>
+      <div class="hdr-action" id="notif-save-btn"><i class="ri-check-line"></i></div>
+    </div>
+
+    <div class="sec-h">Notification Types</div>
+    <div class="toggle-card">
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-alarm-warning-line"></i></div>
+        <div class="tr-body"><div class="tr-title">Alerts</div><div class="tr-sub">Pest, disease, weather</div></div>
+        <label class="sw"><input type="checkbox" id="n-alerts" checked><div class="sw-track"></div></label>
+      </div>
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-brain-line"></i></div>
+        <div class="tr-body"><div class="tr-title">Recommendations</div><div class="tr-sub">AI suggestions</div></div>
+        <label class="sw"><input type="checkbox" id="n-recs" checked><div class="sw-track"></div></label>
+      </div>
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-drop-line"></i></div>
+        <div class="tr-body"><div class="tr-title">Irrigation Alerts</div><div class="tr-sub">Watering reminders</div></div>
+        <label class="sw"><input type="checkbox" id="n-irr" checked><div class="sw-track"></div></label>
+      </div>
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-notification-4-line"></i></div>
+        <div class="tr-body"><div class="tr-title">System Updates</div><div class="tr-sub">App updates and features</div></div>
+        <label class="sw"><input type="checkbox" id="n-sys"><div class="sw-track"></div></label>
+      </div>
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-book-2-line"></i></div>
+        <div class="tr-body"><div class="tr-title">Tips &amp; Education</div><div class="tr-sub">Farming tips and guides</div></div>
+        <label class="sw"><input type="checkbox" id="n-tips" checked><div class="sw-track"></div></label>
+      </div>
+    </div>
+
+    <div class="sec-h">Ambient &amp; attention</div>
+    <div class="toggle-card">
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-contrast-drop-line"></i></div>
+        <div class="tr-body"><div class="tr-title">Focus mode</div><div class="tr-sub">Calm batches cues; active surfaces more</div></div>
+        <select id="amb-focus" aria-label="Focus mode"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--txt);padding:6px 8px;font-size:11px;max-width:110px;">
+          <option value="calm">Calm</option>
+          <option value="balanced" selected>Balanced</option>
+          <option value="active">Active</option>
+        </select>
+      </div>
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-hand-heart-line"></i></div>
+        <div class="tr-body"><div class="tr-title">Interruption sensitivity</div><div class="tr-sub">Low keeps passive items out of the badge</div></div>
+        <select id="amb-intr" aria-label="Interruption sensitivity"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--txt);padding:6px 8px;font-size:11px;max-width:110px;">
+          <option value="low">Low</option>
+          <option value="standard" selected>Standard</option>
+          <option value="high">High</option>
+        </select>
+      </div>
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-notification-badge-line"></i></div>
+        <div class="tr-body"><div class="tr-title">Count passive in badge</div><div class="tr-sub">Ambient confirmations (e.g. steady scans)</div></div>
+        <label class="sw"><input type="checkbox" id="amb-badge-passive"><div class="sw-track"></div></label>
+      </div>
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-sun-foggy-line"></i></div>
+        <div class="tr-body"><div class="tr-title">Morning briefing on home</div><div class="tr-sub">Short operational paragraph, cached per day</div></div>
+        <label class="sw"><input type="checkbox" id="amb-morning-brief" checked><div class="sw-track"></div></label>
+      </div>
+    </div>
+
+    <div class="sec-h">Quiet Hours</div>
+    <div class="toggle-card">
+      <div class="toggle-row">
+        <div class="tr-ic"><i class="ri-moon-line"></i></div>
+        <div class="tr-body">
+          <div class="tr-title">Quiet Hours</div>
+          <div class="tr-sub" style="display:flex;gap:8px;align-items:center;margin-top:4px;">
+            <input type="time" id="n-quiet-start" value="22:00"
+              style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--txt);padding:3px 6px;font-size:11px;outline:none;">
+            <span>–</span>
+            <input type="time" id="n-quiet-end" value="06:00"
+              style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--txt);padding:3px 6px;font-size:11px;outline:none;">
+          </div>
+        </div>
+        <label class="sw"><input type="checkbox" id="n-quiet" checked><div class="sw-track"></div></label>
+      </div>
+    </div>
+    <div style="margin:4px 16px 0;">
+      <button class="btn-primary" id="notif-save-main">Save changes</button>
+    </div>
+    <div style="height:8px;"></div>
+  </div><!-- /panel-notifications -->
+
+
+  <!-- ════════════════════════════════════════
+       PANEL: HELP & SUPPORT
+  ════════════════════════════════════════ -->
+  <div id="panel-help" class="panel">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="closePanel('panel-help')"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title">Help &amp; Support</span>
+      </div>
+      <div style="width:38px;"></div>
+    </div>
+
+    <div class="sec-h">Get Help</div>
+    <div class="help-card" onclick="openPanel('panel-chat-support')">
+      <div class="hc-ic"><i class="ri-customer-service-2-line"></i></div>
+      <div class="hc-body"><div class="hc-title">Chat with Support</div><div class="hc-sub">We're online</div></div>
+      <i class="ri-arrow-right-s-line" style="color:var(--dim);"></i>
+    </div>
+    <div class="help-card" id="help-center-btn">
+      <div class="hc-ic" style="background:rgba(59,130,246,.1);border-color:rgba(59,130,246,.2);"><i class="ri-book-open-line" style="color:var(--blue);"></i></div>
+      <div class="hc-body"><div class="hc-title">Help Center</div><div class="hc-sub">Browse articles</div></div>
+      <i class="ri-arrow-right-s-line" style="color:var(--dim);"></i>
+    </div>
+    <div class="help-card" id="report-issue-btn">
+      <div class="hc-ic" style="background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.2);"><i class="ri-bug-line" style="color:var(--red);"></i></div>
+      <div class="hc-body"><div class="hc-title">Report an Issue</div><div class="hc-sub">Let us know</div></div>
+      <i class="ri-arrow-right-s-line" style="color:var(--dim);"></i>
+    </div>
+    <div class="help-card" id="feedback-btn">
+      <div class="hc-ic" style="background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.2);"><i class="ri-star-smile-line" style="color:var(--purple);"></i></div>
+      <div class="hc-body"><div class="hc-title">Feedback</div><div class="hc-sub">Share your experience</div></div>
+      <i class="ri-arrow-right-s-line" style="color:var(--dim);"></i>
+    </div>
+
+    <div class="sec-h">Quick Tips</div>
+    <div class="info-card">
+      <div class="info-row" style="align-items:flex-start;gap:10px;">
+        <div class="ir-ic" style="margin-top:2px;"><i class="ri-lightbulb-line"></i></div>
+        <div class="ir-body" style="font-size:12px;color:var(--dim);line-height:1.6;">
+          Add a field under <b style="color:var(--txt);">Fields</b> → Run a crop scan → Open 
+          <b style="color:var(--txt);">Weather</b> for forecasts → Use 
+          <b style="color:var(--txt);">AI Assistant</b> for real-time farm guidance.
+        </div>
+      </div>
+    </div>
+    <div style="height:8px;"></div>
+  </div><!-- /panel-help -->
+
+
+  <!-- ════════════════════════════════════════
+       PANEL: ABOUT
+  ════════════════════════════════════════ -->
+  <div id="panel-about" class="panel">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="closePanel('panel-about')"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title">About</span>
+      </div>
+      <div style="width:38px;"></div>
+    </div>
+
+    <div class="about-logo">
+      <i class="ri-leaf-fill"></i>
+      <div class="about-app">Smart Farming</div>
+      <div class="about-ver">Version 2.4.1</div>
+      <div class="about-tagline">AI-powered precision agriculture for every farmer</div>
+    </div>
+
+    <div class="link-list" style="margin-bottom:12px;">
+      <div class="link-row" onclick="openPanel('panel-privacy')">
+        <span>Privacy Policy</span><i class="ri-arrow-right-s-line"></i>
+      </div>
+      <div class="link-row" onclick="openPanel('panel-tos')">
+        <span>Terms of Service</span><i class="ri-arrow-right-s-line"></i>
+      </div>
+      <div class="link-row" onclick="openPanel('panel-licenses')">
+        <span>Licenses</span><i class="ri-arrow-right-s-line"></i>
+      </div>
+    </div>
+
+    <div class="made-with">Made with <i class="ri-heart-fill"></i> for Farmers</div>
+  </div><!-- /panel-about -->
+
+
+  <!-- ════════════════════════════════════════
+       PANEL: PRIVACY POLICY
+  ════════════════════════════════════════ -->
+  <div id="panel-privacy" class="panel">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="closePanel('panel-privacy')"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title">Privacy Policy</span>
+      </div>
+    </div>
+    <div style="padding:20px;color:var(--txt);font-size:13.5px;line-height:1.8;">
+      <p style="color:var(--dim);margin-bottom:20px;">Last updated: May 2026</p>
+
+      <p style="font-weight:600;color:var(--primary);margin-bottom:6px;">1. Data We Collect</p>
+      <p style="margin-bottom:16px;">We collect your name, email address, phone number, and farm location to personalise your experience. Crop scan images are processed locally and results stored in your private Firestore database. Weather data is fetched using your device GPS coordinates and never stored with personally identifiable information.</p>
+
+      <p style="font-weight:600;color:var(--primary);margin-bottom:6px;">2. How We Use Your Data</p>
+      <p style="margin-bottom:16px;">Your data is used solely to provide AI-powered farming insights, weather intelligence, and personalised recommendations. We do not sell, rent, or share your data with any third party for marketing purposes.</p>
+
+      <p style="font-weight:600;color:var(--primary);margin-bottom:6px;">3. Data Storage & Security</p>
+      <p style="margin-bottom:16px;">All data is stored in Google Firebase (Firestore & Firebase Auth) with strict per-user security rules. Only you can read or write your own data. Firebase complies with SOC 2, ISO 27001, and GDPR standards.</p>
+
+      <p style="font-weight:600;color:var(--primary);margin-bottom:6px;">4. Third-Party Services</p>
+      <p style="margin-bottom:16px;">We use the following third-party services: Google Firebase (auth & database), Open-Meteo (weather data — no personal data sent), IP-API (approximate region detection — anonymous), Nominatim/OpenStreetMap (reverse geocoding — anonymous).</p>
+
+      <p style="font-weight:600;color:var(--primary);margin-bottom:6px;">5. Your Rights</p>
+      <p style="margin-bottom:16px;">You may request deletion of your account and all associated data at any time by contacting us at support@smartfarm.app. We will process your request within 30 days.</p>
+
+      <p style="font-weight:600;color:var(--primary);margin-bottom:6px;">6. Contact</p>
+      <p style="margin-bottom:24px;">For any privacy concerns, email us at <span style="color:var(--primary);">support@smartfarm.app</span></p>
+    </div>
+  </div><!-- /panel-privacy -->
+
+
+  <!-- ════════════════════════════════════════
+       PANEL: TERMS OF SERVICE
+  ════════════════════════════════════════ -->
+  <div id="panel-tos" class="panel">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="closePanel('panel-tos')"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title">Terms of Service</span>
+      </div>
+    </div>
+    <div style="padding:20px;color:var(--txt);font-size:13.5px;line-height:1.8;">
+      <p style="color:var(--dim);margin-bottom:20px;">Effective: May 2026</p>
+
+      <p style="font-weight:600;color:var(--primary);margin-bottom:6px;">1. Acceptance</p>
+      <p style="margin-bottom:16px;">By using Smart Farming, you agree to these Terms of Service. If you do not agree, please do not use the app.</p>
+
+      <p style="font-weight:600;color:var(--primary);margin-bottom:6px;">2. Permitted Use</p>
+      <p style="margin-bottom:16px;">Smart Farming is intended for personal and small-farm agricultural use. You may not use the app for commercial resale, data scraping, or any unlawful purpose.</p>
+
+      <p style="font-weight:600;color:var(--primary);margin-bottom:6px;">3. AI Recommendations</p>
+      <p style="margin-bottom:16px;">AI-generated crop recommendations and disease diagnoses are advisory only. Always consult a qualified agronomist before making significant decisions about pesticide use, irrigation, or harvesting. We are not liable for crop losses resulting from following AI advice.</p>
+
+      <p style="font-weight:600;color:var(--primary);margin-bottom:6px;">4. Account Responsibility</p>
+      <p style="margin-bottom:16px;">You are responsible for maintaining the confidentiality of your account credentials. You must notify us immediately at support@smartfarm.app if you suspect unauthorised access to your account.</p>
+
+      <p style="font-weight:600;color:var(--primary);margin-bottom:6px;">5. Service Availability</p>
+      <p style="margin-bottom:16px;">We strive for 99.9% uptime but do not guarantee uninterrupted service. Maintenance windows, third-party API outages (weather, AI), or force-majeure events may cause temporary unavailability.</p>
+
+      <p style="font-weight:600;color:var(--primary);margin-bottom:6px;">6. Modifications</p>
+      <p style="margin-bottom:16px;">We reserve the right to modify these Terms at any time. Continued use of the app after changes constitutes acceptance of the updated Terms.</p>
+
+      <p style="font-weight:600;color:var(--primary);margin-bottom:6px;">7. Termination</p>
+      <p style="margin-bottom:24px;">We may suspend or terminate accounts that violate these Terms. You may delete your account at any time from the Profile settings.</p>
+    </div>
+  </div><!-- /panel-tos -->
+
+
+  <!-- ════════════════════════════════════════
+       PANEL: LICENSES
+  ════════════════════════════════════════ -->
+  <div id="panel-licenses" class="panel">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="closePanel('panel-licenses')"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title">Licenses</span>
+      </div>
+    </div>
+    <div style="padding:20px;color:var(--txt);font-size:13.5px;line-height:1.8;">
+      <p style="color:var(--dim);margin-bottom:20px;">Open-source libraries and services used in Smart Farming.</p>
+
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div style="background:var(--card);border-radius:14px;padding:16px;">
+          <div style="font-weight:600;margin-bottom:2px;">Firebase (Auth, Firestore, Storage, Hosting)</div>
+          <div style="color:var(--dim);font-size:12px;margin-bottom:6px;">Google LLC · Apache License 2.0</div>
+          <div style="color:var(--dim);font-size:12px;">Authentication, real-time database, file storage, and hosting infrastructure.</div>
+        </div>
+        <div style="background:var(--card);border-radius:14px;padding:16px;">
+          <div style="font-weight:600;margin-bottom:2px;">Open-Meteo</div>
+          <div style="color:var(--dim);font-size:12px;margin-bottom:6px;">Open-Meteo.com · CC BY 4.0</div>
+          <div style="color:var(--dim);font-size:12px;">Free, open-source weather API providing high-resolution meteorological forecasts.</div>
+        </div>
+        <div style="background:var(--card);border-radius:14px;padding:16px;">
+          <div style="font-weight:600;margin-bottom:2px;">Remix Icons</div>
+          <div style="color:var(--dim);font-size:12px;margin-bottom:6px;">Remix Design · Apache License 2.0</div>
+          <div style="color:var(--dim);font-size:12px;">Open-source icon system used throughout the app UI.</div>
+        </div>
+        <div style="background:var(--card);border-radius:14px;padding:16px;">
+          <div style="font-weight:600;margin-bottom:2px;">Outfit (Google Fonts)</div>
+          <div style="color:var(--dim);font-size:12px;margin-bottom:6px;">Google · SIL Open Font License 1.1</div>
+          <div style="color:var(--dim);font-size:12px;">Primary typeface used across all screens.</div>
+        </div>
+        <div style="background:var(--card);border-radius:14px;padding:16px;">
+          <div style="font-weight:600;margin-bottom:2px;">Nominatim / OpenStreetMap</div>
+          <div style="color:var(--dim);font-size:12px;margin-bottom:6px;">OpenStreetMap Foundation · ODbL 1.0</div>
+          <div style="color:var(--dim);font-size:12px;">Reverse geocoding to convert GPS coordinates into human-readable location names.</div>
+        </div>
+        <div style="background:var(--card);border-radius:14px;padding:16px;">
+          <div style="font-weight:600;margin-bottom:2px;">IP-API</div>
+          <div style="color:var(--dim);font-size:12px;margin-bottom:6px;">ip-api.com · Free for non-commercial use</div>
+          <div style="color:var(--dim);font-size:12px;">Approximate region detection via IP address for instant weather pre-loading.</div>
+        </div>
+        <div style="background:var(--card);border-radius:14px;padding:16px;">
+          <div style="font-weight:600;margin-bottom:2px;">SweetAlert2</div>
+          <div style="color:var(--dim);font-size:12px;margin-bottom:6px;">Limon Monte · MIT License</div>
+          <div style="color:var(--dim);font-size:12px;">Beautiful, accessible dialog boxes used in select interactions.</div>
+        </div>
+      </div>
+      <div style="height:24px;"></div>
+    </div>
+  </div><!-- /panel-licenses -->
+
+
+  <!-- ════════════════════════════════════════
+       LOGOUT CONFIRM SHEET
+  ════════════════════════════════════════ -->
+  <div id="logout-sheet-backdrop" style="
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);
+    backdrop-filter:blur(4px);z-index:1050;align-items:flex-end;justify-content:center;">
+    <div id="logout-sheet" style="
+      background:#0E1822;border:1px solid rgba(255,255,255,.08);
+      border-radius:24px 24px 0 0;padding:24px 20px 36px;
+      width:100%;max-width:var(--layout-max-width);
+      transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);">
+      <div style="width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.15);margin:0 auto 20px;"></div>
+      <div style="text-align:center;margin-bottom:20px;">
+        <div style="width:56px;height:56px;border-radius:50%;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);
+          display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+          <i class="ri-logout-box-r-line" style="font-size:24px;color:#EF4444;"></i>
+        </div>
+        <div style="font-size:17px;font-weight:600;margin-bottom:6px;">Log out?</div>
+        <div style="font-size:13px;color:#94A3B8;">You'll need to sign in again to access your farm data.</div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button id="logout-sheet-cancel" style="
+          flex:1;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,.1);
+          background:rgba(255,255,255,.05);color:#F8FAFC;font-size:15px;cursor:pointer;">
+          Cancel
+        </button>
+        <button id="logout-sheet-confirm" style="
+          flex:1;padding:14px;border-radius:12px;border:none;
+          background:#EF4444;color:#fff;font-size:15px;font-weight:600;cursor:pointer;">
+          Yes, Log out
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       BOTTOM NAV
+  ════════════════════════════════════════ -->
+  <nav class="bottom-nav">
+    <a href="index.html" class="b-nav-item"><i class="ri-home-5-line"></i><span data-i18n="navHome">Home</span></a>
+    <a href="fields.html" class="b-nav-item"><i class="ri-leaf-line"></i><span data-i18n="navFields">Fields</span></a>
+    <a href="scanner.html" class="b-nav-scan"><i class="ri-leaf-fill"></i></a>
+    <a href="assistant.html" class="b-nav-item"><i class="ri-sparkling-line"></i><span data-i18n="navAi">AI</span></a>
+    <a href="profile.html" class="b-nav-item active"><i class="ri-user-smile-fill"></i><span data-i18n="navProfile">Profile</span></a>
+  </nav>
+
+</div><!-- /shell -->
+
+<!-- Language picker: fixed overlay (does not participate in .panel stack) -->
+<div id="lang-picker-overlay" class="lang-picker-overlay" aria-hidden="true">
+  <div class="lang-picker-backdrop" onclick="cancelLangPicker()" aria-hidden="true"></div>
+  <div class="lang-picker-sheet" role="dialog" aria-modal="true" aria-labelledby="lang-picker-title" onclick="event.stopPropagation()">
+    <div class="lang-picker-head">
+      <div class="lang-picker-title-wrap">
+        <div class="lang-picker-title" id="lang-picker-title">Display language</div>
+        <p class="lang-picker-sub">Select a language below, then tap <strong>Save</strong> to use it across the app.</p>
+      </div>
+      <button type="button" class="lang-picker-close" onclick="cancelLangPicker()" aria-label="Close"><i class="ri-close-line"></i></button>
+    </div>
+    <div class="lang-picker-body">
+      <div class="lang-search-shell">
+        <i class="ri-search-line"></i>
+        <input type="search" id="as-lang-search" placeholder="Search languages…" autocomplete="off" enterkeyhint="search" aria-label="Search languages" spellcheck="false">
+      </div>
+      <div class="lang-picker-list lang-list" id="as-lang-list" role="listbox" aria-labelledby="lang-picker-title"></div>
+    </div>
+    <div class="lang-picker-actions">
+      <button type="button" class="btn-secondary" id="lang-picker-cancel" onclick="cancelLangPicker()">Cancel</button>
+      <button type="button" class="btn-lang-save" id="lang-picker-save" disabled>Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="snackbar" style="
+  position:fixed;bottom:96px;left:50%;transform:translateX(-50%) translateY(24px);
+  background:#1A2E3A;border:1px solid rgba(16,185,129,.35);border-radius:14px;
+  padding:13px 22px;font-size:13px;color:#F8FAFC;font-family:'Outfit',sans-serif;
+  display:flex;align-items:center;gap:9px;
+  box-shadow:0 10px 36px rgba(0,0,0,.6);
+  z-index:2000;opacity:0;transition:opacity .28s,transform .28s;
+  pointer-events:none;max-width:340px;white-space:nowrap;">
+  <i id="snackbar-icon" class="ri-checkbox-circle-fill" style="color:#10B981;font-size:17px;flex-shrink:0;"></i>
+  <span id="snackbar-msg">Saved</span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+  /* panel router — inline so onclick attrs always find these */
+  function openPanel(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.add('active');
+  }
+  function closePanel(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  }
+  /* ── snackbar ── */
+  var _snackTimer;
+  function showSnack(msg, isError) {
+    var sb  = document.getElementById('snackbar');
+    var ico = document.getElementById('snackbar-icon');
+    var txt = document.getElementById('snackbar-msg');
+    txt.textContent = msg;
+    ico.className   = isError ? 'ri-error-warning-fill' : 'ri-checkbox-circle-fill';
+    ico.style.color = isError ? '#EF4444' : '#10B981';
+    sb.style.transform = 'translateX(-50%) translateY(0)';
+    sb.style.opacity   = '1';
+    clearTimeout(_snackTimer);
+    _snackTimer = setTimeout(function(){
+      sb.style.opacity   = '0';
+      sb.style.transform = 'translateX(-50%) translateY(20px)';
+    }, 2800);
+  }
+  window.showSnack = showSnack;
+
+  /* ── Language modal (Account Settings) ── */
+  function openLangPicker() {
+    var o = document.getElementById('lang-picker-overlay');
+    if (!o) return;
+    o.classList.add('active');
+    o.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    if (typeof window.__langPickerOnOpen === 'function') window.__langPickerOnOpen();
+    requestAnimationFrame(function () {
+      var inp = document.getElementById('as-lang-search');
+      if (inp) { inp.focus(); try { inp.select(); } catch (e) {} }
+    });
+  }
+  function closeLangPicker() {
+    var o = document.getElementById('lang-picker-overlay');
+    if (o) {
+      o.classList.remove('active');
+      o.setAttribute('aria-hidden', 'true');
+    }
+    document.body.style.overflow = '';
+  }
+  function cancelLangPicker() {
+    if (typeof window.__langPickerCancel === 'function') window.__langPickerCancel();
+    closeLangPicker();
+  }
+  window.openLangPicker = openLangPicker;
+  window.closeLangPicker = closeLangPicker;
+  window.cancelLangPicker = cancelLangPicker;
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    var o = document.getElementById('lang-picker-overlay');
+    if (o && o.classList.contains('active')) {
+      e.preventDefault();
+      cancelLangPicker();
+    }
+  });
+
+  document.addEventListener('pointerdown', function (e) {
+    var el = e.target && e.target.closest && e.target.closest('.rw');
+    if (!el) return;
+    var r = document.createElement('span');
+    r.className = 'ripple-el';
+    var d = Math.max(el.offsetWidth, el.offsetHeight) * 2;
+    var rect = el.getBoundingClientRect();
+    r.style.cssText = 'width:' + d + 'px;height:' + d + 'px;left:' + (e.clientX - rect.left - d / 2) + 'px;top:' + (e.clientY - rect.top - d / 2) + 'px';
+    el.appendChild(r);
+    r.addEventListener('animationend', function () { r.remove(); });
+  });
+
+  /* ── logout sheet ── */
+  function showLogoutSheet() {
+    var bd = document.getElementById('logout-sheet-backdrop');
+    var sh = document.getElementById('logout-sheet');
+    bd.style.display = 'flex';
+    requestAnimationFrame(function(){ sh.style.transform = 'translateY(0)'; });
+  }
+  function hideLogoutSheet() {
+    var sh = document.getElementById('logout-sheet');
+    sh.style.transform = 'translateY(100%)';
+    setTimeout(function(){ document.getElementById('logout-sheet-backdrop').style.display='none'; }, 300);
+  }
+  /* DOM is already parsed here (script is at bottom of body) — attach directly */
+  ['logout-btn','as-logout-btn'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('click', showLogoutSheet);
+  });
+  document.getElementById('logout-sheet-cancel').addEventListener('click', hideLogoutSheet);
+  document.getElementById('logout-sheet-backdrop').addEventListener('click', function(e){
+    if (e.target === this) hideLogoutSheet();
+  });
+  document.getElementById('logout-sheet-confirm').addEventListener('click', function() {
+    var btn = this;
+    btn.textContent = 'Logging out…';
+    btn.disabled = true;
+    hideLogoutSheet();
+    setTimeout(function() {
+      if (typeof window._profileLogout === 'function') {
+        window._profileLogout();
+      } else {
+        localStorage.removeItem('agri_user');
+        window.location.href = 'login.html';
+      }
+    }, 320);
+  });
+
+  /* swipe-back: drag right to close topmost active panel */
+  (function(){
+    var startX, panel;
+    document.addEventListener('touchstart', function(e){
+      startX = e.touches[0].clientX;
+      var nodes = document.querySelectorAll('.panel.active');
+      panel = nodes.length ? nodes[nodes.length - 1] : null;
+    }, {passive:true});
+    document.addEventListener('touchend', function(e){
+      if (!panel) return;
+      var dx = e.changedTouches[0].clientX - startX;
+      if (dx > 80 && startX < 60) panel.classList.remove('active');
+    }, {passive:true});
+  })();
+</script>
+<script>window.refreshAiDiag = function () {};</script>
+<script type="module" src="js/profile.js?v=41"></script>
+</body>
+</html>

@@ -1,0 +1,355 @@
+import { getAiConfig } from "./config.js?v=71";
+import { detectIntents } from "./detect-intents.js";
+import { buildFarmerContext, tsToMs } from "./farmer-context.js";
+import { runWeatherIntelligence } from "./engines/weather-intelligence.js";
+import { runPestPrediction } from "./engines/pest-prediction.js";
+import { runRecommendationEngine } from "./engines/recommendation-engine.js";
+import { runYieldOutlook } from "./engines/yield-outlook.js";
+import { runEnvironmentalIntelligence } from "./engines/environmental-intelligence.js";
+import {
+    resolveWeatherLocation,
+    FALLBACK_LOC,
+    extractNamedPlaceHint,
+    geocodePlaceName,
+} from "../weather-location.js?v=61";
+import { peekActiveWeatherLocation } from "../geo/active-location.js?v=1";
+import { buildRichVisionContextBundle } from "./vision-context.js?v=34";
+import { buildVisionReliability } from "./reliability/core.js";
+import { getDegradedState } from "./system-health.js";
+import { shallowTwinForBundle } from "../twin/assistant-twin-brief.js";
+import { buildCognitivePlan, planForWeatherQuick, summarizeCognitivePlan } from "./cognitive-plan.js?v=48";
+import { buildReflectiveVerification } from "./cognitive-verify.js?v=48";
+
+async function resolveGeoForAI(ctx, question = "") {
+    const q = String(question || "");
+    const place = extractNamedPlaceHint(q);
+    const intents = detectIntents(q);
+    const wantsNamedGeo =
+        place &&
+        (intents.weather ||
+            intents.disease ||
+            intents.pest ||
+            /\bweather\b/i.test(q) ||
+            /\b(briefing|forecast|regional)\b/i.test(q));
+
+    let geocodeMiss = false;
+    let namedQuery = null;
+
+    if (wantsNamedGeo) {
+        namedQuery = place;
+        try {
+            const g = await geocodePlaceName(place);
+            if (g && typeof g.lat === "number" && typeof g.lon === "number") {
+                return {
+                    lat: g.lat,
+                    lon: g.lon,
+                    city: g.city || "",
+                    source: "geocode",
+                    namedQuery: place,
+                    geocodeMiss: false,
+                };
+            }
+        } catch {
+            /* fall through */
+        }
+        geocodeMiss = true;
+    }
+
+    const pinned = peekActiveWeatherLocation();
+    if (pinned && typeof pinned.lat === "number" && typeof pinned.lon === "number") {
+        return {
+            lat: pinned.lat,
+            lon: pinned.lon,
+            city: pinned.city || "",
+            source: "pinned",
+            namedQuery: geocodeMiss ? namedQuery : undefined,
+            geocodeMiss,
+        };
+    }
+    const w = ctx.latestWeatherLog;
+    const wLat = typeof w?.geo?.lat === "number" ? w.geo.lat : w?.lat;
+    const wLon = typeof w?.geo?.lon === "number" ? w.geo.lon : w?.lon;
+    if (w && typeof wLat === "number" && typeof wLon === "number") {
+        return {
+            lat: wLat,
+            lon: wLon,
+            city: w.city || "",
+            source: "weather_log",
+            namedQuery: geocodeMiss ? namedQuery : undefined,
+            geocodeMiss,
+        };
+    }
+    try {
+        const loc = await resolveWeatherLocation();
+        return {
+            lat: loc.lat,
+            lon: loc.lon,
+            city: loc.city || "",
+            source: "device_gps",
+            namedQuery: geocodeMiss ? namedQuery : undefined,
+            geocodeMiss,
+        };
+    } catch {
+        return {
+            lat: FALLBACK_LOC.lat,
+            lon: FALLBACK_LOC.lon,
+            city: FALLBACK_LOC.city,
+            source: "default_fallback",
+            namedQuery: geocodeMiss ? namedQuery : undefined,
+            geocodeMiss,
+        };
+    }
+}
+
+export { detectIntents } from "./detect-intents.js";
+
+function shallowForFirestore(obj, maxDepth, d = 0) {
+    if (d > maxDepth) return "[truncated]";
+    if (obj == null) return obj;
+    if (typeof obj !== "object") return obj;
+    if (Array.isArray(obj)) return obj.slice(0, 12).map((x) => shallowForFirestore(x, maxDepth, d + 1));
+    const o = {};
+    for (const k of Object.keys(obj).slice(0, 40)) {
+        o[k] = shallowForFirestore(obj[k], maxDepth, d + 1);
+    }
+    return o;
+}
+
+/**
+ * @param {string} question
+ * @param {{ userId: string, fields: any[], scans: any[], recs: any[], weatherLogs: any[], environmental?: any[] }} snapshot
+ * @param {{ imageBlob?: Blob|null }} media
+ * @param {{
+ *   routingMode?: "full" | "weather_quick",
+ *   lightweight?: boolean,
+ *   flowSnapshot?: import("./conversation-flow.js").FlowSnapshot | null,
+ *   cognitivePlan?: import("./cognitive-plan.js").CognitivePlan,
+ * }} [opts]
+ */
+export async function runAgriOrchestrator(question, snapshot, media = {}, opts = {}) {
+    /** `lightweight` uses the same stage skips as `weather_quick` (effective path is reflected in returned `routingMode`). */
+    const routingMode =
+        opts.routingMode === "weather_quick" || opts.lightweight === true ? "weather_quick" : "full";
+    const cfg = getAiConfig();
+    const ctx = buildFarmerContext(snapshot);
+    const intents = detectIntents(question);
+    const degraded = getDegradedState();
+
+    const cognitivePlan =
+        opts.cognitivePlan ||
+        (routingMode === "weather_quick"
+            ? planForWeatherQuick()
+            : buildCognitivePlan({
+                  question,
+                  routingMode: "full",
+                  intents,
+                  hasImage: !!media.imageBlob,
+                  flowSnapshot: opts.flowSnapshot || null,
+              }));
+
+    const stages = cognitivePlan.stages;
+
+    const twinBrief =
+        routingMode === "weather_quick" || !stages.twinBrief ? null : shallowTwinForBundle(snapshot);
+
+    const geo = await resolveGeoForAI(ctx, question);
+
+    let weatherIntel = null;
+    let visionIntel = null;
+
+    try {
+        weatherIntel = await runWeatherIntelligence(ctx, geo);
+    } catch (e) {
+        weatherIntel = {
+            engine: "weather_intelligence",
+            error: true,
+            message: `Weather intelligence unavailable: ${e.message}`,
+        };
+    }
+
+    const wxReadings =
+        weatherIntel && !weatherIntel.error && weatherIntel.readings
+            ? weatherIntel.readings
+            : {
+                  temperatureC: ctx.latestWeatherLog?.current?.temperature_2m ?? null,
+                  humidityPct: ctx.latestWeatherLog?.current?.relative_humidity_2m ?? null,
+                  rainTodayMm: null,
+                  rainTomorrowMm: null,
+              };
+
+    const pestIntel = runPestPrediction(ctx, {
+        temperatureC: wxReadings.temperatureC,
+        humidityPct: wxReadings.humidityPct,
+        rainTodayMm: wxReadings.rainTodayMm,
+        rainTomorrowMm: wxReadings.rainTomorrowMm,
+    });
+
+    const envIntel =
+        routingMode === "weather_quick" || !stages.environmental
+            ? {
+                  engine: "environmental",
+                  version: 1,
+                  summary: "",
+                  sensorDocCount: 0,
+                  _skippedForCognitiveStage: true,
+              }
+            : runEnvironmentalIntelligence(ctx, wxReadings);
+
+    const lp = snapshot.learningProfile || null;
+    const reflectionLines =
+        routingMode === "weather_quick" || !stages.learningDigest
+            ? []
+            : (() => {
+                  const r = lp?.reflections;
+                  if (!Array.isArray(r)) return [];
+                  return r
+                      .map((x) => (typeof x === "string" ? x : x && typeof x.text === "string" ? x.text : ""))
+                      .map((s) => String(s).trim())
+                      .filter(Boolean)
+                      .slice(0, 3);
+              })();
+    const learningNarrative = reflectionLines.join("\n").trim();
+    const knowledgeLearning =
+        routingMode === "weather_quick" || !stages.learningDigest
+            ? null
+            : (() => {
+                  if (!lp || typeof lp !== "object") return null;
+                  const g = lp.global || {};
+                  const keys = [];
+                  for (const k of [
+                      "recommendationComfortScale",
+                      "fungalTriggerLearned",
+                      "pestTriggerLearned",
+                      "simErrorEma",
+                      "regionalStressLearnedMul",
+                  ]) {
+                      if (typeof g[k] === "number") keys.push(k);
+                  }
+                  const edges = lp.knowledgeEdges;
+                  const edgeCount = Array.isArray(edges) ? edges.length : 0;
+                  return {
+                      globalCalKeys: keys,
+                      edgeCount,
+                      lastAggregatedAtMs: lp.lastAggregatedAt ? tsToMs(lp.lastAggregatedAt) : null,
+                      lastReason: typeof lp.lastReason === "string" ? lp.lastReason : null,
+                  };
+              })();
+
+    let recIntel =
+        routingMode === "weather_quick" || stages.recommendations === "none"
+            ? { actions: [], quickWeatherMode: true, cognitiveSkipped: true, engine: "recommendation_merge", version: 2 }
+            : runRecommendationEngine(
+                  ctx,
+                  { weatherIntel, pestIntel, degraded },
+                  lp,
+                  { cognitiveMode: stages.recommendations === "threats_only" ? "threats_only" : "full" },
+              );
+
+    const yieldIntel =
+        routingMode === "weather_quick" || !stages.yieldOutlook
+            ? { status: "skipped", message: null, outlook: null, _skippedForCognitiveStage: true }
+            : runYieldOutlook(ctx);
+
+    if (media.imageBlob && cfg.inferenceBaseUrl) {
+        try {
+            const { analyzeCropImage } = await import("./vision-client.js?v=34");
+            const ctxBundle = await buildRichVisionContextBundle({
+                fieldContextStates: snapshot.fieldContextStates || [],
+                scans: snapshot.scans || [],
+                fields: snapshot.fields || [],
+                climateProfile: snapshot.climateProfile || null,
+            });
+            const vi = await analyzeCropImage(media.imageBlob, {
+                baseUrl: cfg.inferenceBaseUrl,
+                contextOverride: ctxBundle,
+            });
+            visionIntel = {
+                ...vi,
+                reliability: buildVisionReliability(vi),
+            };
+        } catch (e) {
+            visionIntel = {
+                engine: "disease_vision",
+                error: true,
+                message: e.message,
+                reliability: buildVisionReliability({ status: "error", message: e.message }),
+            };
+        }
+    } else if (media.imageBlob) {
+        visionIntel = {
+            engine: "disease_vision",
+            status: "unconfigured",
+            message:
+                "Image attached, but no inference server URL is configured (set <meta name=\"agri-inference-url\" content=\"https://your-api\"> or window.__AGRI_INFERENCE_URL__).",
+            reliability: buildVisionReliability({
+                status: "unconfigured",
+                message: "Inference URL not configured.",
+            }),
+        };
+    }
+
+    const results = {
+        weatherIntelligence: weatherIntel,
+        pestPrediction: pestIntel,
+        environmental: envIntel,
+        recommendations: recIntel,
+        yieldOutlook: yieldIntel,
+        diseaseVision: visionIntel,
+        llm: null,
+    };
+
+    const cognitiveVerification = buildReflectiveVerification({
+        cognitivePlan,
+        results,
+        snapshot,
+        degraded,
+    });
+
+    if (cognitiveVerification.softenStrongClaims && results.recommendations?.actions?.length) {
+        results.recommendations = {
+            ...results.recommendations,
+            actions: results.recommendations.actions.map((a) =>
+                typeof a.calibratedConfidence === "number"
+                    ? { ...a, calibratedConfidence: Math.max(0.12, a.calibratedConfidence * 0.94) }
+                    : a,
+            ),
+        };
+        recIntel = results.recommendations;
+    }
+
+    const mergedHints = [...(degraded.hints || [])];
+    for (const n of cognitiveVerification.notes || []) {
+        if (n) mergedHints.push(n);
+    }
+
+    return {
+        enginePackVersion: cfg.enginePackVersion,
+        intents,
+        geo,
+        cognitivePlan,
+        cognitiveVerification,
+        degradedHints: mergedHints,
+        degradedReasons: degraded.reasons,
+        weatherFresh01: degraded.weatherFresh01,
+        results,
+        twinBrief,
+        learningNarrative,
+        knowledgeLearning,
+        routingMode,
+        persistedPreview: shallowForFirestore(
+            {
+                intents,
+                weatherSummary: weatherIntel?.readings || null,
+                pest: { index: pestIntel.pestPressureIndex, label: pestIntel.riskLabel },
+                yieldStatus: yieldIntel.status,
+                reliability: visionIntel?.reliability || null,
+                degraded: degraded.degraded,
+                cognitive: summarizeCognitivePlan(cognitivePlan),
+                verificationChecks: cognitiveVerification.checks,
+            },
+            3
+        ),
+    };
+}
+
+export { shallowForFirestore };

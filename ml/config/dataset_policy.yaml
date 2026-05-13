@@ -1,0 +1,36 @@
+# Quality gates and augmentation bounds for agricultural field imagery.
+schema_version: 1
+
+quality:
+  min_edge_px: 320
+  max_edge_px: 4096
+  min_blur_variance: 45.0
+  max_mean_luma_underexposed: 38
+  min_mean_luma_overexposed: 230
+  reject_if_no_label: true
+
+duplicates:
+  phash_hamming_max: 6
+
+splits:
+  train_ratio: 0.78
+  val_ratio: 0.12
+  test_ratio: 0.10
+  stratify_key: dominant_class
+  seed: 42
+
+augmentation:
+  # Safe defaults — avoid extreme geometry that breaks lesion cues
+  horizontal_flip_p: 0.5
+  rotate_limit_deg: 12
+  brightness_limit: 0.18
+  contrast_limit: 0.18
+  hue_shift_limit: 6
+  sat_shift_limit: 18
+  val_shift_limit: 18
+  gauss_noise_var_limit: 8.0
+  max_augmented_copies_per_image: 2
+
+balancing:
+  report_rare_threshold: 0.03
+  suggest_class_weights: true

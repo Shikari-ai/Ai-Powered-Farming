@@ -1,0 +1,13 @@
+{
+  "name": "agritech-functions",
+  "description": "Optional Firebase HTTPS hooks for AgriTech (assistant is client-orchestrated)",
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "private": true,
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^5.1.1"
+  }
+}

@@ -1,0 +1,26 @@
+node_modules/
+
+.DS_Store
+Thumbs.db
+.env
+.env.*
+!.env.example
+*.local
+.firebase/
+firebase-ci-sa.json
+gha-creds-*.json
+firebase-debug.log
+# Never commit Firebase SA keys (Console downloads look like *-firebase-adminsdk-*.json)
+*firebase-adminsdk*.json
+# Local Playwright install for smoke tests (npm install --prefix .claude/smoke-deps)
+.claude/smoke-deps/
+.claude/worktrees/
+# Playwright audit artifacts (contains test creds + screenshots)
+.claude/audit-results/
+# JS dependencies (optional local tools)
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
