@@ -1702,7 +1702,14 @@
       myTickets = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       updateNotifDot();
       renderMyTickets();
-    }, err => console.warn("[profile] my-tickets:", err?.message || err));
+    }, err => {
+      console.warn("[profile] my-tickets:", err?.message || err);
+      const listEl = document.getElementById("my-tickets-list");
+      if (listEl) listEl.innerHTML = `<div style="text-align:center;padding:40px 16px;color:var(--dim);">
+        <i class="ri-wifi-off-line" style="font-size:32px;display:block;margin-bottom:10px;opacity:.4;"></i>
+        <span style="font-size:13px;">Couldn't load tickets.<br>Check your connection and reopen this panel.</span>
+      </div>`;
+    });
   });
 
   /* ── submit ticket ── */
