@@ -544,9 +544,15 @@
         <div class="mi-body"><h4>Notifications</h4><p>Manage alerts and updates</p></div>
         <span class="mi-arr"></span>
       </div>
-      <div class="menu-item" onclick="openPanel('panel-help')">
+      <div class="menu-item" onclick="openPanel('panel-help')" id="help-menu-item">
         <div class="mi-ic" style="color:var(--dim);"><i class="ri-question-line"></i></div>
-        <div class="mi-body"><h4>Help &amp; Support</h4><p>Get help and contact support</p></div>
+        <div class="mi-body">
+          <h4 style="display:flex;align-items:center;gap:7px;">
+            Help &amp; Support
+            <span id="help-notif-dot" class="hidden" style="width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0;box-shadow:0 0 6px rgba(239,68,68,.7);"></span>
+          </h4>
+          <p id="help-notif-sub">Get help and contact support</p>
+        </div>
         <span class="mi-arr"></span>
       </div>
       <div class="menu-item" onclick="openPanel('panel-about')">
@@ -1059,6 +1065,19 @@
       <i class="ri-arrow-right-s-line" style="color:var(--dim);"></i>
     </div>
 
+    <div class="sec-h" style="margin-top:4px;">Your Submissions</div>
+    <div class="help-card" onclick="openPanel('panel-my-tickets'); window.__markTicketsRead && window.__markTicketsRead();">
+      <div class="hc-ic" style="position:relative;">
+        <i class="ri-inbox-line"></i>
+        <span id="ticket-unread-badge" class="hidden" style="position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:99px;background:#ef4444;color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;"></span>
+      </div>
+      <div class="hc-body">
+        <div class="hc-title">My Tickets</div>
+        <div class="hc-sub" id="my-tickets-sub">See your submitted requests &amp; replies</div>
+      </div>
+      <i class="ri-arrow-right-s-line" style="color:var(--dim);"></i>
+    </div>
+
     <div class="sec-h">Quick Tips</div>
     <div class="info-card">
       <div class="info-row" style="align-items:flex-start;gap:10px;">
@@ -1124,6 +1143,29 @@
 
     <div style="height:32px;"></div>
   </div><!-- /panel-submit-ticket -->
+
+
+  <!-- ════════════════════════════════════════
+       PANEL: MY TICKETS
+  ════════════════════════════════════════ -->
+  <div id="panel-my-tickets" class="panel">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="hdr-back" onclick="closePanel('panel-my-tickets')"><i class="ri-arrow-left-line"></i></div>
+        <span class="hdr-title">My Tickets</span>
+      </div>
+      <div style="width:38px;"></div>
+    </div>
+
+    <div id="my-tickets-list" style="padding:12px 16px 0;display:flex;flex-direction:column;gap:12px;">
+      <!-- filled by JS -->
+      <div style="text-align:center;padding:40px 0;color:var(--dim);font-size:13px;">
+        <i class="ri-loader-4-line" style="font-size:28px;display:block;margin-bottom:10px;opacity:.4;"></i>
+        Loading…
+      </div>
+    </div>
+    <div style="height:32px;"></div>
+  </div><!-- /panel-my-tickets -->
 
 
   <!-- ════════════════════════════════════════
@@ -1506,39 +1548,164 @@
 <script>window.refreshAiDiag = function () {};</script>
 <script type="module" src="js/profile.js?v=41"></script>
 
-<!-- ── Support ticket submission ── -->
+<!-- ── Support tickets: submit + my-tickets inbox ── -->
 <script type="module">
   import { auth, db } from "./js/auth.js?v=32";
   import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-  import { addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import {
+    addDoc, collection, serverTimestamp,
+    query, where, orderBy, limit, onSnapshot,
+    doc, updateDoc,
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
   let currentUser = null;
-  onAuthStateChanged(auth, u => { currentUser = u; });
+
+  /* ── helpers ── */
+  function esc(s) {
+    return String(s || "").replace(/[&<>"']/g, c =>
+      ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":`&#39;` }[c])
+    );
+  }
+  function relTime(ms) {
+    if (!ms) return "";
+    const d = Date.now() - ms;
+    if (d < 60000)      return "Just now";
+    if (d < 3600000)    return `${Math.floor(d/60000)}m ago`;
+    if (d < 86400000)   return `${Math.floor(d/3600000)}h ago`;
+    if (d < 7*86400000) return `${Math.floor(d/86400000)}d ago`;
+    return new Date(ms).toLocaleDateString([],{month:"short",day:"numeric"});
+  }
 
   const TYPE_CFG = {
     chat_support: {
-      title:    "Chat with Support",
-      label:    "Chat with Support",
-      sub:      "Describe your problem and we'll get back to you.",
-      icon:     "ri-customer-service-2-line",
-      iconBg:   "rgba(16,185,129,.10)", iconBorder:"rgba(16,185,129,.20)", iconColor:"var(--primary)",
+      title:"Chat with Support", label:"Chat with Support",
+      sub:"Describe your problem and we'll get back to you.",
+      icon:"ri-customer-service-2-line",
+      iconBg:"rgba(16,185,129,.10)", iconBorder:"rgba(16,185,129,.20)", iconColor:"var(--primary)",
+      chipBg:"rgba(16,185,129,.12)", chipColor:"#10b981",
     },
     issue: {
-      title:    "Report an Issue",
-      label:    "Report an Issue",
-      sub:      "Tell us exactly what went wrong and we'll fix it.",
-      icon:     "ri-bug-line",
-      iconBg:   "rgba(239,68,68,.08)", iconBorder:"rgba(239,68,68,.20)", iconColor:"var(--red)",
+      title:"Report an Issue", label:"Report an Issue",
+      sub:"Tell us exactly what went wrong and we'll fix it.",
+      icon:"ri-bug-line",
+      iconBg:"rgba(239,68,68,.08)", iconBorder:"rgba(239,68,68,.20)", iconColor:"var(--red)",
+      chipBg:"rgba(239,68,68,.10)", chipColor:"#ef4444",
     },
     feedback: {
-      title:    "Leave Feedback",
-      label:    "Share Feedback",
-      sub:      "Tell us what you love or what could be better.",
-      icon:     "ri-star-smile-line",
-      iconBg:   "rgba(139,92,246,.10)", iconBorder:"rgba(139,92,246,.20)", iconColor:"var(--purple)",
+      title:"Leave Feedback", label:"Share Feedback",
+      sub:"Tell us what you love or what could be better.",
+      icon:"ri-star-smile-line",
+      iconBg:"rgba(139,92,246,.10)", iconBorder:"rgba(139,92,246,.20)", iconColor:"var(--purple)",
+      chipBg:"rgba(139,92,246,.10)", chipColor:"#8b5cf6",
     },
   };
 
+  /* ── notification dot + my-tickets list ── */
+  let myTickets = [];
+
+  function updateNotifDot() {
+    const unread = myTickets.filter(t => t.devReply && !t.userReadAt);
+    const dot   = document.getElementById("help-notif-dot");
+    const badge = document.getElementById("ticket-unread-badge");
+    const sub   = document.getElementById("help-notif-sub");
+    const mySub = document.getElementById("my-tickets-sub");
+
+    const count = unread.length;
+    if (dot)   dot.classList.toggle("hidden", count === 0);
+    if (badge) { badge.classList.toggle("hidden", count === 0); badge.textContent = count > 0 ? count : ""; }
+    if (sub && count > 0)   sub.textContent = `${count} new repl${count === 1 ? "y" : "ies"} waiting!`;
+    if (sub && count === 0) sub.textContent = "Get help and contact support";
+    if (mySub && count > 0) mySub.textContent = `${count} unread repl${count === 1 ? "y" : "ies"}`;
+    if (mySub && count === 0) mySub.textContent = "See your submitted requests & replies";
+  }
+
+  function renderMyTickets() {
+    const listEl = document.getElementById("my-tickets-list");
+    if (!listEl) return;
+    if (!myTickets.length) {
+      listEl.innerHTML = `<div style="text-align:center;padding:48px 0;color:var(--dim);">
+        <i class="ri-inbox-2-line" style="font-size:36px;display:block;margin-bottom:12px;opacity:.35;"></i>
+        <span style="font-size:13px;">No tickets yet.<br>Use Help &amp; Support to send one.</span>
+      </div>`;
+      return;
+    }
+    listEl.innerHTML = myTickets.map(t => {
+      const cfg = TYPE_CFG[t.type] || TYPE_CFG.chat_support;
+      const ms  = t.createdAt?.toMillis?.() ?? 0;
+      const isReplied  = t.status === "replied";
+      const isResolved = t.status === "resolved";
+      const isUnread   = isReplied && !t.userReadAt;
+
+      /* status pill */
+      let statusPill = "";
+      if (isResolved) {
+        statusPill = `<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:2px 8px;border-radius:99px;background:rgba(16,185,129,.10);border:1px solid rgba(16,185,129,.20);color:#10b981;">Resolved</span>`;
+      } else if (isReplied) {
+        statusPill = `<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:2px 8px;border-radius:99px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.22);color:#93c5fd;">Replied</span>`;
+      } else {
+        statusPill = `<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);color:var(--dim);">Open</span>`;
+      }
+
+      /* unread pill */
+      const unreadPill = isUnread
+        ? `<span style="font-size:9px;font-weight:700;letter-spacing:.5px;padding:2px 8px;border-radius:99px;background:#ef4444;color:#fff;">New Reply</span>`
+        : "";
+
+      /* dev reply block */
+      const replyBlock = t.devReply
+        ? `<div style="margin-top:10px;padding:11px 13px;border-radius:12px;background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.18);">
+            <div style="font-size:10px;font-weight:600;color:var(--primary);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;display:flex;align-items:center;gap:5px;">
+              <i class="ri-reply-line"></i> Developer Reply
+            </div>
+            <div style="font-size:13px;color:rgba(236,253,245,.92);line-height:1.55;">${esc(t.devReply)}</div>
+          </div>`
+        : "";
+
+      return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:18px;padding:14px 14px 14px;${isUnread ? "border-color:rgba(59,130,246,.28);" : ""}">
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:8px;">
+          <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;background:${cfg.chipBg};color:${cfg.chipColor};display:inline-flex;align-items:center;gap:4px;">
+            <i class="${cfg.icon}"></i>${cfg.label}
+          </span>
+          ${statusPill}
+          ${unreadPill}
+          <span style="margin-left:auto;font-size:10px;color:var(--dim);">${relTime(ms)}</span>
+        </div>
+        <div style="font-size:13px;color:rgba(236,253,245,.78);line-height:1.5;">${esc(t.message)}</div>
+        ${replyBlock}
+      </div>`;
+    }).join("");
+  }
+
+  /* mark all replied tickets as read */
+  window.__markTicketsRead = async function() {
+    if (!currentUser) return;
+    const unread = myTickets.filter(t => t.devReply && !t.userReadAt);
+    for (const t of unread) {
+      try {
+        await updateDoc(doc(db, "support_tickets", t.id), { userReadAt: serverTimestamp() });
+      } catch (e) { /* silent */ }
+    }
+  };
+
+  onAuthStateChanged(auth, u => {
+    currentUser = u;
+    if (!u) return;
+
+    /* real-time listener for this user's own tickets */
+    const q = query(
+      collection(db, "support_tickets"),
+      where("userId", "==", u.uid),
+      orderBy("createdAt", "desc"),
+      limit(50),
+    );
+    onSnapshot(q, snap => {
+      myTickets = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      updateNotifDot();
+      renderMyTickets();
+    }, err => console.warn("[profile] my-tickets:", err?.message || err));
+  });
+
+  /* ── submit ticket ── */
   let activeType = "chat_support";
 
   window.openSubmitTicket = function(type) {
@@ -1557,15 +1724,15 @@
 
     if (titleEl) titleEl.textContent = cfg.title;
     if (iconEl) {
-      iconEl.style.background   = cfg.iconBg;
-      iconEl.style.borderColor  = cfg.iconBorder;
-      iconEl.style.color        = cfg.iconColor;
+      iconEl.style.background  = cfg.iconBg;
+      iconEl.style.borderColor = cfg.iconBorder;
+      iconEl.style.color       = cfg.iconColor;
       iconEl.innerHTML = `<i class="${cfg.icon}"></i>`;
     }
-    if (labelEl) labelEl.textContent  = cfg.label;
-    if (subEl)   subEl.textContent    = cfg.sub;
-    if (msgEl)   { msgEl.value = ""; }
-    if (countEl) countEl.textContent  = "0 / 1000";
+    if (labelEl) labelEl.textContent = cfg.label;
+    if (subEl)   subEl.textContent   = cfg.sub;
+    if (msgEl)   msgEl.value = "";
+    if (countEl) countEl.textContent = "0 / 1000";
     if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = `<i class="ri-send-plane-fill"></i> Send Message`; }
     if (formEl)    formEl.classList.remove("hidden");
     if (successEl) successEl.classList.add("hidden");
@@ -1573,7 +1740,7 @@
     openPanel("panel-submit-ticket");
   };
 
-  // Character counter
+  /* char counter */
   document.getElementById("ticket-message")?.addEventListener("input", () => {
     const msgEl   = document.getElementById("ticket-message");
     const countEl = document.getElementById("ticket-char-count");
@@ -1581,20 +1748,14 @@
     if (len > 1000) { msgEl.value = msgEl.value.slice(0, 1000); len = 1000; }
     if (countEl) countEl.textContent = `${len} / 1000`;
   });
+  document.getElementById("ticket-message")?.addEventListener("focus", function() { this.style.borderColor = "rgba(16,185,129,.40)"; });
+  document.getElementById("ticket-message")?.addEventListener("blur",  function() { this.style.borderColor = "var(--border)"; });
 
-  // Focus style for textarea
-  document.getElementById("ticket-message")?.addEventListener("focus", function() {
-    this.style.borderColor = "rgba(16,185,129,.40)";
-  });
-  document.getElementById("ticket-message")?.addEventListener("blur", function() {
-    this.style.borderColor = "var(--border)";
-  });
-
-  // Submit
+  /* send */
   document.getElementById("submit-ticket-btn")?.addEventListener("click", async () => {
-    const msgEl   = document.getElementById("ticket-message");
-    const sendBtn = document.getElementById("submit-ticket-btn");
-    const formEl  = document.getElementById("ticket-form-state");
+    const msgEl     = document.getElementById("ticket-message");
+    const sendBtn   = document.getElementById("submit-ticket-btn");
+    const formEl    = document.getElementById("ticket-form-state");
     const successEl = document.getElementById("ticket-success");
 
     const text = (msgEl?.value || "").trim();
@@ -1607,8 +1768,8 @@
     try {
       await addDoc(collection(db, "support_tickets"), {
         userId:    currentUser.uid,
-        userEmail: currentUser.email     || null,
-        userName:  currentUser.displayName || null,
+        userEmail: currentUser.email        || null,
+        userName:  currentUser.displayName  || null,
         type:      activeType,
         message:   text,
         status:    "open",
