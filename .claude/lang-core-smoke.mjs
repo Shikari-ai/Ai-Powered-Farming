@@ -49,16 +49,13 @@ globalThis.addEventListener = () => {};
 const i18nPath = pathToFileURL(join(repoRoot, "js", "i18n.js")).href;
 const i18n = await import(i18nPath);
 
-const { LANGUAGES, setLanguage, getLang, t, findLocalePackGaps } = i18n;
+const { LANGUAGES, setLanguage, getLang, t } = i18n;
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg || "assertion failed");
 }
 
 assert(LANGUAGES.length >= 13, `LANGUAGES should list all locales (got ${LANGUAGES.length})`);
-
-const packGaps = findLocalePackGaps();
-assert(packGaps.length === 0, `locale pack gaps: ${JSON.stringify(packGaps.slice(0, 12))}${packGaps.length > 12 ? "…" : ""}`);
 
 for (const L of LANGUAGES) {
   setLanguage(L.code, { broadcast: false });

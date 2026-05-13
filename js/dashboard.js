@@ -9,18 +9,14 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/fi
 import {
     collection,
     doc,
-    getDocs,
     limit,
     onSnapshot,
-    orderBy,
     query,
     serverTimestamp,
     setDoc,
     where,
-    writeBatch,
-    Timestamp,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getGreeting, t, applyTranslations } from "./i18n.js?v=12";
+import { getGreeting, t, applyTranslations } from "./i18n.js?v=6";
 import { buildRegionalPulse, contributeRegionalPulse } from "./network/regional-pulse.js";
 import { fetchRegionalBriefing, getRegionalOptIn } from "./network/regional-briefing.js";
 import { buildTwinBriefForAssistant } from "./twin/assistant-twin-brief.js";
@@ -28,7 +24,6 @@ import { buildAmbientInsightLines } from "./ambient/ambient-insights.js";
 import { buildMorningBriefingText } from "./ambient/briefings.js";
 import { getAmbientAttentionPrefs } from "./ambient/attention-memory.js";
 import { publishAmbientChannelEvent } from "./ambient/sensory-hooks.js";
-import { filterAlertsForHomeDisplay, shouldPruneAlertDoc, ALERT_HOME_DEFAULT_TTL_MS } from "./alerts/home-retention.js?v=1";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -464,49 +459,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             let dashOpenTasks = [];
 
-            let rawHomeAlerts = [];
-            function refreshHomeAlertsFromCache() {
-                const sorted = [...rawHomeAlerts].sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
-                const visible = filterAlertsForHomeDisplay(sorted);
-                renderRecentAlertsList(visible.slice(0, 12));
-            }
-            const homeAlertsAgeTimer = window.setInterval(refreshHomeAlertsFromCache, 60000);
-            homeUnsubs.push(() => {
-                try {
-                    clearInterval(homeAlertsAgeTimer);
-                } catch (_) {}
-            });
-
-            let lastClientAlertPrune = 0;
-            async function clientPruneExpiredAlerts(uid) {
-                if (!uid) return;
-                if (Date.now() - lastClientAlertPrune < 12 * 60 * 1000) return;
-                try {
-                    const cutoff = Timestamp.fromMillis(Date.now() - ALERT_HOME_DEFAULT_TTL_MS);
-                    const q = query(
-                        collection(db, "alerts"),
-                        where("userId", "==", uid),
-                        where("createdAt", "<", cutoff),
-                        orderBy("createdAt", "asc"),
-                        limit(40),
-                    );
-                    const snap = await getDocs(q);
-                    lastClientAlertPrune = Date.now();
-                    const nowMs = Date.now();
-                    const batch = writeBatch(db);
-                    let ops = 0;
-                    snap.forEach((ds) => {
-                        const row = { id: ds.id, ...ds.data() };
-                        if (!shouldPruneAlertDoc(row, nowMs)) return;
-                        batch.delete(doc(db, "alerts", ds.id));
-                        ops++;
-                    });
-                    if (ops) await batch.commit();
-                } catch (e) {
-                    console.warn("[dashboard] client alert prune:", e?.code || e?.message || e);
-                }
-            }
-
             function scheduleAmbientRefresh() {
                 clearTimeout(ambientDebounce);
                 ambientDebounce = setTimeout(() => {
@@ -779,6 +731,9 @@ document.addEventListener("DOMContentLoaded", () => {
                             : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=10B981&color=fff&size=80`;
                     }
 
+                    if (data?.langPreference && window.i18n) {
+                        window.i18n.setLanguage(data.langPreference);
+                    }
                 }, "users profile");
 
                 sub(
@@ -1015,15 +970,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 );
 
                 /* Equality + limit only (no orderBy) — avoids composite-index failures when indexes
-                   are not yet deployed; sort + TTL in refreshHomeAlertsFromCache (24h default,
-                   90d for pest/disease/insect biosecurity alerts). */
+                   are not yet deployed; sort client-side. */
                 sub(
                     query(collection(db, "alerts"), where("userId", "==", user.uid), limit(40)),
                     (snap) => {
-                        rawHomeAlerts = [];
-                        snap.forEach((d) => rawHomeAlerts.push({ id: d.id, ...d.data() }));
-                        refreshHomeAlertsFromCache();
-                        void clientPruneExpiredAlerts(user.uid);
+                        const items = [];
+                        snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
+                        items.sort((a, b) => tsToMs(b.createdAt) - tsToMs(a.createdAt));
+                        renderRecentAlertsList(items.slice(0, 12));
                     },
                     "alerts"
                 );

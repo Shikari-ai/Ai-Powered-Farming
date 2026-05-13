@@ -115,27 +115,43 @@ function normalizeDiagnosis(obj) {
   return out;
 }
 
-// Builds the question sent to the vision val. The val has its own system
-// prompt that sets the model role; we just specify the JSON output schema
-// and any crop/symptom context. Kept to a single logical line so it works
-// identically across Gemini, GPT-4o-mini, and Llama vision models.
+// Build a fully self-contained expert prompt so accuracy doesn't depend on
+// what system prompt the val happens to have loaded. The complete JSON schema
+// is embedded so Gemini always knows exactly what shape to return.
 function buildQuestion(opts) {
   const hints = [];
-  if (opts.cropType) hints.push(`Crop: ${opts.cropType}`);
+  if (opts.cropType) hints.push(`Crop type: ${opts.cropType}`);
   if (Array.isArray(opts.observedSymptoms) && opts.observedSymptoms.length) {
-    hints.push(`Observed symptoms: ${opts.observedSymptoms.join(", ")}`);
+    hints.push(`Reported symptoms: ${opts.observedSymptoms.join(", ")}`);
   }
-  const ctx = hints.length ? ` ${hints.join(". ")}.` : "";
-  return (
-    `Diagnose this crop photo and return ONLY valid JSON — no prose, no fences.${ctx} ` +
-    `Schema: {"diseaseName":"exact disease or Healthy","scientificName":"latin name or empty",` +
-    `"riskLevel":"healthy|low|medium|high","confidence":0,"summary":"2-3 sentences on visible symptoms",` +
-    `"recommendations":["field action 1","up to 5 total"],` +
-    `"plantType":"e.g. Tomato leaf","partOfPlant":"leaf|fruit|stem|whole plant|root|seed",` +
-    `"narrative":"It looks like ... (name the plant, describe symptoms, give verdict in 2-3 sentences)",` +
-    `"treatments":[{"type":"chemical|fertilizer|organic|general","name":"exact product e.g. Mancozeb 75% WP","usage":"dose and timing"}]} ` +
-    `Set treatments to [] if healthy. Replace 0 in confidence with actual integer 0-100.`
-  );
+  const contextLine = hints.length ? `\nContext — ${hints.join(" | ")}` : "";
+
+  return `You are a senior plant pathologist and agronomist. Examine this crop image precisely.
+
+STEP 1 — OBSERVE: Look carefully at leaf texture, color patterns, spots, lesions, margins, veins, stem, fruit surface, mold, insects, webbing, or any abnormality.
+STEP 2 — DIAGNOSE: Identify the exact disease or condition. Distinguish from similar-looking issues. If healthy, say so clearly.
+STEP 3 — PRESCRIBE: Name specific commercial products (fungicides, pesticides, fertilisers) with doses, not generic categories.${contextLine}
+
+Return ONLY a single valid JSON object — no prose, no markdown, no explanation:
+{
+  "diseaseName": "exact disease name or 'Healthy'",
+  "scientificName": "pathogen or '' if none",
+  "riskLevel": "healthy | low | medium | high",
+  "confidence": <integer 0-100; use below 65 if image is unclear or ambiguous>,
+  "summary": "2-3 sentences on visible symptoms and current severity",
+  "recommendations": ["specific field action 1", "specific field action 2", "up to 5 total"],
+  "plantType": "species + part, e.g. 'Tomato leaf', 'Wheat flag leaf', 'Mango fruit', or 'Unidentified plant'",
+  "partOfPlant": "leaf | fruit | stem | whole plant | root | seed | ",
+  "narrative": "Start with 'It looks like' — name the plant, describe what you see, give your verdict in 2-3 sentences",
+  "treatments": [
+    {"type": "chemical",    "name": "exact product name e.g. Mancozeb 75% WP, Propiconazole 25% EC", "usage": "e.g. Mix 2.5 g/L, spray every 7-10 days"},
+    {"type": "organic",     "name": "e.g. Neem Oil 1500 PPM, Trichoderma harzianum WP",              "usage": "application method and timing"},
+    {"type": "fertilizer",  "name": "e.g. NPK 19-19-19, Potassium Nitrate, Zinc Sulphate",            "usage": "dose and schedule"},
+    {"type": "general",     "name": "cultural or mechanical practice",                                 "usage": "when and how"}
+  ]
+}
+
+Rules: treatments array must be empty if riskLevel is "healthy". Include only treatments relevant to the diagnosed condition. Return JSON only.`;
 }
 
 export async function runAiVisionScan(blob, opts = {}) {

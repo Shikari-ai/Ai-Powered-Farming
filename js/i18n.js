@@ -55,31 +55,8 @@ const LANG_DATA = {
     needsAttention: "Needs Attention",
     navHome: "Home",
     navFields: "Fields",
-    navMap: "Map",
     navAi: "AI",
     navProfile: "Profile",
-    weatherIntelligence: "Weather Intelligence",
-    hourlyForecast: "Hourly Forecast",
-    tenDayForecast: "10-Day Forecast",
-    farmingIntelligence: "Farming Intelligence",
-    realtimeMetrics: "Realtime Metrics",
-    scanToSearch: "Scan to Search",
-    scanToSearchHint: "Point at a leaf, then tap",
-    scanResult: "Scan Result",
-    scanning: "Scanning…",
-    scanFailed: "Failed — tap to retry",
-    treatmentsInputs: "Treatments & Inputs",
-    typeChemical: "Chemical",
-    typeFertilizer: "Fertilizer",
-    typeOrganic: "Organic",
-    typeTreatment: "Treatment",
-    riskHealthy: "Healthy",
-    riskLow: "Low Risk",
-    riskMedium: "Medium Risk",
-    riskHigh: "High Risk",
-    confident: "% confident",
-    couldNotAnalyse: "Could not analyse — tap again.",
-    pointCameraAtCrop: "Point camera at your crop",
   },
 
   hi: {
@@ -132,31 +109,8 @@ const LANG_DATA = {
     needsAttention: "ध्यान चाहिए",
     navHome: "होम",
     navFields: "खेत",
-    navMap: "नक्शा",
     navAi: "AI",
     navProfile: "प्रोफाइल",
-    weatherIntelligence: "मौसम विश्लेषण",
-    hourlyForecast: "प्रति घंटे पूर्वानुमान",
-    tenDayForecast: "10 दिनों का पूर्वानुमान",
-    farmingIntelligence: "कृषि विश्लेषण",
-    realtimeMetrics: "रीयल-टाइम मेट्रिक्स",
-    scanToSearch: "स्कैन करके खोजें",
-    scanToSearchHint: "पत्ते पर इशारा करें, फिर टैप करें",
-    scanResult: "स्कैन परिणाम",
-    scanning: "स्कैन हो रहा है…",
-    scanFailed: "विफल — फिर टैप करें",
-    treatmentsInputs: "उपचार और इनपुट",
-    typeChemical: "रासायनिक",
-    typeFertilizer: "उर्वरक",
-    typeOrganic: "जैविक",
-    typeTreatment: "उपचार",
-    riskHealthy: "स्वस्थ",
-    riskLow: "कम जोखिम",
-    riskMedium: "मध्यम जोखिम",
-    riskHigh: "उच्च जोखिम",
-    confident: "% विश्वसनीय",
-    couldNotAnalyse: "विश्लेषण नहीं हो सका — फिर टैप करें।",
-    pointCameraAtCrop: "कैमरा फसल पर लगाएं",
   },
 
   mr: {
@@ -209,31 +163,8 @@ const LANG_DATA = {
     needsAttention: "लक्ष हवे",
     navHome: "होम",
     navFields: "शेत",
-    navMap: "नकाशा",
     navAi: "AI",
     navProfile: "प्रोफाइल",
-    weatherIntelligence: "हवामान विश्लेषण",
-    hourlyForecast: "तासाचा अंदाज",
-    tenDayForecast: "10 दिवसांचा अंदाज",
-    farmingIntelligence: "शेती विश्लेषण",
-    realtimeMetrics: "रीयल-टाइम माप",
-    scanToSearch: "स्कॅन करून शोधा",
-    scanToSearchHint: "पानाकडे निर्देश करा, मग टॅप करा",
-    scanResult: "स्कॅन निकाल",
-    scanning: "स्कॅन होत आहे…",
-    scanFailed: "अयशस्वी — पुन्हा टॅप करा",
-    treatmentsInputs: "उपचार आणि इनपुट",
-    typeChemical: "रासायनिक",
-    typeFertilizer: "खत",
-    typeOrganic: "सेंद्रिय",
-    typeTreatment: "उपचार",
-    riskHealthy: "निरोगी",
-    riskLow: "कमी धोका",
-    riskMedium: "मध्यम धोका",
-    riskHigh: "उच्च धोका",
-    confident: "% विश्वासार्ह",
-    couldNotAnalyse: "विश्लेषण शक्य नाही — पुन्हा टॅप करा.",
-    pointCameraAtCrop: "कॅमेरा पिकाकडे वळवा",
   },
 
   ta: {
@@ -286,31 +217,8 @@ const LANG_DATA = {
     needsAttention: "கவனம் தேவை",
     navHome: "முகப்பு",
     navFields: "வயல்கள்",
-    navMap: "வரைபடம்",
     navAi: "AI",
     navProfile: "சுயவிவரம்",
-    weatherIntelligence: "வானிலை நுண்ணறிவு",
-    hourlyForecast: "மணிநேர முன்னறிவிப்பு",
-    tenDayForecast: "10 நாள் முன்னறிவிப்பு",
-    farmingIntelligence: "விவசாய நுண்ணறிவு",
-    realtimeMetrics: "நேரடி அளவீடுகள்",
-    scanToSearch: "தேட ஸ்கேன் செய்யுங்கள்",
-    scanToSearchHint: "இலையை நோக்கி, பிறகு தட்டவும்",
-    scanResult: "ஸ்கேன் முடிவு",
-    scanning: "ஸ்கேன் ஆகிறது…",
-    scanFailed: "தோல்வி — மீண்டும் தட்டவும்",
-    treatmentsInputs: "சிகிச்சை & உள்ளீடுகள்",
-    typeChemical: "வேதியியல்",
-    typeFertilizer: "உரம்",
-    typeOrganic: "இயற்கை",
-    typeTreatment: "சிகிச்சை",
-    riskHealthy: "ஆரோக்கியம்",
-    riskLow: "குறைந்த ஆபத்து",
-    riskMedium: "நடுத்தர ஆபத்து",
-    riskHigh: "அதிக ஆபத்து",
-    confident: "% நம்பகம்",
-    couldNotAnalyse: "பகுப்பாய்வு இல்லை — மீண்டும் தட்டவும்.",
-    pointCameraAtCrop: "கேமராவை பயிரின் மீது வையுங்கள்",
   },
 
   te: {
@@ -363,31 +271,8 @@ const LANG_DATA = {
     needsAttention: "శ్రద్ధ అవసరం",
     navHome: "హోమ్",
     navFields: "పొలాలు",
-    navMap: "మ్యాప్",
     navAi: "AI",
     navProfile: "ప్రొఫైల్",
-    weatherIntelligence: "వాతావరణ విశ్లేషణ",
-    hourlyForecast: "గంటవారీ అంచనా",
-    tenDayForecast: "10 రోజుల అంచనా",
-    farmingIntelligence: "వ్యవసాయ విశ్లేషణ",
-    realtimeMetrics: "తక్షణ కొలమానాలు",
-    scanToSearch: "శోధించడానికి స్కాన్",
-    scanToSearchHint: "ఆకుపై చూపించి, తర్వాత నొక్కండి",
-    scanResult: "స్కాన్ ఫలితం",
-    scanning: "స్కాన్ అవుతోంది…",
-    scanFailed: "విఫలమైంది — మళ్ళీ నొక్కండి",
-    treatmentsInputs: "చికిత్సలు & ఇన్‌పుట్‌లు",
-    typeChemical: "రసాయనిక",
-    typeFertilizer: "ఎరువు",
-    typeOrganic: "సేంద్రీయ",
-    typeTreatment: "చికిత్స",
-    riskHealthy: "ఆరోగ్యకరమైన",
-    riskLow: "తక్కువ ప్రమాదం",
-    riskMedium: "మధ్యస్థ ప్రమాదం",
-    riskHigh: "అధిక ప్రమాదం",
-    confident: "% నమ్మకం",
-    couldNotAnalyse: "విశ్లేషించలేకపోయింది — మళ్ళీ నొక్కండి.",
-    pointCameraAtCrop: "కెమెరాను పంటపైకి గురిపెట్టండి",
   },
 
   bn: {
@@ -440,31 +325,8 @@ const LANG_DATA = {
     needsAttention: "মনোযোগ প্রয়োজন",
     navHome: "হোম",
     navFields: "ক্ষেত",
-    navMap: "মানচিত্র",
     navAi: "AI",
     navProfile: "প্রোফাইল",
-    weatherIntelligence: "আবহাওয়া বিশ্লেষণ",
-    hourlyForecast: "ঘণ্টাভিত্তিক পূর্বাভাস",
-    tenDayForecast: "10 দিনের পূর্বাভাস",
-    farmingIntelligence: "কৃষি বিশ্লেষণ",
-    realtimeMetrics: "রিয়েলটাইম মেট্রিক্স",
-    scanToSearch: "খুঁজতে স্ক্যান করুন",
-    scanToSearchHint: "পাতার দিকে ধরুন, তারপর ট্যাপ করুন",
-    scanResult: "স্ক্যান ফলাফল",
-    scanning: "স্ক্যান হচ্ছে…",
-    scanFailed: "ব্যর্থ — আবার ট্যাপ করুন",
-    treatmentsInputs: "চিকিৎসা ও উপকরণ",
-    typeChemical: "রাসায়নিক",
-    typeFertilizer: "সার",
-    typeOrganic: "জৈব",
-    typeTreatment: "চিকিৎসা",
-    riskHealthy: "সুস্থ",
-    riskLow: "কম ঝুঁকি",
-    riskMedium: "মাঝারি ঝুঁকি",
-    riskHigh: "বেশি ঝুঁকি",
-    confident: "% নিশ্চিত",
-    couldNotAnalyse: "বিশ্লেষণ সম্ভব হয়নি — আবার ট্যাপ করুন।",
-    pointCameraAtCrop: "ক্যামেরা ফসলের দিকে ধরুন",
   },
 
   pa: {
@@ -517,31 +379,8 @@ const LANG_DATA = {
     needsAttention: "ਧਿਆਨ ਦੀ ਲੋੜ",
     navHome: "ਹੋਮ",
     navFields: "ਖੇਤ",
-    navMap: "ਨਕਸ਼ਾ",
     navAi: "AI",
     navProfile: "ਪ੍ਰੋਫਾਈਲ",
-    weatherIntelligence: "ਮੌਸਮ ਵਿਸ਼ਲੇਸ਼ਣ",
-    hourlyForecast: "ਘੰਟਾਵਾਰ ਪੂਰਵ ਅਨੁਮਾਨ",
-    tenDayForecast: "10 ਦਿਨਾਂ ਦਾ ਪੂਰਵ ਅਨੁਮਾਨ",
-    farmingIntelligence: "ਖੇਤੀਬਾੜੀ ਵਿਸ਼ਲੇਸ਼ਣ",
-    realtimeMetrics: "ਰੀਅਲ-ਟਾਈਮ ਅੰਕੜੇ",
-    scanToSearch: "ਲੱਭਣ ਲਈ ਸਕੈਨ ਕਰੋ",
-    scanToSearchHint: "ਪੱਤੇ ਵੱਲ ਇਸ਼ਾਰਾ ਕਰੋ, ਫਿਰ ਟੈਪ ਕਰੋ",
-    scanResult: "ਸਕੈਨ ਨਤੀਜਾ",
-    scanning: "ਸਕੈਨ ਹੋ ਰਿਹਾ ਹੈ…",
-    scanFailed: "ਅਸਫਲ — ਦੁਬਾਰਾ ਟੈਪ ਕਰੋ",
-    treatmentsInputs: "ਇਲਾਜ ਅਤੇ ਇਨਪੁੱਟ",
-    typeChemical: "ਰਸਾਇਣਕ",
-    typeFertilizer: "ਖਾਦ",
-    typeOrganic: "ਜੈਵਿਕ",
-    typeTreatment: "ਇਲਾਜ",
-    riskHealthy: "ਸਿਹਤਮੰਦ",
-    riskLow: "ਘੱਟ ਜੋਖ਼ਮ",
-    riskMedium: "ਮੱਧਮ ਜੋਖ਼ਮ",
-    riskHigh: "ਵੱਧ ਜੋਖ਼ਮ",
-    confident: "% ਭਰੋਸੇਯੋਗ",
-    couldNotAnalyse: "ਵਿਸ਼ਲੇਸ਼ਣ ਨਹੀਂ ਹੋ ਸਕਿਆ — ਦੁਬਾਰਾ ਟੈਪ ਕਰੋ।",
-    pointCameraAtCrop: "ਕੈਮਰੇ ਨੂੰ ਫ਼ਸਲ ਵੱਲ ਕਰੋ",
   },
 
   cg: {
@@ -594,31 +433,8 @@ const LANG_DATA = {
     needsAttention: "ध्यान चाही",
     navHome: "होम",
     navFields: "खेत",
-    navMap: "नक्शा",
     navAi: "AI",
     navProfile: "प्रोफाइल",
-    weatherIntelligence: "मौसम विश्लेषण",
-    hourlyForecast: "हर घंटा पूर्वानुमान",
-    tenDayForecast: "10 दिन का पूर्वानुमान",
-    farmingIntelligence: "खेती विश्लेषण",
-    realtimeMetrics: "रियल-टाइम मापदंड",
-    scanToSearch: "खोजे बर स्कैन करव",
-    scanToSearchHint: "पत्ती तरफ इशारा करव, फेर टैप करव",
-    scanResult: "स्कैन परिणाम",
-    scanning: "स्कैन होवत हे…",
-    scanFailed: "विफल — फेर टैप करव",
-    treatmentsInputs: "उपचार अउ इनपुट",
-    typeChemical: "रासायनिक",
-    typeFertilizer: "खाद",
-    typeOrganic: "जैविक",
-    typeTreatment: "उपचार",
-    riskHealthy: "स्वस्थ",
-    riskLow: "कम जोखिम",
-    riskMedium: "मध्यम जोखिम",
-    riskHigh: "जादा जोखिम",
-    confident: "% भरोसेमंद",
-    couldNotAnalyse: "विश्लेषण नइ होइस — फेर टैप करव।",
-    pointCameraAtCrop: "कैमरा फसल तरफ करव",
   },
 
   gu: {
@@ -671,31 +487,8 @@ const LANG_DATA = {
     needsAttention: "ધ્યાન જોઈએ",
     navHome: "હોમ",
     navFields: "ખેતરો",
-    navMap: "નકશો",
     navAi: "AI",
     navProfile: "પ્રોફાઇલ",
-    weatherIntelligence: "હવામાન વિશ્લેષણ",
-    hourlyForecast: "કલાક-ક્રમ અનુમાન",
-    tenDayForecast: "10 દિવસનો અનુમાન",
-    farmingIntelligence: "ખેતી વિશ્લેષણ",
-    realtimeMetrics: "રીઅલ-ટાઇમ માપ",
-    scanToSearch: "શોધવા સ્કેન કરો",
-    scanToSearchHint: "પાન તરફ ઇશારો કરો, પછી ટૅપ કરો",
-    scanResult: "સ્કેન પરિણામ",
-    scanning: "સ્કેન થઈ રહ્યું છે…",
-    scanFailed: "નિષ્ફળ — ફરી ટૅપ કરો",
-    treatmentsInputs: "સારવાર અને ઇનપુટ",
-    typeChemical: "રાસાયણિક",
-    typeFertilizer: "ખાતર",
-    typeOrganic: "જૈવ",
-    typeTreatment: "સારવાર",
-    riskHealthy: "નિરોગી",
-    riskLow: "ઓછું જોખમ",
-    riskMedium: "મધ્યમ જોખમ",
-    riskHigh: "ઊંચું જોખમ",
-    confident: "% વિશ્વસનીય",
-    couldNotAnalyse: "વિશ્લેષણ ન થઈ શક્યું — ફરી ટૅપ કરો.",
-    pointCameraAtCrop: "કૅમેરો પાક ઉપર ઇશારો કરો",
   },
 
   kn: {
@@ -748,31 +541,8 @@ const LANG_DATA = {
     needsAttention: "ಗಮನ ಬೇಕು",
     navHome: "ಹೋಮ್",
     navFields: "ಭೂಮಿಗಳು",
-    navMap: "ನಕ್ಷೆ",
     navAi: "AI",
     navProfile: "ಪ್ರೊಫೈಲ್",
-    weatherIntelligence: "ಹವಾಮಾನ ವಿಶ್ಲೇಷಣೆ",
-    hourlyForecast: "ಪ್ರತಿ ಗಂಟೆ ಮುನ್ಸೂಚನೆ",
-    tenDayForecast: "10-ದಿನದ ಮುನ್ಸೂಚನೆ",
-    farmingIntelligence: "ಕೃಷಿ ವಿಶ್ಲೇಷಣೆ",
-    realtimeMetrics: "ನೈಜ-ಸಮಯ ಅಳತೆಗಳು",
-    scanToSearch: "ಹುಡುಕಲು ಸ್ಕ್ಯಾನ್ ಮಾಡಿ",
-    scanToSearchHint: "ಎಲೆಯ ಕಡೆ ತೋರಿಸಿ, ನಂತರ ಟ್ಯಾಪ್ ಮಾಡಿ",
-    scanResult: "ಸ್ಕ್ಯಾನ್ ಫಲಿತಾಂಶ",
-    scanning: "ಸ್ಕ್ಯಾನ್ ಆಗುತ್ತಿದೆ…",
-    scanFailed: "ವಿಫಲ — ಮತ್ತೆ ಟ್ಯಾಪ್ ಮಾಡಿ",
-    treatmentsInputs: "ಚಿಕಿತ್ಸೆ ಮತ್ತು ಇನ್‌ಪುಟ್‌ಗಳು",
-    typeChemical: "ರಾಸಾಯನಿಕ",
-    typeFertilizer: "ಗೊಬ್ಬರ",
-    typeOrganic: "ಸಾವಯವ",
-    typeTreatment: "ಚಿಕಿತ್ಸೆ",
-    riskHealthy: "ಆರೋಗ್ಯಕರ",
-    riskLow: "ಕಡಿಮೆ ಅಪಾಯ",
-    riskMedium: "ಮಧ್ಯಮ ಅಪಾಯ",
-    riskHigh: "ಹೆಚ್ಚು ಅಪಾಯ",
-    confident: "% ವಿಶ್ವಾಸಾರ್ಹ",
-    couldNotAnalyse: "ವಿಶ್ಲೇಷಿಸಲಾಗಲಿಲ್ಲ — ಮತ್ತೆ ಟ್ಯಾಪ್ ಮಾಡಿ.",
-    pointCameraAtCrop: "ಕ್ಯಾಮೆರಾವನ್ನು ಬೆಳೆಯ ಕಡೆ ತೋರಿಸಿ",
   },
 
   ml: {
@@ -799,7 +569,7 @@ const LANG_DATA = {
     moderate: "ഇടത്തരം",
     poor: "മോശം",
     critical: "ഗുരുതരം",
-    noScansYet: "ഇതുവരെ സ്കാൻ ഡാറ്റയില്ല. ആരോഗ്യ നിരീക്ഷണം സജീവമാക്കാൻ ആദ്യ സ്കാൻ ചെയ്യുക.",
+    noScansYet: "ഇതുവരെ സ്കാൻ ಡാറ്റയില്ല. ആരോഗ്യ നിരീക്ഷണം സജീവമാക്കാൻ ആദ്യ സ്കാൻ ചെയ്യുക.",
     pestPrediction: "കീട പ്രവചനം",
     recentAlerts: "സമീപകാല അലേർട്ടുകൾ",
     viewDetails: "വിശദാംശങ്ങൾ",
@@ -822,34 +592,11 @@ const LANG_DATA = {
     addFieldCta: "+ വയൽ ചേർക്കുക",
     notEnoughData: "ഇതുവരെ മതിയായ ഡാറ്റയില്ല.",
     healthy: "ആരോഗ്യമുള്ള",
-    needsAttention: "ശ്രദ്ധ ആവശ്യം",
+    needsAttention: "ശ്രദ്ധ വേண்டി",
     navHome: "ഹോം",
     navFields: "വയലുകൾ",
-    navMap: "മാപ്പ്",
     navAi: "AI",
     navProfile: "പ്രൊഫൈൽ",
-    weatherIntelligence: "കാലാവസ്ഥ വിശകലനം",
-    hourlyForecast: "മണിക്കൂർ അടിസ്ഥാനത്തിൽ പ്രവചനം",
-    tenDayForecast: "10 ദിവസത്തെ പ്രവചനം",
-    farmingIntelligence: "കൃഷി വിശകലനം",
-    realtimeMetrics: "തത്സമയ അളവുകൾ",
-    scanToSearch: "തിരയാൻ സ്കാൻ ചെയ്യുക",
-    scanToSearchHint: "ഒരു ഇലയ്ക്ക് നേരെ ചൂണ്ടുക, ടാപ്പ് ചെയ്യുക",
-    scanResult: "സ്കാൻ ഫലം",
-    scanning: "സ്കാൻ ചെയ്യുന്നു…",
-    scanFailed: "പരാജയം — വീണ്ടും ടാപ്പ് ചെയ്യുക",
-    treatmentsInputs: "ചികിത്സകൾ & ഇൻപുട്ടുകൾ",
-    typeChemical: "രാസവസ്തു",
-    typeFertilizer: "വളം",
-    typeOrganic: "ജൈവ",
-    typeTreatment: "ചികിത്സ",
-    riskHealthy: "ആരോഗ്യം",
-    riskLow: "കുറഞ്ഞ അപകടം",
-    riskMedium: "മധ്യ അപകടം",
-    riskHigh: "ഉയർന്ന അപകടം",
-    confident: "% ഉറപ്പ്",
-    couldNotAnalyse: "വിശകലനം സാധ്യമായില്ല — വീണ്ടും ടാപ്പ് ചെയ്യുക.",
-    pointCameraAtCrop: "ക്യാമറ നിങ്ങളുടെ കൃഷിക്ക് നേരെ ചൂണ്ടുക",
   },
 
   ur: {
@@ -902,31 +649,8 @@ const LANG_DATA = {
     needsAttention: "توجہ درکار",
     navHome: "ہوم",
     navFields: "کھیت",
-    navMap: "نقشہ",
     navAi: "AI",
     navProfile: "پروفائل",
-    weatherIntelligence: "موسمی تجزیہ",
-    hourlyForecast: "گھنٹہ وار پیشن گوئی",
-    tenDayForecast: "10 دن کی پیشن گوئی",
-    farmingIntelligence: "زرعی تجزیہ",
-    realtimeMetrics: "ریئل ٹائم پیمائش",
-    scanToSearch: "تلاش کے لیے اسکین کریں",
-    scanToSearchHint: "پتے کی طرف اشارہ کریں، پھر ٹیپ کریں",
-    scanResult: "اسکین نتیجہ",
-    scanning: "اسکین ہو رہا ہے…",
-    scanFailed: "ناکام — دوبارہ ٹیپ کریں",
-    treatmentsInputs: "علاج اور ان پٹ",
-    typeChemical: "کیمیائی",
-    typeFertilizer: "کھاد",
-    typeOrganic: "نامیاتی",
-    typeTreatment: "علاج",
-    riskHealthy: "صحت مند",
-    riskLow: "کم خطرہ",
-    riskMedium: "درمیانہ خطرہ",
-    riskHigh: "زیادہ خطرہ",
-    confident: "% قابل اعتماد",
-    couldNotAnalyse: "تجزیہ ممکن نہ ہوا — دوبارہ ٹیپ کریں۔",
-    pointCameraAtCrop: "کیمرے کو فصل کی طرف کریں",
   },
 
   or: {
@@ -979,31 +703,8 @@ const LANG_DATA = {
     needsAttention: "ଧ୍ୟାନ ଆବଶ୍ୟକ",
     navHome: "ହୋମ୍",
     navFields: "ଖେତ",
-    navMap: "ମାନଚିତ୍ର",
     navAi: "AI",
     navProfile: "ପ୍ରୋଫାଇଲ୍",
-    weatherIntelligence: "ପାଗ ବିଶ୍ଲେଷଣ",
-    hourlyForecast: "ଘଣ୍ଟାୱାରୀ ପୂର୍ବାନୁମାନ",
-    tenDayForecast: "10 ଦିନ ପୂର୍ବାନୁମାନ",
-    farmingIntelligence: "ଚାଷ ବିଶ୍ଲେଷଣ",
-    realtimeMetrics: "ତତ୍‌କ୍ଷଣ ମାପ",
-    scanToSearch: "ଖୋଜିବାକୁ ସ୍କାନ କରନ୍ତୁ",
-    scanToSearchHint: "ପତ୍ରକୁ ଦର୍ଶାନ୍ତୁ, ତାପରେ ଟ୍ୟାପ ଦ୍ୱାରା",
-    scanResult: "ସ୍କାନ ଫଳ",
-    scanning: "ସ୍କାନ ହେଉଛି…",
-    scanFailed: "ବିଫଳ — ଆଉ ଟ୍ୟାପ କରନ୍ତୁ",
-    treatmentsInputs: "ଚିକିତ୍ସା ଓ ଇନ୍‌ପୁଟ",
-    typeChemical: "ରାସାୟନିକ",
-    typeFertilizer: "ସାର",
-    typeOrganic: "ଜୈବ",
-    typeTreatment: "ଚିକିତ୍ସା",
-    riskHealthy: "ସୁସ୍ଥ",
-    riskLow: "କମ ବିପଦ",
-    riskMedium: "ମଧ୍ୟମ ବିପଦ",
-    riskHigh: "ଅଧିକ ବିପଦ",
-    confident: "% ବିଶ୍ୱସ୍ତ",
-    couldNotAnalyse: "ବିଶ୍ଲେଷଣ ହୋଇପାରିଲା ନାହିଁ — ଆଉ ଟ୍ୟାପ କରନ୍ତୁ।",
-    pointCameraAtCrop: "କ୍ୟାମ୍ଏ ଫସଲ ଆଡ଼କୁ ଦର୍ଶାନ୍ତୁ",
   },
 };
 
@@ -1081,7 +782,7 @@ function applyExternalLang(code) {
 }
 
 try {
-  if (typeof BroadcastChannel !== "undefined" && typeof globalThis.location !== "undefined") {
+  if (typeof BroadcastChannel !== "undefined") {
     _langChannel = new BroadcastChannel("agri-i18n");
     _langChannel.onmessage = (ev) => {
       if (ev?.data?.type !== "set-lang") return;
@@ -1092,12 +793,10 @@ try {
   _langChannel = null;
 }
 
-if (typeof globalThis.location !== "undefined") {
-  window.addEventListener("storage", (e) => {
-    if (e.storageArea !== localStorage || e.key !== LANG_STORAGE_KEY || !e.newValue) return;
-    applyExternalLang(e.newValue);
-  });
-}
+window.addEventListener("storage", (e) => {
+  if (e.storageArea !== localStorage || e.key !== LANG_STORAGE_KEY || !e.newValue) return;
+  applyExternalLang(e.newValue);
+});
 
 /** Apply translations to all [data-i18n] elements, preserving child icons */
 export function applyTranslations() {
@@ -1123,30 +822,6 @@ export function applyTranslations() {
   });
 }
 
-/**
- * Locales must define every English key (non-empty) so UI strings are not silently falling back.
- * @returns {{ locale: string, key: string, reason: "missing" | "empty" }[]}
- */
-export function findLocalePackGaps() {
-  const enKeys = Object.keys(LANG_DATA.en);
-  /** @type {{ locale: string, key: string, reason: "missing" | "empty" }[]} */
-  const gaps = [];
-  for (const code of Object.keys(LANG_DATA)) {
-    const pack = LANG_DATA[code];
-    for (const key of enKeys) {
-      if (!Object.prototype.hasOwnProperty.call(pack, key)) {
-        gaps.push({ locale: code, key, reason: "missing" });
-        continue;
-      }
-      const v = pack[key];
-      if (v == null || String(v).trim() === "") {
-        gaps.push({ locale: code, key, reason: "empty" });
-      }
-    }
-  }
-  return gaps;
-}
-
 /** Expose to global scope for non-module scripts */
 window.i18n = { t, getLang, setLanguage, getGreeting, applyTranslations };
 
@@ -1170,52 +845,3 @@ export const LANGUAGES = [
 setDocumentHtmlLang();
 // Auto-apply on load (home [data-i18n], etc.)
 applyTranslations();
-
-/** When signed in, keep UI language aligned with `users/{uid}.langPreference` (all app pages import i18n). */
-let _userLangUnsub = null;
-
-function attachUserLangPreferenceSync() {
-  if (typeof globalThis.location === "undefined") return;
-  Promise.all([
-    import("./auth.js?v=32"),
-    import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"),
-    import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"),
-  ])
-    .then(([{ auth, db }, { onAuthStateChanged }, { doc, onSnapshot }]) => {
-      onAuthStateChanged(auth, (user) => {
-        if (_userLangUnsub) {
-          try {
-            _userLangUnsub();
-          } catch (_) {}
-          _userLangUnsub = null;
-        }
-        if (!user) return;
-        const userRef = doc(db, "users", user.uid);
-        _userLangUnsub = onSnapshot(
-          userRef,
-          (snap) => {
-            try {
-              if (typeof location !== "undefined" && new URLSearchParams(location.search).get("agri_lang")) {
-                return;
-              }
-            } catch (_) {}
-            const lp = snap.exists() ? snap.data()?.langPreference : null;
-            if (typeof lp !== "string" || !LANG_DATA[lp] || lp === _lang) return;
-            setLanguage(lp);
-          },
-          () => {}
-        );
-      });
-    })
-    .catch(() => {});
-}
-
-attachUserLangPreferenceSync();
-
-/** Optional QA: `?agri_lang=xx` forces locale on this load (browser only; useful for hosted smoke tests). */
-try {
-  if (typeof globalThis.location !== "undefined" && location.search) {
-    const code = new URLSearchParams(location.search).get("agri_lang");
-    if (code && LANG_DATA[code]) setLanguage(code);
-  }
-} catch (_) {}

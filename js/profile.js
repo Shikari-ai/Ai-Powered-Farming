@@ -1,6 +1,6 @@
 import { isProfilePanelE2ELocal } from "./auth-session.js?v=33";
 import { auth, db, storage, logoutUser } from "./auth.js?v=32";
-import { LANGUAGES, setLanguage, getLang } from "./i18n.js?v=12";
+import { LANGUAGES, setLanguage, getLang } from "./i18n.js?v=6";
 import { getDiagnosticsLines } from "./ai/system-health.js";
 import { onAuthStateChanged, updateProfile, sendPasswordResetEmail }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -296,7 +296,7 @@ function wireStatic() {
     const q = langSearch?.value ?? "";
     const items = LANGUAGES.filter((L) => langMatchesFilter(L, q));
     if (!items.length) {
-      langList.innerHTML = `<div class="lang-picker-empty" role="status">No languages match “${String(q).replace(/</g, "")}”.<span>Try English, हिन्दी, বাংলা, or clear the search.</span></div>`;
+      langList.innerHTML = `<div style="padding:22px 16px;text-align:center;color:var(--dim);font-size:13px;">No languages match “${String(q).replace(/</g, "")}”.<br><span style="font-size:11px;opacity:.85;">Try English, हिन्दी, বাংলা…</span></div>`;
       return;
     }
     const picked = pendingLangCode;
@@ -518,6 +518,11 @@ function attachUser(user) {
     setText("as-email",    user.email || "--");
     setText("as-phone",    d.phone || "Not set");
     setText("as-location", d.village || "Not set");
+
+    const lp = d.langPreference;
+    if (lp && LANGUAGES.some((x) => x.code === lp) && lp !== getLang()) {
+      setLanguage(lp);
+    }
 
     /* edit profile defaults */
     const epName = el("ep-name"); if (epName) epName.value = name;

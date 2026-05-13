@@ -6,10 +6,6 @@
     "api": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-api.ps1",
     "test": "node .claude/lang-core-smoke.mjs",
     "test:lang": "node .claude/lang-core-smoke.mjs",
-    "test:lang:pages": "node .claude/lang-pages-audit.mjs",
-    "test:lang:browser": "node .claude/lang-pages-playwright.mjs",
-    "test:lang:fast": "node .claude/lang-core-smoke.mjs && node .claude/lang-pages-audit.mjs",
-    "test:lang:all": "node .claude/run-lang-all.mjs",
     "test:profile-panels": "node .claude/profile-panels-playwright.mjs",
     "test:profile-panels:ci": "node .claude/run-profile-panels-local.mjs"
   },

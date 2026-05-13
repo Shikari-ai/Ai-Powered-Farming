@@ -1,5 +1,5 @@
 import "./auth-session.js?v=33";
-import { t } from './i18n.js?v=12';
+import './i18n.js';
 import { auth, db, storage } from './auth.js?v=32';
 import { cropHealthDocId } from "./services/entity-sync.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -79,9 +79,9 @@ function computeDiagnosis(selectedSymptomIds) {
 }
 
 function computeSeverity(healthScore) {
-    if (healthScore >= 80) return { level: "good", label: t("good") };
-    if (healthScore >= 50) return { level: "warning", label: t("needsAttention") };
-    return { level: "critical", label: t("critical") };
+    if (healthScore >= 80) return { level: "good", label: "Good" };
+    if (healthScore >= 50) return { level: "warning", label: "Needs attention" };
+    return { level: "critical", label: "Critical" };
 }
 
 function buildRecommendations({ diagnosis, selectedSymptomIds }) {
@@ -293,7 +293,7 @@ document.addEventListener("DOMContentLoaded", () => {
         hdrSub.textContent = msg;
         hdrSub.style.color = warn ? "var(--sc-amber)" : "var(--sc-dim)";
         statusResetTimer = setTimeout(() => {
-            hdrSub.textContent = t("pointCameraAtCrop");
+            hdrSub.textContent = "Point camera at your crop";
             hdrSub.style.color = "";
         }, ms);
     };
@@ -406,7 +406,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const conf = Number.isFinite(d.confidence) ? Math.round(d.confidence) : null;
         const subBits = [];
         if (d.scientificName) subBits.push(d.scientificName);
-        if (conf != null) subBits.push(conf + t("confident"));
+        if (conf != null) subBits.push(conf + "% confident");
         subEl.textContent = subBits.length ? subBits.join(" · ") : (d.summary || "Live detection");
         if (d.riskLevel === "medium") badge.classList.add("is-warn");
         if (d.riskLevel === "high") badge.classList.add("is-bad");
@@ -454,7 +454,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Confidence chip
         const confTxt = $("sc-ai-rev-conf-text");
-        if (confTxt) confTxt.textContent = Math.max(0, Math.min(100, Math.round(d.confidence || 0))) + t("confident");
+        if (confTxt) confTxt.textContent = Math.max(0, Math.min(100, Math.round(d.confidence || 0))) + "% confident";
 
         // Narrative — the conversational "It looks like…" line
         const narrEl = $("sc-ai-rev-narr");
@@ -517,13 +517,13 @@ document.addEventListener("DOMContentLoaded", () => {
         if (state === "uploading") {
             btn.disabled = true;
             btn.classList.add("is-uploading");
-            hint.textContent = t("scanning");
+            hint.textContent = "Scanning";
         } else if (state === "error") {
             btn.disabled = false;
-            hint.textContent = t("scanFailed");
+            hint.textContent = "Failed — tap to retry";
         } else { // "idle"
             btn.disabled = false;
-            hint.textContent = t("scanToSearchHint");
+            hint.textContent = "Point at a leaf, then tap";
         }
     }
     const lensBtn = document.getElementById("sc-open-lens-btn");
@@ -540,16 +540,16 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
         if (state === "error") {
-            body.innerHTML = '<div class="sc-search-error"><i class="ri-error-warning-line"></i>\${t("couldNotAnalyse")}</div>';
+            body.innerHTML = '<div class="sc-search-error"><i class="ri-error-warning-line"></i> Could not analyse — tap again.</div>';
             if (conf) conf.textContent = "";
             return;
         }
         // Populate with diagnosis
         const d = diagnosis;
         const lvl = (d.riskLevel || "medium").toLowerCase();
-        const riskMap = { healthy: t("riskHealthy"), low: t("riskLow"), medium: t("riskMedium"), high: t("riskHigh") };
+        const riskMap = { healthy: "Healthy", low: "Low Risk", medium: "Medium Risk", high: "High Risk" };
         const chipClass = { healthy: "is-healthy", low: "is-low", medium: "is-medium", high: "is-high" }[lvl] || "";
-        if (conf) conf.textContent = Math.round(d.confidence || 0) + t("confident");
+        if (conf) conf.textContent = Math.round(d.confidence || 0) + "% confident";
 
         let chips = "";
         if (d.plantType && d.plantType.toLowerCase() !== "unidentified plant") {
@@ -568,19 +568,19 @@ document.addEventListener("DOMContentLoaded", () => {
         const treats = Array.isArray(d.treatments) ? d.treatments : [];
         if (treats.length) {
             const typeIcon = { chemical: "ri-flask-line", fertilizer: "ri-seedling-line", organic: "ri-leaf-line", general: "ri-medicine-bottle-line" };
-            const typeLabel = { chemical: t("typeChemical"), fertilizer: t("typeFertilizer"), organic: t("typeOrganic"), general: t("typeTreatment") };
+            const typeLabel = { chemical: "Chemical", fertilizer: "Fertilizer", organic: "Organic", general: "Treatment" };
             const typeClass = { chemical: "sc-treat-chemical", fertilizer: "sc-treat-fertilizer", organic: "sc-treat-organic", general: "sc-treat-general" };
-            treatHtml = `<div class="sc-treat-head"><i class="ri-capsule-line"></i>${t("treatmentsInputs")}</div>` +
-                treats.map(tr => {
-                    const ic = typeIcon[tr.type] || "ri-medicine-bottle-line";
-                    const lb = typeLabel[tr.type] || "Treatment";
-                    const cl = typeClass[tr.type] || "sc-treat-general";
+            treatHtml = `<div class="sc-treat-head"><i class="ri-capsule-line"></i> Treatments & Inputs</div>` +
+                treats.map(t => {
+                    const ic = typeIcon[t.type] || "ri-medicine-bottle-line";
+                    const lb = typeLabel[t.type] || "Treatment";
+                    const cl = typeClass[t.type] || "sc-treat-general";
                     return `<div class="sc-treat-row">
                         <div class="sc-treat-icon ${cl}"><i class="${ic}"></i></div>
                         <div class="sc-treat-info">
-                            <span class="sc-treat-name">${tr.name}</span>
+                            <span class="sc-treat-name">${t.name}</span>
                             <span class="sc-treat-type">${lb}</span>
-                            ${t.usage ? `<span class="sc-treat-usage">${tr.usage}</span>` : ""}
+                            ${t.usage ? `<span class="sc-treat-usage">${t.usage}</span>` : ""}
                         </div>
                     </div>`;
                 }).join("");

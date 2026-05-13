@@ -138,12 +138,6 @@ service cloud.firestore {
       allow delete: if isOwnerByField("userId");
     }
 
-    match /assistant_sessions/{docId} {
-      allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
-      allow delete: if isOwnerByField("userId");
-    }
-
     match /assistant_messages/{docId} {
       allow create: if isOwnerNewByField("userId");
       allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
