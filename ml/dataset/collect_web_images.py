@@ -162,25 +162,30 @@ def _quality_ok(path: Path) -> bool:
 
 
 def _search_images(query: str, max_results: int) -> Iterator[str]:
-    """Yield image URLs from DuckDuckGo."""
+    """Yield image URLs from DuckDuckGo (uses ddgs package)."""
     try:
-        from duckduckgo_search import DDGS
+        from ddgs import DDGS
     except ImportError:
-        log.error("Run: pip install duckduckgo-search")
-        sys.exit(1)
+        try:
+            from duckduckgo_search import DDGS
+        except ImportError:
+            log.error("Run: pip install ddgs")
+            sys.exit(1)
 
-    with DDGS() as ddgs:
+    try:
+        ddgs = DDGS()
         results = ddgs.images(
             keywords=query,
             type_image="photo",
             size="Medium",
-            license_image="any",
             max_results=max_results,
         )
         for r in (results or []):
             url = r.get("image") or r.get("url") or ""
             if url.startswith("http"):
                 yield url
+    except Exception as e:
+        log.warning("search error: %s", e)
 
 
 # ── Per-class collector ───────────────────────────────────────────────────────
@@ -231,11 +236,11 @@ def collect_class(
                 continue
 
             saved += 1
-            # Polite delay
+            # Polite delay between image downloads
             time.sleep(random.uniform(*delay_range))
 
-        # Between queries — slightly longer pause
-        time.sleep(random.uniform(1.5, 3.0))
+        # Between queries — give DDG time to reset rate limit window
+        time.sleep(random.uniform(4.0, 8.0))
 
     log.info("  [%s] saved %d images", class_name, saved)
     return saved
