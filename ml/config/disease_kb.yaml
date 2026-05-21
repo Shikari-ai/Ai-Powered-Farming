@@ -1,0 +1,533 @@
+# AgroSphere Disease Knowledge Base
+# Every disease class maps to a full KB entry used by the scanner response.
+# Pesticide dosages follow Indian CIBRC / ICAR guidelines.
+# PHI = Pre-Harvest Interval (days) — minimum days before harvest to stop spraying.
+
+classes:
+
+  healthy_leaf:
+    display_name: "Healthy Crop"
+    category: healthy
+    description: >
+      No visible disease, pest, or nutrient stress detected. Leaf tissue shows
+      normal colour and structure appropriate for the crop's growth stage.
+    symptoms: []
+    severity_indicators:
+      mild: "Normal green colouration, no lesions"
+      moderate: null
+      severe: null
+    health_score_base: 95
+    affected_crops: [wheat, rice, tomato, potato, maize, cotton, soybean, sugarcane]
+    spread_risk: none
+    treatments:
+      chemical: []
+      organic: []
+      preventive:
+        - "Continue routine scouting every 7–10 days"
+        - "Maintain balanced soil nutrition with soil-test-based fertilisation"
+        - "Ensure proper irrigation scheduling to avoid waterlogging"
+    notes: "No action required. Maintain current agronomic practices."
+
+  leaf_rust:
+    display_name: "Leaf Rust"
+    category: fungal
+    pathogen: "Puccinia triticina (wheat), Phakopsora pachyrhizi (soybean)"
+    description: >
+      Fungal disease causing orange-brown to dark-brown powdery pustules on leaf
+      surfaces. Spreads rapidly through airborne urediniospores in moderate
+      temperatures (15–22°C) with high humidity. Can cause 30–70% yield loss
+      if untreated.
+    symptoms:
+      - "Small, circular to oval orange-brown pustules (uredia) on upper leaf surface"
+      - "Yellow or chlorotic halo around pustules"
+      - "Pustules rupture releasing powdery orange spores"
+      - "Severely infected leaves turn yellow and die early"
+      - "Dark black pustules (telia) appear later in the season"
+    severity_indicators:
+      mild: "<10% leaf area affected, pustules sparse"
+      moderate: "10–30% leaf area affected, coalescing pustules"
+      severe: ">30% leaf area affected, widespread yellowing"
+    health_score_base: 35
+    affected_crops: [wheat, maize, soybean]
+    spread_risk: high
+    treatments:
+      chemical:
+        - name: "Propiconazole 25% EC"
+          brand_examples: ["Tilt 25 EC", "Bumper 25 EC"]
+          dosage: "1 mL per litre of water (500–750 mL/acre)"
+          frequency: "2 sprays, 15 days apart"
+          phi_days: 21
+          safety: "Wear PPE. Avoid drift to water bodies."
+        - name: "Tebuconazole 25.9% EC"
+          brand_examples: ["Folicur", "Orius"]
+          dosage: "1 mL per litre of water"
+          frequency: "2 sprays, 10–14 days apart"
+          phi_days: 21
+          safety: "Do not apply during flowering."
+        - name: "Mancozeb 75% WP"
+          brand_examples: ["Dithane M-45", "Indofil M-45"]
+          dosage: "2.5 g per litre of water (1 kg/acre)"
+          frequency: "3 sprays, 10 days apart"
+          phi_days: 15
+          safety: "Protective only; apply before disease onset."
+      organic:
+        - name: "Neem oil 3000 ppm"
+          dosage: "5 mL per litre + 1 mL Teepol spreader"
+          frequency: "Every 10 days"
+        - name: "Trichoderma viride bio-fungicide"
+          dosage: "10 g per litre, soil drench + foliar"
+          frequency: "Preventive; 2–3 applications"
+      preventive:
+        - "Use certified rust-resistant varieties (e.g. HD-2781 for wheat)"
+        - "Avoid excess nitrogen that promotes lush, susceptible growth"
+        - "Remove volunteer plants and crop debris after harvest"
+        - "Timely sowing — avoid late sowing in rust-prone seasons"
+    notes: "Early-season rust (flag leaf stage) is most critical. First spray at first pustule appearance."
+
+  early_blight:
+    display_name: "Early Blight"
+    category: fungal
+    pathogen: "Alternaria solani"
+    description: >
+      Soil-borne fungal disease causing characteristic concentric-ring 'target board'
+      lesions. Infects older leaves first, progressing upward. Favoured by warm
+      temperatures (24–29°C) and leaf wetness. Common in tomato and potato.
+    symptoms:
+      - "Brown to dark-brown circular lesions with distinct concentric rings (bull's-eye pattern)"
+      - "Yellow chlorotic halo surrounding each lesion"
+      - "Lesions begin on lower/older leaves and progress upward"
+      - "Severely infected leaves drop prematurely"
+      - "Stem lesions (collar rot) in severe cases"
+      - "Fruit lesions: dark, sunken, with velvety black sporulation"
+    severity_indicators:
+      mild: "A few lesions on lower leaves only"
+      moderate: "Multiple lesions, lower 50% of canopy affected"
+      severe: "Widespread defoliation; lesions on stem and fruit"
+    health_score_base: 40
+    affected_crops: [tomato, potato]
+    spread_risk: moderate
+    treatments:
+      chemical:
+        - name: "Mancozeb 75% WP"
+          brand_examples: ["Dithane M-45", "Indofil M-45"]
+          dosage: "2.5 g per litre of water"
+          frequency: "3–4 sprays, 7–10 days apart"
+          phi_days: 15
+          safety: "Avoid application in rain forecast within 4 hours."
+        - name: "Chlorothalonil 75% WP"
+          brand_examples: ["Kavach", "Daconil"]
+          dosage: "2 g per litre of water"
+          frequency: "3 sprays, 7–10 days apart"
+          phi_days: 7
+          safety: "Keep away from fish ponds."
+        - name: "Azoxystrobin 23% SC"
+          brand_examples: ["Amistar", "Azoxy"]
+          dosage: "1 mL per litre of water"
+          frequency: "2 sprays, 10–14 days apart"
+          phi_days: 3
+          safety: "Rotate with non-strobilurin fungicides to prevent resistance."
+      organic:
+        - name: "Copper oxychloride 50% WP"
+          brand_examples: ["Blue Copper", "Fytolan"]
+          dosage: "3 g per litre of water"
+          frequency: "Every 10 days, preventive"
+        - name: "Bacillus subtilis biofungicide"
+          brand_examples: ["Serenade", "Bioderma"]
+          dosage: "5 mL per litre, foliar spray"
+          frequency: "Every 7 days preventively"
+      preventive:
+        - "Use resistant varieties (e.g. Arka Rakshak for tomato)"
+        - "Stake plants to improve air circulation"
+        - "Drip irrigation instead of overhead — keeps foliage dry"
+        - "Remove and destroy infected lower leaves as soon as spotted"
+        - "Crop rotation: avoid potato/tomato in same field for 2+ years"
+    notes: "Most damaging during prolonged cloudy periods. Spray calendar should start at first sign or prophylactically during monsoon."
+
+  late_blight:
+    display_name: "Late Blight"
+    category: fungal
+    pathogen: "Phytophthora infestans"
+    description: >
+      The most destructive disease of potato and tomato. An oomycete (water mould)
+      that can destroy an entire crop in 7–10 days under cool, wet conditions
+      (10–25°C, RH >90%). Caused the Irish Famine of 1840s. Spreads by rain splash
+      and airborne sporangia.
+    symptoms:
+      - "Water-soaked, pale-green to brown lesions on leaf edges and tips"
+      - "White-grey fuzzy sporulation on underside of leaves in humid conditions"
+      - "Lesions rapidly expand, leaves collapse and turn dark brown-black"
+      - "Stems show dark-brown rotting streaks"
+      - "Tubers (potato): reddish-brown internal rot with copper-coloured margin"
+      - "Fruit (tomato): firm, brown, greasy spots enlarge rapidly"
+    severity_indicators:
+      mild: "Lesions on leaf tips, <5% canopy affected"
+      moderate: "Multiple lesions, 5–30% canopy, sporulation visible"
+      severe: ">30% canopy collapsed, stem blight, tuber/fruit infection"
+    health_score_base: 15
+    affected_crops: [tomato, potato]
+    spread_risk: critical
+    treatments:
+      chemical:
+        - name: "Metalaxyl 8% + Mancozeb 64% WP"
+          brand_examples: ["Ridomil Gold MZ", "Matco"]
+          dosage: "2.5 g per litre of water (1 kg/acre)"
+          frequency: "2–3 sprays, 10–14 days apart"
+          phi_days: 14
+          safety: "Systemic — do not use more than 2 applications per season to prevent resistance."
+        - name: "Cymoxanil 8% + Mancozeb 64% WP"
+          brand_examples: ["Curzate M8", "Trimato"]
+          dosage: "2.5 g per litre of water"
+          frequency: "2–3 sprays, 7–10 days apart"
+          phi_days: 14
+          safety: "Apply as protective + curative at first outbreak."
+        - name: "Dimethomorph 50% WP"
+          brand_examples: ["Acrobat", "Paragon"]
+          dosage: "1 g per litre"
+          frequency: "2 sprays, 10 days apart"
+          phi_days: 7
+          safety: "Always mix with contact fungicide; rotate modes of action."
+      organic:
+        - name: "Copper hydroxide 77% WP"
+          brand_examples: ["Kocide", "Cupra"]
+          dosage: "3 g per litre"
+          frequency: "Every 7 days, preventive"
+        - name: "Bordeaux mixture (1:1:100)"
+          dosage: "Self-prepared: 1 kg CuSO4 + 1 kg lime per 100 L water"
+          frequency: "Every 7–10 days preventively"
+      preventive:
+        - "Use certified disease-free seed tubers or grafted seedlings"
+        - "Avoid overhead irrigation; ensure proper drainage"
+        - "Hilling of potato plants reduces tuber infection"
+        - "Harvest at dry weather; cure potato tubers before storage"
+        - "Monitor blight forecasting alerts (AICRP-Potato advisories)"
+        - "Destroy infected plant debris immediately — do not compost"
+    notes: "EMERGENCY — late blight spreads faster than most diseases. Act within 24 hours of first sighting. Notify neighbouring farmers."
+
+  powdery_mildew:
+    display_name: "Powdery Mildew"
+    category: fungal
+    pathogen: "Erysiphe graminis (wheat), Leveillula taurica (tomato)"
+    description: >
+      Obligate fungal parasite producing characteristic white powdery coating on
+      leaf surfaces. Unlike most fungi, favoured by warm dry days and cool nights
+      (15–28°C) with low to moderate humidity. Spores spread easily by wind.
+    symptoms:
+      - "White to grey powdery circular patches on upper leaf surface"
+      - "Patches coalesce to cover entire leaf with powdery coating"
+      - "Affected leaves turn yellow then brown and die"
+      - "Stunted growth, early senescence of affected tillers"
+      - "Black overwintering bodies (cleistothecia) visible in late stages"
+    severity_indicators:
+      mild: "Small white patches on a few leaves"
+      moderate: "Patches on 20–40% leaf surface, yellowing starts"
+      severe: "Full leaf coverage, premature death of affected parts"
+    health_score_base: 45
+    affected_crops: [wheat, tomato, soybean]
+    spread_risk: moderate
+    treatments:
+      chemical:
+        - name: "Sulphur 80% WP (wettable sulphur)"
+          brand_examples: ["Sulfex", "Kumulus DF"]
+          dosage: "3 g per litre of water"
+          frequency: "3 sprays, 10 days apart"
+          phi_days: 7
+          safety: "Do not apply in high temperature (>35°C) — phytotoxic risk. Do not mix with oil-based products."
+        - name: "Hexaconazole 5% EC"
+          brand_examples: ["Contaf", "Hexadhan"]
+          dosage: "2 mL per litre of water"
+          frequency: "2 sprays, 15 days apart"
+          phi_days: 21
+          safety: "Systemic — effective curative. Rotate with sulphur."
+        - name: "Triadimefon 25% WP"
+          brand_examples: ["Bayleton", "Calixin"]
+          dosage: "1 g per litre"
+          frequency: "2 sprays, 15 days apart"
+          phi_days: 21
+          safety: "Triazole fungicide — observe resistance management guidelines."
+      organic:
+        - name: "Neem oil 3000 ppm"
+          dosage: "5 mL per litre + spreader"
+          frequency: "Every 7 days"
+        - name: "Baking soda solution"
+          dosage: "5 g sodium bicarbonate + 5 mL soap per litre"
+          frequency: "Every 5–7 days"
+        - name: "Potassium bicarbonate"
+          dosage: "5 g per litre"
+          frequency: "Every 7 days"
+      preventive:
+        - "Maintain adequate spacing to improve air circulation"
+        - "Avoid excess nitrogen fertilisation"
+        - "Use resistant varieties where available"
+        - "Avoid drought stress — maintain uniform moisture"
+    notes: "Powdery mildew is rarely fatal but causes significant yield drag. Early intervention is very effective."
+
+  bacterial_spot:
+    display_name: "Bacterial Spot"
+    category: bacterial
+    pathogen: "Xanthomonas campestris pv. vesicatoria"
+    description: >
+      Bacterial disease spread by rain splash, infected seed, and mechanical contact.
+      Favoured by warm (25–30°C) wet conditions. Can render fruit unmarketable in
+      tomato and cause significant defoliation in pepper and cotton.
+    symptoms:
+      - "Small water-soaked, dark green lesions on leaves (0.5–5 mm)"
+      - "Lesions turn brown with yellow halo — angular, limited by leaf veins"
+      - "Lesions coalesce under wet conditions; leaves drop"
+      - "Stem: dark, elongated, water-soaked streaks"
+      - "Fruit: small, raised, scabby, dark brown to black spots"
+      - "Fruit spots remain superficial but make produce unmarketable"
+    severity_indicators:
+      mild: "Scattered lesions on lower leaves, no fruit symptoms"
+      moderate: "50%+ leaf area with lesions, some fruit spotting"
+      severe: "Heavy defoliation, most fruit with spots, stem streaks"
+    health_score_base: 30
+    affected_crops: [tomato, cotton, soybean]
+    spread_risk: high
+    treatments:
+      chemical:
+        - name: "Copper oxychloride 50% WP"
+          brand_examples: ["Blue Copper 50", "Fytolan"]
+          dosage: "3 g per litre (1.5–2 kg/acre)"
+          frequency: "3–4 sprays, 7–10 days apart"
+          phi_days: 10
+          safety: "Protective only — apply before infection. Copper resistance developing in some regions."
+        - name: "Streptomycin sulphate 9% + Tetracycline 1% SP"
+          brand_examples: ["Agrimycin-100", "Plantomycin"]
+          dosage: "0.5 g per litre of water"
+          frequency: "2–3 sprays, 10 days apart"
+          phi_days: 7
+          safety: "Antibiotic — use judiciously to prevent AMR. Do not use in last 2 weeks before harvest."
+        - name: "Kasugamycin 3% SL"
+          brand_examples: ["Kasumin"]
+          dosage: "2 mL per litre"
+          frequency: "2 sprays at 10-day interval"
+          phi_days: 7
+          safety: "Bacteriostatic. Use in combination with copper."
+      organic:
+        - name: "Pseudomonas fluorescens bioagent"
+          dosage: "10 mL per litre, foliar spray"
+          frequency: "Every 10–14 days"
+        - name: "Copper-based Bordeaux mixture"
+          dosage: "0.5% (5 g CuSO4 + 5 g lime per litre)"
+          frequency: "Every 10 days preventively"
+      preventive:
+        - "Use certified disease-free seed — seed treatment with streptomycin"
+        - "Avoid overhead irrigation — use drip or furrow"
+        - "Sanitise tools between plants during pruning"
+        - "Crop rotation of 2–3 years (non-solanaceous crops)"
+        - "Do not work in fields when plants are wet"
+    notes: "No curative chemical treatment. Copper sprays are preventive/protective. Once systemic, field management (crop hygiene) is most important."
+
+  nitrogen_deficiency:
+    display_name: "Nitrogen Deficiency"
+    category: nutritional
+    description: >
+      Nitrogen (N) is the most mobile macronutrient. Deficiency causes chloroplast
+      breakdown starting from oldest leaves as N is remobilised to newer growth.
+      Most common in sandy/light soils, waterlogged conditions, or under-fertilised crops.
+    symptoms:
+      - "Pale yellow-green colouration beginning on lower/older leaves"
+      - "Yellowing moves from leaf tip to base along midrib (V-shaped in maize)"
+      - "Stunted plant growth, thin weak stems"
+      - "Reduced tillering in wheat and rice"
+      - "Premature leaf shedding in severe cases"
+      - "Entire plant turns light green; older leaves die first"
+    severity_indicators:
+      mild: "Light yellowing of bottom 1–2 leaves"
+      moderate: "Yellowing on lower 50% of plant"
+      severe: "Whole plant pale, severe stunting, leaf death"
+    health_score_base: 50
+    affected_crops: [rice, maize, wheat, cotton]
+    spread_risk: none
+    treatments:
+      chemical:
+        - name: "Urea 46% N (soil application)"
+          dosage: "5–10 kg per acre as top dressing (split application)"
+          frequency: "Apply immediately; follow up in 15 days if needed"
+          phi_days: 0
+          safety: "Do not apply in standing water or before heavy rain — loss through leaching/volatilisation."
+        - name: "Urea foliar spray"
+          dosage: "1–2% solution (10–20 g urea per litre)"
+          frequency: "2–3 sprays, 7–10 days apart"
+          phi_days: 7
+          safety: "Do not spray in hot afternoon sun. Check for phytotoxicity on sensitive varieties."
+        - name: "Liquid N (19-19-19 NPK) foliar"
+          dosage: "5 mL per litre"
+          frequency: "2 applications at 10-day interval"
+          phi_days: 7
+          safety: "Use only as supplemental — not a replacement for soil N."
+      organic:
+        - name: "Vermicompost"
+          dosage: "200–400 kg per acre"
+          frequency: "Basal application or side dressing"
+        - name: "Green manure (Dhaincha/Sunhemp)"
+          dosage: "Incorporate at flowering stage (45–60 days)"
+          frequency: "One season before planting"
+        - name: "Azotobacter biofertiliser"
+          dosage: "5 kg per acre (soil application)"
+          frequency: "At transplanting/sowing"
+      preventive:
+        - "Conduct soil testing before every season — apply N based on soil health card"
+        - "Split nitrogen application into 3 doses (basal + top dressings)"
+        - "Avoid waterlogging — improves N uptake"
+        - "Use slow-release fertilisers (neem-coated urea) to reduce leaching"
+    notes: "Confirm with soil test before applying additional N — excess N promotes disease susceptibility and causes environmental pollution."
+
+  potassium_deficiency:
+    display_name: "Potassium Deficiency"
+    category: nutritional
+    description: >
+      Potassium (K) is essential for water regulation, enzyme activation, and
+      disease resistance. Deficiency symptoms appear on older leaves first as K
+      is remobilised. Common in highly weathered soils, sandy soils, or crops
+      following heavy potassium-demanding crops.
+    symptoms:
+      - "Scorching (necrosis) of leaf margins and tips — brown dry edges"
+      - "Interveinal yellowing on older/lower leaves (between veins stay green)"
+      - "Leaves curl downward; appear dull and mottled"
+      - "Weak stems prone to lodging"
+      - "Poor fruit quality — blossom-end rot in tomato/potato"
+      - "Reduced drought and frost tolerance"
+    severity_indicators:
+      mild: "Slight tip scorching on bottom 2–3 leaves"
+      moderate: "Margin scorch on lower 30–50% leaves, some curling"
+      severe: "Extensive necrosis, whole plant affected, premature leaf death"
+    health_score_base: 50
+    affected_crops: [potato, tomato, sugarcane]
+    spread_risk: none
+    treatments:
+      chemical:
+        - name: "Muriate of Potash (MOP) 60% K2O"
+          dosage: "25–50 kg K2O per acre based on soil test"
+          frequency: "Basal or top dressing at first symptom"
+          phi_days: 0
+          safety: "Avoid excess — high Cl can cause salt stress in sensitive crops."
+        - name: "Sulphate of Potash (SOP) 50% K2O"
+          dosage: "25–40 kg K2O per acre"
+          frequency: "Preferred for potato, tomato, sugarcane (chloride sensitive)"
+          phi_days: 0
+          safety: "Lower chloride than MOP; safe for most crops."
+        - name: "Potassium nitrate foliar (13-0-45)"
+          dosage: "10 g per litre"
+          frequency: "3–4 foliar sprays, 10 days apart"
+          phi_days: 0
+          safety: "Quick-acting foliar correction. Do not exceed 1.5% concentration."
+      organic:
+        - name: "Wood ash"
+          dosage: "100–200 kg per acre — soil incorporation"
+          frequency: "Pre-season"
+        - name: "Compost from crop residues"
+          dosage: "1–2 tonne per acre"
+          frequency: "Every season"
+        - name: "K-solubilising bacteria (Frateuria aurantia)"
+          dosage: "4 kg per acre soil application"
+          frequency: "At sowing/transplanting"
+      preventive:
+        - "Soil test before each season — optimise K fertilisation"
+        - "Maintain proper soil pH (6.0–7.0) for good K availability"
+        - "Avoid excessive nitrogen which dilutes K concentration in plant"
+    notes: "Potassium deficiency increases susceptibility to diseases like late blight. Foliar K correction is faster; follow up with soil application."
+
+  pest_damage:
+    display_name: "Pest Damage"
+    category: pest
+    description: >
+      Physical damage by insects or mites — includes chewing insects (caterpillars,
+      beetles), sucking pests (aphids, whiteflies, thrips, mites), and boring pests
+      (stem borers, pod borers). Pattern of damage helps identify the pest.
+    symptoms:
+      - "Ragged, irregular holes in leaves — chewing insects"
+      - "Silver stippling or bronzing on leaves — thrips or spider mites"
+      - "Curling, cupping, sticky honeydew, sooty mould — aphids or whiteflies"
+      - "Winding mines through leaf tissue — leaf miners"
+      - "Stem entry holes with frass (insect excrement) — stem borers"
+      - "Wilting of shoot tips — shoot borers or aphid colonies"
+    severity_indicators:
+      mild: "Few holes or stippling on 5–10% of leaves"
+      moderate: "Significant feeding damage on 20–50% of canopy"
+      severe: "Heavy defoliation, dieback, or stem damage; >50% plants affected"
+    health_score_base: 40
+    affected_crops: [cotton, soybean, tomato, maize]
+    spread_risk: moderate
+    treatments:
+      chemical:
+        - name: "Imidacloprid 17.8% SL (systemic insecticide — sucking pests)"
+          brand_examples: ["Confidor", "Admire", "Imida"]
+          dosage: "0.5 mL per litre of water"
+          frequency: "1–2 applications only per season (resistance risk)"
+          phi_days: 14
+          safety: "TOXIC to bees — do not spray on flowering crops or near water. Apply evening only."
+        - name: "Chlorpyrifos 20% EC (chewing and boring pests)"
+          brand_examples: ["Dursban", "Radar"]
+          dosage: "2 mL per litre of water"
+          frequency: "1–2 sprays, 14 days apart"
+          phi_days: 21
+          safety: "Broad-spectrum — harmful to natural enemies. Use only when threshold exceeded."
+        - name: "Emamectin benzoate 5% SG (caterpillars, diamond-back moth)"
+          brand_examples: ["Proclaim", "Emanon"]
+          dosage: "0.5 g per litre"
+          frequency: "2 sprays, 10 days apart"
+          phi_days: 7
+          safety: "Very effective at low doses. Rotate with different MOA to prevent resistance."
+        - name: "Spinosad 45% SC (thrips, caterpillars)"
+          brand_examples: ["Tracer", "Success"]
+          dosage: "0.3 mL per litre"
+          frequency: "2 sprays, 10 days apart"
+          phi_days: 3
+          safety: "Relatively safe for natural enemies when dry."
+      organic:
+        - name: "Neem oil 5% EC + neem seed kernel extract"
+          dosage: "5 mL neem oil per litre + 50 g NSKE per litre"
+          frequency: "Every 7 days"
+        - name: "Beauveria bassiana biopesticide"
+          dosage: "5 g per litre (1012 spores/g)"
+          frequency: "2–3 sprays, 7–10 days apart"
+        - name: "Trichogramma egg parasitoid release"
+          dosage: "50,000 eggs per acre"
+          frequency: "2–3 releases, 7 days apart"
+      preventive:
+        - "Scout weekly — identify pest species before spraying (IPM approach)"
+        - "Use economic threshold levels (ETL) before applying pesticides"
+        - "Yellow/blue sticky traps for monitoring flying pests"
+        - "Avoid broad-spectrum sprays that kill natural enemies"
+        - "Light traps (1 per 2 acres) for nocturnal moths"
+        - "Intercropping with repellent crops (marigold, coriander)"
+    notes: "Always identify the pest before spraying. Many 'damage' symptoms are caused by naturally managing pest populations — check for beneficial insects first."
+
+  general_lesion:
+    display_name: "Leaf Lesion (Unidentified)"
+    category: ambiguous
+    description: >
+      Visible lesions or discolouration that does not clearly match a single
+      specific disease. May represent mixed infection, early-stage disease,
+      abiotic stress (heat, chemical burn), or a less common pathogen.
+      Further observation or lab testing recommended.
+    symptoms:
+      - "Brown, tan, or dark spots/patches without clear diagnostic pattern"
+      - "Lesions of variable size and shape"
+      - "May show marginal necrosis or water-soaked areas"
+    severity_indicators:
+      mild: "Few spots, no spread pattern"
+      moderate: "Multiple lesions, affecting 15–30% of canopy"
+      severe: "Widespread lesions with rapid expansion"
+    health_score_base: 55
+    affected_crops: [wheat, rice, tomato, potato, maize, cotton, soybean, sugarcane]
+    spread_risk: unknown
+    treatments:
+      chemical:
+        - name: "Mancozeb 75% WP (broad-spectrum protective)"
+          brand_examples: ["Dithane M-45"]
+          dosage: "2.5 g per litre"
+          frequency: "2–3 sprays, 10 days apart while diagnosis pending"
+          phi_days: 15
+          safety: "Preventive treatment while seeking expert diagnosis."
+      organic:
+        - name: "Copper oxychloride 50% WP"
+          dosage: "3 g per litre"
+          frequency: "Every 10 days"
+      preventive:
+        - "Collect samples and contact local KVK (Krishi Vigyan Kendra) or agricultural officer"
+        - "Photograph lesion pattern, distribution, and affected plant parts"
+        - "Note environmental conditions (recent rain, temperature, humidity)"
+        - "Do not apply targeted fungicide until disease is confirmed"
+    notes: "Send leaf samples to the nearest plant pathology lab. Use helpline: ICAR 1800-180-1551 (toll-free)."

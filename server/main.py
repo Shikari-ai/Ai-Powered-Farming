@@ -2,11 +2,14 @@
 Smart Agri — AI inference API.
 
 Endpoints:
-  POST /v1/chat          Gemini-backed conversational assistant (key in server/.env)
-  POST /v1/vision/disease  YOLOv8 disease inference
-  POST /v1/feedback/*    User scan corrections → training pipeline
+  POST /v1/scan            AgroNet crop scanner — disease + health score + KB (primary)
+  POST /v1/vision/disease  YOLOv8 detection (secondary / bounding boxes)
+  POST /v1/chat            Gemini-backed conversational assistant
+  POST /v1/feedback/*      User scan corrections → training pipeline
 
-Set AGRI_YOLO_WEIGHTS for vision.  Set GEMINI_API_KEY for chat.
+Set AGRI_AGRONET_WEIGHTS for the custom scanner.
+Set AGRI_YOLO_WEIGHTS for the YOLOv8 detection endpoint.
+Set GEMINI_API_KEY for chat.
 """
 
 from __future__ import annotations
@@ -26,6 +29,7 @@ from inference.yolo_engine import YOLOVisionEngine
 from ml_metadata import load_vision_metadata
 from server.feedback_routes import router as feedback_router
 from server.chat_routes import router as chat_router
+from server.inference.agronet_engine import AgroNetEngine
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
@@ -35,11 +39,12 @@ MAX_IMAGE_BYTES = int(os.environ.get("AGRI_MAX_IMAGE_MB", "12")) * 1024 * 1024
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.vision_engine = YOLOVisionEngine()
+    app.state.vision_engine   = YOLOVisionEngine()
+    app.state.agronet_engine  = AgroNetEngine()
     yield
 
 
-app = FastAPI(title=APP_NAME, version="0.3.0", lifespan=lifespan)
+app = FastAPI(title=APP_NAME, version="0.4.0", lifespan=lifespan)
 
 _cors = os.environ.get("AGRI_CORS_ORIGINS", "*")
 app.include_router(feedback_router, prefix="/v1/feedback")
@@ -54,20 +59,64 @@ app.add_middleware(
 )
 
 
+@app.post("/v1/scan")
+async def scan_crop(file: UploadFile = File(...)) -> dict[str, Any]:
+    """
+    Primary AgroNet crop scanner.
+
+    Upload a crop leaf/plant photo → get:
+      - disease label + confidence
+      - health score 0-100
+      - full disease description and symptoms
+      - pesticide recommendations with dosage and PHI
+      - organic alternatives
+      - prevention tips
+
+    Falls back to a 503 if AGRI_AGRONET_WEIGHTS is not configured.
+    """
+    eng: AgroNetEngine = app.state.agronet_engine
+    if not eng.ok:
+        raise HTTPException(
+            status_code=503,
+            detail=eng.load_error or "Set AGRI_AGRONET_WEIGHTS in server/.env to activate the crop scanner.",
+        )
+
+    raw = await file.read()
+    if not raw or len(raw) < 32:
+        raise HTTPException(status_code=400, detail="Empty or too-small image.")
+    if len(raw) > MAX_IMAGE_BYTES:
+        raise HTTPException(status_code=413, detail="Image exceeds size limit.")
+
+    try:
+        def _run():
+            return eng.scan(raw)
+        return await run_in_threadpool(_run)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
-    eng: YOLOVisionEngine = app.state.vision_engine
-    w = os.environ.get("AGRI_YOLO_WEIGHTS", "")
+    yolo:    YOLOVisionEngine = app.state.vision_engine
+    agronet: AgroNetEngine    = app.state.agronet_engine
     return {
-        "ok": True,
+        "ok":      True,
         "service": APP_NAME,
-        "model_loaded": eng.ok,
-        "weights_configured": bool(w),
-        "load_error": eng.load_error,
-        "imgsz": eng.imgsz if eng.ok else int(os.environ.get("AGRI_YOLO_IMGSZ", "640")),
-        "conversational_llm": {
+        "version": "0.4.0",
+        "agronet": {
+            "ok":     agronet.ok,
+            "weights": os.path.basename(agronet.weights) if agronet.weights else None,
+            "error":  agronet.load_error,
+        },
+        "yolo": {
+            "ok":     yolo.ok,
+            "weights": os.path.basename(yolo.weights) if yolo.ok and yolo.weights else None,
+            "error":  yolo.load_error,
+        },
+        "chat": {
             "enabled": bool(os.environ.get("GEMINI_API_KEY", "").strip()),
-            "endpoint": "/v1/chat",
         },
     }
 
