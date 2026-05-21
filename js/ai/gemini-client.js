@@ -1,75 +1,67 @@
-// Gemini proxy client — talks to a Val Town HTTP val that holds the API key
-// and forwards to Google's Gemini API. Returns the reply text or null on any
-// failure (caller falls back to the rule-based composer).
+// Local-server chat client — calls POST /v1/chat on the self-hosted FastAPI server.
+// No Val Town, no external proxy. The Gemini API key lives in server/.env only.
 //
-// Endpoint must accept POST with { question, farmContext, history } and return
-// { reply, finishReason, model, promptTokens, completionTokens }.
+// Interface is identical to the old Val Town version so assistant.js needs no changes:
+//   tryGeminiReply(question, snapshot, chatMessages) → Promise<string|null>
 
-const GEMINI_PROXY_URL =
-  "https://harshwardhanparganiha--992de5aa4d5911f1849eee650bb23af1.web.val.run";
+import { getAiConfig } from "./config.js?v=71";
 
-// Keep this short — Val Town free tier returns 503 fast when overloaded.
-// A long wait here just delays the rule-based fallback. Healthy calls
-// complete in ~1-3s; cold starts in ~5s.
-const REQUEST_TIMEOUT_MS = 9000;
+const REQUEST_TIMEOUT_MS = 12000;
 
 /**
  * @param {string} question
  * @param {object} snapshot — orchestrator snapshot (fields, scans, weatherLogs)
- * @param {Array<{senderRole?:string, role?:string, text?:string}>} chatMessages — last few turns
+ * @param {Array<{senderRole?:string, role?:string, text?:string}>} chatMessages
  * @returns {Promise<string|null>}
  */
 export async function tryGeminiReply(question, snapshot, chatMessages) {
   const q = String(question || "").trim();
   if (!q) return null;
 
-  const farmContext = buildFarmContext(snapshot);
-  const history = buildHistory(chatMessages);
+  const { inferenceBaseUrl } = getAiConfig();
+  if (!inferenceBaseUrl) {
+    console.warn("[chat] inferenceBaseUrl not configured — skipping LLM call");
+    return null;
+  }
+
+  const farmContext = _buildFarmContext(snapshot);
+  const history     = _buildHistory(chatMessages);
 
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
   try {
-    // Optional user-chosen model override (set via the header picker UI).
-    // "auto" or absent → cascade default; otherwise pin to a single provider.
-    let forceProvider = null;
-    try {
-      const v = typeof window !== "undefined" && typeof window.__agriGetModelPref === "function" ? window.__agriGetModelPref() : null;
-      if (v && v !== "auto") forceProvider = v;
-    } catch {}
-
-    const res = await fetch(GEMINI_PROXY_URL, {
-      method: "POST",
+    const res = await fetch(`${inferenceBaseUrl}/v1/chat`, {
+      method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: q, farmContext, history, forceProvider }),
-      signal: ctrl.signal,
+      body:    JSON.stringify({ question: q, farmContext, history }),
+      signal:  ctrl.signal,
     });
     clearTimeout(t);
     if (!res.ok) {
-      console.warn("[gemini] proxy returned", res.status);
+      console.warn("[chat] server returned", res.status);
       return null;
     }
-    const data = await res.json();
+    const data  = await res.json();
     const reply = typeof data?.reply === "string" ? data.reply.trim() : "";
-    if (!reply) return null;
-    return reply;
+    return reply || null;
   } catch (e) {
     clearTimeout(t);
-    console.warn("[gemini] proxy call failed:", e?.message || e);
+    console.warn("[chat] call failed:", e?.message || e);
     return null;
   }
 }
 
-function buildFarmContext(snapshot) {
+function _buildFarmContext(snapshot) {
   if (!snapshot || typeof snapshot !== "object") return null;
   const out = {};
 
   const fields = Array.isArray(snapshot.fields) ? snapshot.fields : [];
   if (fields.length) {
     out.fields = fields.slice(0, 6).map((f) => ({
-      name: f?.name || null,
-      cropType: f?.cropType || null,
+      name:        f?.name        || null,
+      cropType:    f?.cropType    || null,
       cropVariety: f?.cropVariety || null,
-      areaAcres: typeof f?.areaAcres === "number" ? Number(f.areaAcres.toFixed(2)) : null,
+      areaAcres:   typeof f?.areaAcres === "number" ? Number(f.areaAcres.toFixed(2)) : null,
     }));
   }
 
@@ -77,8 +69,8 @@ function buildFarmContext(snapshot) {
   if (scans.length) {
     const s = scans[0];
     out.latestScan = {
-      healthScore: typeof s?.healthScore === "number" ? Math.round(s.healthScore) : null,
-      diagnosis: s?.diagnosis || null,
+      healthScore:      typeof s?.healthScore === "number" ? Math.round(s.healthScore) : null,
+      diagnosis:        s?.diagnosis || null,
       observedSymptoms: Array.isArray(s?.observedSymptoms)
         ? s.observedSymptoms.slice(0, 5)
         : Array.isArray(s?.selectedSymptoms)
@@ -91,40 +83,33 @@ function buildFarmContext(snapshot) {
   if (w) {
     const c = w.current || w;
     out.weather = {
-      tempC: pickNum(c?.temperature_2m, c?.temperature, c?.tempC, w?.tempC),
-      rhPct: pickNum(c?.relative_humidity_2m, c?.humidity, c?.rhPct, w?.rhPct),
-      city: w.city || w.location?.city || null,
-      rainTomorrowMm: pickNum(w?.derived?.rainTomorrowMm, w?.rainTomorrowMm),
+      tempC:          _pickNum(c?.temperature_2m, c?.temperature, c?.tempC, w?.tempC),
+      rhPct:          _pickNum(c?.relative_humidity_2m, c?.humidity, c?.rhPct, w?.rhPct),
+      city:           w.city || w.location?.city || null,
+      rainTomorrowMm: _pickNum(w?.derived?.rainTomorrowMm, w?.rainTomorrowMm),
     };
   }
 
-  if (snapshot.location?.city) {
-    out.location = { city: snapshot.location.city };
-  }
-
+  if (snapshot.location?.city) out.location = { city: snapshot.location.city };
   return Object.keys(out).length ? out : null;
 }
 
-function pickNum(...vals) {
+function _pickNum(...vals) {
   for (const v of vals) {
     if (typeof v === "number" && Number.isFinite(v)) return v;
   }
   return null;
 }
 
-function buildHistory(chatMessages) {
+function _buildHistory(chatMessages) {
   if (!Array.isArray(chatMessages)) return [];
   const out = [];
-  // Take the last 8 messages, oldest first. Skip empty / image-only entries.
-  const slice = chatMessages.slice(-10);
-  for (const m of slice) {
+  for (const m of chatMessages.slice(-10)) {
     const text = typeof m?.text === "string" ? m.text.trim() : "";
     if (!text) continue;
     const senderRole = m.senderRole || m.role || (m.from === "user" ? "user" : "assistant");
-    const role = senderRole === "user" ? "user" : "assistant";
-    out.push({ role, text: text.slice(0, 2000) });
+    out.push({ role: senderRole === "user" ? "user" : "assistant", text: text.slice(0, 2000) });
   }
-  // Drop the last user turn — caller will append `question` as the new user turn.
   if (out.length && out[out.length - 1].role === "user") out.pop();
   return out.slice(-8);
 }

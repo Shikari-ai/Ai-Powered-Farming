@@ -1,10 +1,12 @@
 """
-Smart Agri — AI inference API with real YOLOv8 inference path.
+Smart Agri — AI inference API.
 
-Set AGRI_YOLO_WEIGHTS to a trained YOLOv8 .pt (Ultralytics) with your disease classes.
-Without weights the endpoint returns HTTP 503 — no simulated labels.
+Endpoints:
+  POST /v1/chat          Gemini-backed conversational assistant (key in server/.env)
+  POST /v1/vision/disease  YOLOv8 disease inference
+  POST /v1/feedback/*    User scan corrections → training pipeline
 
-No external conversational LLM endpoints — chat runs in the web client.
+Set AGRI_YOLO_WEIGHTS for vision.  Set GEMINI_API_KEY for chat.
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ from starlette.concurrency import run_in_threadpool
 from inference.yolo_engine import YOLOVisionEngine
 from ml_metadata import load_vision_metadata
 from server.feedback_routes import router as feedback_router
+from server.chat_routes import router as chat_router
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
@@ -40,6 +43,7 @@ app = FastAPI(title=APP_NAME, version="0.3.0", lifespan=lifespan)
 
 _cors = os.environ.get("AGRI_CORS_ORIGINS", "*")
 app.include_router(feedback_router, prefix="/v1/feedback")
+app.include_router(chat_router, prefix="/v1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -62,8 +66,8 @@ def health() -> dict[str, Any]:
         "load_error": eng.load_error,
         "imgsz": eng.imgsz if eng.ok else int(os.environ.get("AGRI_YOLO_IMGSZ", "640")),
         "conversational_llm": {
-            "enabled": False,
-            "note": "Assistant uses client-side orchestration; this API serves vision and tools only.",
+            "enabled": bool(os.environ.get("GEMINI_API_KEY", "").strip()),
+            "endpoint": "/v1/chat",
         },
     }
 
