@@ -22,6 +22,7 @@ from starlette.concurrency import run_in_threadpool
 
 from inference.yolo_engine import YOLOVisionEngine
 from ml_metadata import load_vision_metadata
+from server.feedback_routes import router as feedback_router
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
@@ -35,9 +36,11 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title=APP_NAME, version="0.2.0", lifespan=lifespan)
+app = FastAPI(title=APP_NAME, version="0.3.0", lifespan=lifespan)
 
 _cors = os.environ.get("AGRI_CORS_ORIGINS", "*")
+app.include_router(feedback_router, prefix="/v1/feedback")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors.split(",") if _cors else ["*"],

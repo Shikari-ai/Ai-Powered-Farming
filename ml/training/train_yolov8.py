@@ -24,6 +24,9 @@ def main() -> None:
     ap.add_argument("--data", type=Path, required=True, help="Ultralytics data.yaml")
     ap.add_argument("--exp-name", type=str, default=None)
     ap.add_argument("--train-config", type=Path, default=ROOT / "ml" / "config" / "train_defaults.yaml")
+    ap.add_argument("--weights", type=Path, default=None, help="Override base model weights (e.g. best.pt)")
+    ap.add_argument("--cls-weights", type=Path, default=None, help="class_weights.yaml from balance_report")
+    ap.add_argument("--epochs", type=int, default=None, help="Override epochs from train_config")
     args = ap.parse_args()
 
     meta = load_vision_metadata()
@@ -34,12 +37,20 @@ def main() -> None:
     project = ROOT / "ml" / "runs" / "detect"
     project.mkdir(parents=True, exist_ok=True)
 
-    weights = tc.get("model", "yolov8n.pt")
+    weights = str(args.weights) if args.weights and args.weights.is_file() else tc.get("model", "yolov8n.pt")
     model = YOLO(weights)
+
+    # Class weights from balance_report — passed as list[float] to Ultralytics
+    cls_weights_list = None
+    if args.cls_weights and args.cls_weights.is_file():
+        cw_data = yaml.safe_load(args.cls_weights.read_text(encoding="utf-8")) or {}
+        cls_weights_list = cw_data.get("weights")
+
+    epochs = args.epochs if args.epochs is not None else int(tc.get("epochs", 120))
 
     train_kw = dict(
         data=str(args.data.resolve()),
-        epochs=int(tc.get("epochs", 120)),
+        epochs=epochs,
         imgsz=int(tc.get("imgsz", 640)),
         batch=int(tc.get("batch", 16)),
         patience=int(tc.get("patience", 35)),
@@ -57,6 +68,8 @@ def main() -> None:
     dev = tc.get("device") or ""
     if dev:
         train_kw["device"] = dev
+    if cls_weights_list:
+        train_kw["cls"] = cls_weights_list
 
     model.train(**train_kw)
     trainer = getattr(model, "trainer", None)
