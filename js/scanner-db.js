@@ -1,5 +1,5 @@
 import "./auth-session.js?v=33";
-import './i18n.js';
+import './i18n.js?v=8';
 import { auth, db, storage } from './auth.js?v=32';
 import { cropHealthDocId } from "./services/entity-sync.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -35,6 +35,9 @@ import { decorateNotificationForAmbient } from "./ambient/notification-decorator
 import { enqueueSensoryCue } from "./ambient/sensory-hooks.js";
 import { runAiVisionScan } from "./ai/vision-scan.js?v=6";
 import { startLiveGeminiScan } from "./ai/live-vision-gemini.js?v=3";
+import { buildPestPulse, contributePestSighting } from "./network/pest-regional.js?v=1";
+import { getRegionalOptIn } from "./network/regional-briefing.js";
+import { peekActiveWeatherLocation } from "./geo/active-location.js?v=1";
 
 const SYMPTOMS = [
     { id: "leaf_spots", label: "Leaf spots", weight: 14, tags: ["fungal", "bacterial"] },
@@ -791,22 +794,94 @@ document.addEventListener("DOMContentLoaded", () => {
       if (e === "resize_failed") return "Could not process the photo — try a smaller image.";
       return "AI vision unreachable (" + (e || "unknown") + ") — fill in symptoms below and tap Generate for the rules-based diagnosis.";
     }
+    // ── AgroNet v3 direct scan (used when inference URL is configured) ──────────
+    // Maps AgroNet's /v1/scan response to the scanner's unified diagnosis format
+    // so the same populateAiResult / populateAiReview functions work for both.
+    async function tryAgroNetScan(blob) {
+      const cfg = getAiConfig();
+      if (!cfg.inferenceBaseUrl) return null;
+      try {
+        const fd = new FormData();
+        fd.append("file", new File([blob], "scan.jpg", { type: "image/jpeg" }));
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 35000);
+        let res;
+        try {
+          res = await fetch(`${cfg.inferenceBaseUrl}/v1/scan`, { method: "POST", body: fd, signal: ctrl.signal });
+        } finally { clearTimeout(t); }
+        if (!res.ok) { console.warn("[agronet] HTTP", res.status); return null; }
+        const data = await res.json();
+        if (!data || !data.label) return null;
+
+        // Map health_score → riskLevel
+        const hs = typeof data.health_score === "number" ? data.health_score : 50;
+        const sev = (data.severity || "").toLowerCase();
+        let riskLevel = "medium";
+        if (sev === "none" || hs >= 85) riskLevel = "healthy";
+        else if (sev === "watch" || hs >= 65) riskLevel = "low";
+        else if (sev === "high" || hs < 30) riskLevel = "high";
+
+        // Flatten treatments
+        const tx = data.treatments || {};
+        const treatments = [
+          ...(tx.chemical || []).slice(0, 2).map(t => ({ type: "chemical", name: t.name, usage: `${t.dosage || ""}${t.phi_days ? ` | PHI ${t.phi_days}d` : ""}`.trim() })),
+          ...(tx.organic  || []).slice(0, 1).map(t => ({ type: "organic",  name: typeof t === "string" ? t : t.name, usage: "" })),
+          ...(tx.preventive || []).slice(0, 1).map(t => ({ type: "general", name: typeof t === "string" ? t : t.name, usage: "" })),
+        ];
+
+        // Build recommendations from symptoms + preventive tips
+        const recs = [
+          ...(Array.isArray(data.symptoms) ? data.symptoms.slice(0, 2) : []),
+          ...(tx.preventive ? (tx.preventive).slice(0, 2).map(t => typeof t === "string" ? t : t) : []),
+        ].filter(r => r && typeof r === "string").slice(0, 5);
+
+        const plantName = data.plant_identification?.common_name || "";
+        const dispName  = data.display_name || data.label || "Unknown";
+        const narrative = `It looks like ${dispName.toLowerCase()}${plantName ? ` (${plantName})` : ""}. Health score: ${Math.round(hs)}/100. ${data.description || ""}`.trim();
+
+        return {
+          ok: true,
+          provider: "agronet-v3",
+          model: data.model_version || "agronet_best.pth",
+          diagnosis: {
+            diseaseName: dispName,
+            scientificName: "",
+            riskLevel,
+            confidence: Math.round((data.confidence || 0) * 100),
+            summary: data.description || data.severity_description || "",
+            recommendations: recs.length ? recs : ["Monitor the plant closely."],
+            plantType: plantName,
+            narrative,
+            treatments,
+          },
+        };
+      } catch (e) {
+        console.warn("[agronet] scan failed:", e?.message || e);
+        return null;
+      }
+    }
+
     async function startAiVision(blob, isRetry = false) {
       if (!blob || aiVisionInFlight) return;
       aiVisionInFlight = true;
       try {
-        // Light farm context — the AI uses it to disambiguate (e.g. wheat vs
-        // tomato yellowing has very different cause sets).
-        const farmContext = {};
-        if (fieldSel && fieldSel.value) {
-          const f = (fieldsListLast || []).find((x) => x.id === fieldSel.value);
-          if (f) farmContext.fields = [{ name: f.name, cropType: f.cropType, cropVariety: f.cropVariety, areaAcres: f.areaAcres }];
+        // ── Stage 1: try AgroNet v3 (fast, trained, on-render) ──
+        let result = await tryAgroNetScan(blob);
+        if (result && result.ok) {
+          console.info("[scanner] AgroNet v3 result:", result.diagnosis.diseaseName, result.diagnosis.confidence + "%");
+        } else {
+          // ── Stage 2: fall back to Gemini via Val Town ──
+          const farmContext = {};
+          if (fieldSel && fieldSel.value) {
+            const f = (fieldsListLast || []).find((x) => x.id === fieldSel.value);
+            if (f) farmContext.fields = [{ name: f.name, cropType: f.cropType, cropVariety: f.cropVariety, areaAcres: f.areaAcres }];
+          }
+          result = await runAiVisionScan(blob, {
+            farmContext: Object.keys(farmContext).length ? farmContext : null,
+            cropType: cropSel?.value || "",
+            observedSymptoms: symptomsWrap ? getSelectedSymptoms(symptomsWrap) : [],
+          });
         }
-        const result = await runAiVisionScan(blob, {
-          farmContext: Object.keys(farmContext).length ? farmContext : null,
-          cropType: cropSel?.value || "",
-          observedSymptoms: symptomsWrap ? getSelectedSymptoms(symptomsWrap) : [],
-        });
         if (!result.ok) {
           console.warn("[scanner] AI vision failed:", result.error, result.raw?.slice(0, 200));
           if (visionText) {
@@ -1265,6 +1340,32 @@ document.addEventListener("DOMContentLoaded", () => {
                     queueLearningFlush(db, currentUserId, "scan_saved");
                 } catch (learErr) {
                     console.warn("[learning] scan_saved:", learErr?.message || learErr);
+                }
+                // Best-effort: contribute an anonymized pest sighting to the
+                // regional index — only if the user opted into regional
+                // intelligence and we have a coarse location. buildPestPulse
+                // returns null for healthy / non-pest scans, so those skip.
+                try {
+                    const loc = peekActiveWeatherLocation();
+                    if (loc && typeof loc.lat === "number" && typeof loc.lon === "number") {
+                        const optedIn = await getRegionalOptIn(db, currentUserId);
+                        if (optedIn) {
+                            const pestPulse = buildPestPulse({
+                                diagnosis: computed.diagnosis,
+                                healthScore: computed.healthScore,
+                                riskLevel: prLevel,
+                                lat: loc.lat,
+                                lng: loc.lon,
+                            });
+                            if (pestPulse) {
+                                await contributePestSighting(db, currentUserId, pestPulse, {
+                                    scanId: scanRef.id,
+                                });
+                            }
+                        }
+                    }
+                } catch (prErr) {
+                    console.warn("[pest-regional] contribute:", prErr?.message || prErr);
                 }
                 window.location.href = "index.html";
             } catch (e) {

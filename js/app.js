@@ -917,7 +917,7 @@ async function loadHomeWeather() {
 
 // Init core features on load
 document.addEventListener('DOMContentLoaded', () => {
-    if(window.location.pathname.includes('scanner.html')) {
+    if(document.getElementById('videoElement')) {
         initCamera();
     }
 
