@@ -25,105 +25,120 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/regional_intel_settings/$(request.auth.uid)).data.optIn == true;
     }
 
-    // Users: isolated per UID
+    // Users: isolated per UID. Self-delete is allowed for the right-to-erasure
+    // flow (see js/account/delete-account.js).
     match /users/{uid} {
       allow read, create, update: if isUid(uid);
-      allow delete: if false; // prefer account deletion workflows via Auth + backend cleanup
+      allow delete: if isUid(uid);
     }
 
     // Generic collections that carry userId on each document.
     match /fields/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     match /crop_scans/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     match /analytics/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     match /ai_recommendations/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     match /pest_predictions/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     match /weather_logs/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     match /activity_history/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     match /notifications/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     match /profile_metrics/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     match /environmental_data/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     match /alerts/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     match /crop_health/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     match /irrigation_data/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     match /ai_insights/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     match /profile_data/{uid} {
       allow read, create, update: if isUid(uid);
-      allow delete: if false;
+      allow delete: if isUid(uid);
     }
 
     match /app_settings/{uid} {
       allow read, create, update: if isUid(uid);
-      allow delete: if false;
+      allow delete: if isUid(uid);
     }
 
     // Adaptive assistant: one profile doc per user (embedded episodic tail, voice-ready metadata).
@@ -134,26 +149,30 @@ service cloud.firestore {
 
     match /geo_intel_snapshots/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     match /assistant_messages/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     // Compact structured summaries from optional public research (no raw HTML blobs).
     match /assistant_knowledge_memory/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     match /ai_engine_runs/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
@@ -174,58 +193,65 @@ service cloud.firestore {
       allow update: if (isOwnerByField("userId")
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["userReadAt"]))
                  || (signedIn() && request.auth.token.email == 'parganihaharshwardhan@gmail.com');
-      allow delete: if signedIn() && request.auth.token.email == 'parganihaharshwardhan@gmail.com';
+      allow delete: if isOwnerByField("userId")
+                 || (signedIn() && request.auth.token.email == 'parganihaharshwardhan@gmail.com');
     }
 
     match /ai_inference_jobs/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     // Farmer corrections / confirmations for vision model (retraining loop).
     match /vision_feedback/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     // Per-field longitudinal context (doc id should match fields/{fieldId}).
     match /field_context_state/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     // Append-only timeline rows for analytics / assistant (compact payloads).
     match /field_context_events/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     match /farm_interventions/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     match /farm_operational_tasks/{docId} {
       allow create: if isOwnerNewByField("userId");
-      allow read, update: if isOwnerByField("userId") && userIdUnchanged("userId");
+      allow read: if isOwnerByField("userId");
+      allow update: if isOwnerByField("userId") && userIdUnchanged("userId");
       allow delete: if isOwnerByField("userId");
     }
 
     // Longitudinal learning / calibration (explainable audit fields — self-serve transparency).
     match /learning_profiles/{uid} {
       allow read, create, update: if isUid(uid);
-      allow delete: if false;
+      allow delete: if isUid(uid);
     }
 
     // Opt-in collaborative regional intelligence (coarse grid only; no identities in regional_index).
     match /regional_intel_settings/{uid} {
       allow read, create, update: if isUid(uid);
-      allow delete: if false;
+      allow delete: if isUid(uid);
     }
 
     match /regional_index/{weekKey}/cells/{cellId} {
@@ -236,16 +262,51 @@ service cloud.firestore {
 
     match /users/{uid}/regional_sent/{docId} {
       allow read, create: if isUid(uid);
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if isUid(uid); // for right-to-erasure wipe
+    }
+
+    // Regional pest intelligence: coarse-grid pest sighting rollups (no identities).
+    match /pest_regional_index/{weekKey}/cells/{cellId} {
+      allow read: if signedIn();
+      allow create, update: if regionalOptIn();
+      allow delete: if false;
+    }
+
+    match /users/{uid}/pest_regional_sent/{docId} {
+      allow read, create: if isUid(uid);
+      allow update: if false;
+      allow delete: if isUid(uid); // for right-to-erasure wipe
     }
 
     match /users/{uid}/regional_calib/{docId} {
       allow read, create: if isUid(uid);
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if isUid(uid); // for right-to-erasure wipe
     }
 
     match /users/{uid}/regional_calib_quota/{docId} {
       allow read, create, update: if isUid(uid);
+      allow delete: if isUid(uid); // for right-to-erasure wipe
+    }
+
+    match /users/{uid}/regional_contrib_quota/{docId} {
+      allow read, create, update: if isUid(uid);
+      allow delete: if isUid(uid); // for right-to-erasure wipe
+    }
+
+    // Farm opt-in registry — tracks which cell a user registered in this week
+    // (used to decrement farmCount correctly on opt-out).
+    match /users/{uid}/regional_network_reg/{docId} {
+      allow read, create, delete: if isUid(uid);
+      allow update: if false; // immutable once set for the week
+    }
+
+    // Coarse-grid farm count — incremented on opt-in, decremented on opt-out.
+    // No user identity in the document; only aggregate farmCount.
+    match /regional_network/{weekKey}/cells/{cellId} {
+      allow read: if signedIn();
+      allow create, update: if regionalOptIn();
       allow delete: if false;
     }
 
