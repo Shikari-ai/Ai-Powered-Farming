@@ -146,7 +146,7 @@ class AgroNetEngine:
         self._load()
 
     def _load(self) -> None:
-        weights = os.environ.get("AGRI_AGRONET_WEIGHTS", "").strip()
+        weights = os.environ.get("AGRI_AGRONET_WEIGHTS", "ml/runs/agronet_v3/agronet_best.pth").strip()
         if not weights:
             self.load_error = "AGRI_AGRONET_WEIGHTS not set — AgroNet engine inactive"
             log.info(self.load_error)
