@@ -26,7 +26,18 @@
       "firestore.rules",
       "storage.rules",
       "server/**",
-      "functions/**"
+      "functions/**",
+      "ml/**",
+      "android/**",
+      "scripts/**",
+      "val-town/**",
+      "audit-results/**",
+      "test-fixtures/**",
+      "*.pth",
+      "*.py",
+      "*.txt",
+      "*.sh",
+      "*.md"
     ],
     "headers": [
       {

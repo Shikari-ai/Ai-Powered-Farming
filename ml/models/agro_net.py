@@ -32,34 +32,181 @@ import torch.nn as nn
 from pathlib import Path
 from typing import Optional
 
-# ── Class registry (must match disease_classes.yaml order) ───────────────────
+# ── Class registry v2 — 55 classes covering any agricultural plant ────────────
 AGRO_CLASSES = [
-    "leaf_rust",
-    "early_blight",
-    "late_blight",
-    "powdery_mildew",
-    "bacterial_spot",
-    "nitrogen_deficiency",
-    "potassium_deficiency",
-    "healthy_leaf",
-    "pest_damage",
-    "general_lesion",
+    # ── Rusts (fungal) ───────────────────────────────────────────────────────
+    "wheat_stripe_rust",        # Puccinia striiformis — yellow rust on wheat
+    "wheat_leaf_rust",          # Puccinia triticina
+    "wheat_stem_rust",          # Puccinia graminis
+    "corn_common_rust",         # Puccinia sorghi
+    "soybean_rust",             # Phakopsora pachyrhizi
+    "leaf_rust",                # generic rust (coffee, apple cedar, etc.)
+
+    # ── Blights ──────────────────────────────────────────────────────────────
+    "early_blight",             # Alternaria solani — tomato / potato
+    "late_blight",              # Phytophthora infestans — tomato / potato
+    "rice_blast",               # Magnaporthe oryzae — most destructive rice disease
+    "rice_bacterial_blight",    # Xanthomonas oryzae pv. oryzae
+    "corn_northern_blight",     # Exserohilum turcicum
+    "fire_blight",              # Erwinia amylovora — apple / pear
+
+    # ── Mildews ──────────────────────────────────────────────────────────────
+    "powdery_mildew",           # Erysiphe spp. — universal across crops
+    "downy_mildew",             # Peronospora / Plasmopara — grapes, cucurbits
+
+    # ── Spots & Lesions ──────────────────────────────────────────────────────
+    "bacterial_spot",           # Xanthomonas spp. — tomato / pepper / peach
+    "septoria_leaf_spot",       # Septoria tritici (wheat) / lycopersici (tomato)
+    "gray_leaf_spot",           # Cercospora zeae-maydis — corn
+    "rice_brown_spot",          # Bipolaris oryzae
+    "anthracnose",              # Colletotrichum spp. — mango / banana / beans
+    "bacterial_canker",         # Pseudomonas syringae — citrus / stone fruits
+    "leaf_scorch",              # Diplocarpon / Xylella — strawberry / olive
+    "general_lesion",           # catch-all for unclassified spots
+
+    # ── Wilt & Root diseases ─────────────────────────────────────────────────
+    "fusarium_wilt",            # Fusarium oxysporum — tomato / banana / cotton
+    "verticillium_wilt",        # Verticillium dahliae — potato / cotton
+    "root_rot",                 # Pythium / Phytophthora — seedlings & roots
+    "rice_sheath_blight",       # Rhizoctonia solani
+
+    # ── Viral diseases ───────────────────────────────────────────────────────
+    "mosaic_virus",             # TMV / CMV / BYMV — mottled yellowing
+    "yellow_leaf_curl_virus",   # TYLCV — tomato
+    "cotton_leaf_curl_virus",   # CLCuV — Pakistan/India cotton
+    "banana_bunchy_top",        # BBTV — most destructive banana disease
+
+    # ── Smuts & Scabs ────────────────────────────────────────────────────────
+    "smut",                     # Ustilago spp. — corn / wheat / sugarcane
+    "common_scab",              # Streptomyces scabiei — potato
+    "sugarcane_red_rot",        # Colletotrichum falcatum
+
+    # ── Crop-specific tropical diseases ──────────────────────────────────────
+    "rice_tungro",              # Rice tungro virus complex
+    "mango_anthracnose",        # Colletotrichum gloeosporioides
+    "banana_sigatoka",          # Mycosphaerella fijiensis — black sigatoka
+    "citrus_canker",            # Xanthomonas citri
+    "citrus_greening",          # Huanglongbing (HLB) — Candidatus Liberibacter
+    "cotton_bacterial_blight",  # Xanthomonas malvacearum
+
+    # ── Nutrient deficiencies ─────────────────────────────────────────────────
+    "nitrogen_deficiency",      # yellowing from base leaves upward
+    "phosphorus_deficiency",    # purple/red tint on leaves
+    "potassium_deficiency",     # brown leaf edges / scorching
+    "iron_deficiency",          # interveinal chlorosis — yellowing between veins
+    "magnesium_deficiency",     # interveinal chlorosis older leaves
+
+    # ── Pest damage (expanded) ───────────────────────────────────────────────
+    "pest_damage",              # generic / unclassified pest damage
+    "pest_damage_caterpillar",  # armyworm / bollworm / stem borer
+    "pest_damage_aphid",        # aphid / whitefly / mealybug colonies
+    "pest_damage_mite",         # spider mite webbing + stippling
+    "pest_damage_borer",        # fruit borer / stem borer entry holes
+    "pest_damage_leafminer",    # serpentine leaf mines
+
+    # ── Abiotic stress ───────────────────────────────────────────────────────
+    "drought_stress",           # wilting + leaf curl + tip burn
+    "waterlogging",             # yellowing + root suffocation symptoms
+    "sunburn",                  # bleached / papery patches on fruit & leaves
+    "frost_damage",             # water-soaked then necrotic patches
+
+    # ── Healthy ──────────────────────────────────────────────────────────────
+    "healthy_leaf",             # any healthy green leaf — any crop
+
+    # ════════════════════════════════════════════════════════════════════════
+    # v3 additions — 24 new classes (Round-3 scrape)
+    # ════════════════════════════════════════════════════════════════════════
+
+    # ── Micronutrient deficiencies ────────────────────────────────────────
+    "zinc_deficiency",          # khaira disease rice / interveinal streak maize
+    "sulfur_deficiency",        # uniform yellowing of young leaves — oilseeds
+    "calcium_deficiency",       # blossom end rot / tip burn
+    "boron_deficiency",         # hollow stem cauliflower / top rot sugarcane
+    "manganese_deficiency",     # interveinal chlorosis — cereals, soybean
+    "copper_deficiency",        # blueing die-back of wheat tips
+
+    # ── India-critical fungal diseases ────────────────────────────────────
+    "rice_false_smut",          # Ustilaginoidea virens — green spore balls
+    "rice_sheath_rot",          # Sarocladium oryzae — brown rotting sheath
+    "wheat_karnal_bunt",        # Tilletia indica — partial smut, quarantine
+    "wheat_loose_smut",         # Ustilago tritici — black powder head
+    "groundnut_leaf_spot",      # Cercospora / Phaeoisariopsis — Tikka disease
+    "groundnut_rust",           # Puccinia arachidis — orange pustules
+    "chickpea_blight",          # Ascochyta rabiei — dark necrotic lesions
+    "mustard_alternaria_blight",# Alternaria brassicae — concentric ring spots
+
+    # ── Vegetable & horticulture diseases ─────────────────────────────────
+    "okra_yellow_vein_mosaic",  # YVMV — yellow network veins on bhindi
+    "chilli_anthracnose",       # Colletotrichum capsici — fruit rot
+    "brinjal_wilt",             # Ralstonia / Fusarium wilt of eggplant
+
+    # ── Fruit crop diseases ───────────────────────────────────────────────
+    "banana_fusarium_wilt",     # Fusarium oxysporum f.sp. cubense — Panama
+    "mango_dieback",            # Lasiodiplodia theobromae — dead shoot tips
+
+    # ── Additional pest damage ────────────────────────────────────────────
+    "pest_damage_whitefly",     # Bemisia tabaci — silverleaf / sooty mold
+    "pest_damage_thrips",       # Thrips spp. — silvering / stippling
+    "pest_damage_locust",       # Schistocerca gregaria — mass defoliation
+
+    # ── Abiotic stress ───────────────────────────────────────────────────
+    "salinity_stress",          # marginal leaf scorch / tip burn — saline soil
+    "heat_stress",              # grain shrivelling / pollen failure / scorch
 ]
+
 NUM_CLASSES = len(AGRO_CLASSES)
 
-# Derived from disease_kb.yaml health_score_base — used to synthesise regression
-# labels when no explicit health annotation is in the dataset.
+# Health score baseline per class (0-100). Used as regression label fallback.
 CLASS_HEALTH_BASE = {
-    "leaf_rust":             35,
-    "early_blight":          40,
-    "late_blight":           15,
-    "powdery_mildew":        45,
-    "bacterial_spot":        30,
-    "nitrogen_deficiency":   50,
-    "potassium_deficiency":  50,
-    "healthy_leaf":          95,
-    "pest_damage":           40,
-    "general_lesion":        55,
+    "wheat_stripe_rust":       30, "wheat_leaf_rust":         35,
+    "wheat_stem_rust":         20, "corn_common_rust":         40,
+    "soybean_rust":            35, "leaf_rust":                35,
+    "early_blight":            40, "late_blight":              15,
+    "rice_blast":              20, "rice_bacterial_blight":    25,
+    "corn_northern_blight":    35, "fire_blight":              20,
+    "powdery_mildew":          45, "downy_mildew":             40,
+    "bacterial_spot":          30, "septoria_leaf_spot":       40,
+    "gray_leaf_spot":          35, "rice_brown_spot":          40,
+    "anthracnose":             35, "bacterial_canker":         25,
+    "leaf_scorch":             45, "general_lesion":           50,
+    "fusarium_wilt":           15, "verticillium_wilt":        20,
+    "root_rot":                15, "rice_sheath_blight":       30,
+    "mosaic_virus":            30, "yellow_leaf_curl_virus":   25,
+    "cotton_leaf_curl_virus":  25, "banana_bunchy_top":        10,
+    "smut":                    25, "common_scab":              45,
+    "sugarcane_red_rot":       20, "rice_tungro":              15,
+    "mango_anthracnose":       35, "banana_sigatoka":          30,
+    "citrus_canker":           30, "citrus_greening":          15,
+    "cotton_bacterial_blight": 25, "nitrogen_deficiency":      50,
+    "phosphorus_deficiency":   50, "potassium_deficiency":     50,
+    "iron_deficiency":         55, "magnesium_deficiency":     55,
+    "pest_damage":             40,
+    "pest_damage_caterpillar": 40, "pest_damage_aphid":        45,
+    "pest_damage_mite":        45, "pest_damage_borer":        35,
+    "pest_damage_leafminer":   50, "drought_stress":           40,
+    "waterlogging":            35, "sunburn":                  60,
+    "frost_damage":            30, "healthy_leaf":             95,
+
+    # v3 additions ─────────────────────────────────────────────────────────────
+    # Micronutrient deficiencies
+    "zinc_deficiency":         55, "sulfur_deficiency":        55,
+    "calcium_deficiency":      50, "boron_deficiency":         50,
+    "manganese_deficiency":    55, "copper_deficiency":        55,
+    # India-critical fungal diseases
+    "rice_false_smut":         35, "rice_sheath_rot":          30,
+    "wheat_karnal_bunt":       25, "wheat_loose_smut":         25,
+    "groundnut_leaf_spot":     40, "groundnut_rust":           35,
+    "chickpea_blight":         25, "mustard_alternaria_blight": 35,
+    # Vegetable & horticulture
+    "okra_yellow_vein_mosaic": 25, "chilli_anthracnose":       30,
+    "brinjal_wilt":            20,
+    # Fruit crop diseases
+    "banana_fusarium_wilt":    15, "mango_dieback":            30,
+    # Additional pest damage
+    "pest_damage_whitefly":    40, "pest_damage_thrips":       45,
+    "pest_damage_locust":      20,
+    # Abiotic stress
+    "salinity_stress":         40, "heat_stress":              40,
 }
 
 
@@ -147,6 +294,9 @@ class AgroNet(nn.Module):
         super().__init__()
         self.num_classes = num_classes
         self._freeze_epochs = freeze_backbone_epochs
+        # class list — set to sorted(AGRO_CLASSES) by default; overridden from
+        # checkpoint by load() so predict() always uses the trained ordering.
+        self.classes: list[str] = sorted(AGRO_CLASSES)
 
         self.backbone, self.pool, feat_dim = _build_backbone(pretrained)
         self.disease_head = DiseaseHead(feat_dim, num_classes)
@@ -176,17 +326,20 @@ class AgroNet(nn.Module):
         Single-image inference helper.
         x: (1, 3, 224, 224) on same device as model.
         Returns dict with class, confidence, health_score, all_probs.
+        Uses self.classes (set from checkpoint by load()) so label ordering
+        always matches the alphabetical ImageFolder order used at training time.
         """
         self.eval()
         logits, health = self(x)
         probs = torch.softmax(logits, dim=-1)[0]
         top_idx = int(probs.argmax())
+        classes = self.classes
         return {
             "class_id":    top_idx,
-            "label":       AGRO_CLASSES[top_idx],
+            "label":       classes[top_idx],
             "confidence":  float(probs[top_idx]),
             "health_score": float(health[0].clamp(0, 100)),
-            "all_probs":   {AGRO_CLASSES[i]: float(probs[i]) for i in range(len(AGRO_CLASSES))},
+            "all_probs":   {classes[i]: float(probs[i]) for i in range(len(classes))},
         }
 
     # ── Serialisation ────────────────────────────────────────────────────────
@@ -198,7 +351,7 @@ class AgroNet(nn.Module):
             {
                 "state_dict":  self.state_dict(),
                 "num_classes": self.num_classes,
-                "classes":     AGRO_CLASSES,
+                "classes":     self.classes,   # exact training order (overridden by extra if caller passes it)
                 **(extra or {}),
             },
             str(path),
@@ -206,10 +359,14 @@ class AgroNet(nn.Module):
 
     @classmethod
     def load(cls, path: str | Path, device: str = "cpu") -> "AgroNet":
-        ckpt = torch.load(str(path), map_location=device)
+        ckpt = torch.load(str(path), map_location=device, weights_only=False)
         nc = ckpt.get("num_classes", NUM_CLASSES)
         model = cls(num_classes=nc, pretrained=False)
         model.load_state_dict(ckpt["state_dict"])
+        # Restore the exact class ordering used during training so predict()
+        # maps logit indices → correct label names.
+        if "classes" in ckpt:
+            model.classes = list(ckpt["classes"])
         model.to(device)
         model.eval()
         return model

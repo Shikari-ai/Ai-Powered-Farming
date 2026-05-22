@@ -27,6 +27,10 @@ function defaultLocalInferenceBaseIfDev() {
     if (h === "localhost" || h === "127.0.0.1" || h === "[::1]" || h === "") {
         return DEFAULT_LOCAL_AI_BASE.replace(/\/$/, "");
     }
+    // LAN dev: phone/tablet on same WiFi accessing the dev machine by IP
+    if (/^192\.168\.|^10\.|^172\.(1[6-9]|2[0-9]|3[01])\./.test(h)) {
+        return `http://${h}:8000`;
+    }
     return "";
 }
 

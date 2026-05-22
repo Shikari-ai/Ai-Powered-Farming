@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -21,7 +21,8 @@
     })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
-    <!-- Connect your FastAPI host: <meta name="agri-inference-url" content="https://api.example.com"> -->
+    <meta name="agri-inference-url" content="https://bids-mood-grams-strings.trycloudflare.com">
+    <!-- DEV BUILD — not linked from main nav -->
     <script>
     (function () {
       try {
@@ -35,7 +36,7 @@
       }
     })();
     </script>
-    <title>Scan Field — AgriTech AI</title>
+    <title>Scan Field â€” AgriTech AI</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="css/design-tokens.css?v=2">
@@ -83,7 +84,7 @@
         }
         @keyframes scAuroraSpin { to { transform: rotate(360deg); } }
 
-        /* ── App shell ── */
+        /* â”€â”€ App shell â”€â”€ */
         .sc-app {
             position: relative; z-index: 1;
             max-width: 480px;
@@ -93,7 +94,7 @@
             box-sizing: border-box;
         }
 
-        /* ── Header ── */
+        /* â”€â”€ Header â”€â”€ */
         .sc-header {
             position: sticky; top: 0; z-index: 30;
             display: flex; align-items: center; justify-content: space-between;
@@ -128,7 +129,7 @@
         .sc-iconbtn:active { transform: scale(0.92); }
         .sc-iconbtn:hover { background: rgba(16, 185, 129, 0.10); border-color: rgba(16, 185, 129, 0.20); }
 
-        /* ── Progress card ── */
+        /* â”€â”€ Progress card â”€â”€ */
         .sc-progress-card {
             display: flex; align-items: center; gap: 14px;
             padding: 14px 16px;
@@ -173,7 +174,7 @@
             flex-shrink: 0;
         }
 
-        /* ── Viewfinder ── */
+        /* â”€â”€ Viewfinder â”€â”€ */
         .sc-viewfinder {
             position: relative;
             margin-top: 16px;
@@ -274,7 +275,7 @@
             display: inline-flex; align-items: center; gap: 6px;
         }
 
-        /* Live AI detection badge — top-left of viewfinder while live mode on */
+        /* Live AI detection badge â€” top-left of viewfinder while live mode on */
         .sc-live-badge[hidden] { display: none; }
         .sc-live-badge {
             position: absolute; top: 12px; left: 12px; z-index: 6;
@@ -320,9 +321,9 @@
             .sc-live-pulse { animation: none !important; }
         }
 
-        /* ── AI Review panel ──
+        /* â”€â”€ AI Review panel â”€â”€
            Sits between the viewfinder and the bottom dock. Shows a richer,
-           conversational "It looks like…" verdict whenever live detect or
+           conversational "It looks likeâ€¦" verdict whenever live detect or
            capture/upload produces a fresh diagnosis. Hidden until the
            first detection arrives. */
         .sc-ai-review[hidden] { display: none; }
@@ -435,7 +436,7 @@
             box-shadow: inset 0 0 0 3px rgba(16, 185, 129, 0.55);
         }
 
-        /* ── Scan to Search — premium card button ── */
+        /* â”€â”€ Scan to Search â€” premium card button â”€â”€ */
         .sc-lens-live-btn {
             position: relative; overflow: hidden;
             width: 100%;
@@ -541,7 +542,7 @@
             animation: scLensDots 1.4s infinite steps(4, end);
         }
 
-        /* ── Inline Scan-to-Search result card ── */
+        /* â”€â”€ Inline Scan-to-Search result card â”€â”€ */
         .sc-search-box {
             margin-top: 14px;
             border-radius: 20px;
@@ -619,7 +620,7 @@
             font-size: 12px; color: rgba(255,255,255,0.55); line-height: 1.45;
         }
         .sc-search-recs li::before {
-            content: "›"; font-size: 14px; color: rgba(66,133,244,0.70);
+            content: "â€º"; font-size: 14px; color: rgba(66,133,244,0.70);
             flex-shrink: 0; line-height: 1.3;
         }
         .sc-search-error {
@@ -659,7 +660,7 @@
         .sc-treat-type  { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255,255,255,0.30); }
         .sc-treat-usage { font-size: 11.5px; color: rgba(255,255,255,0.50); line-height: 1.45; margin-top: 2px; }
 
-        /* ── State containers ── */
+        /* â”€â”€ State containers â”€â”€ */
         .sc-state { margin-top: 16px; }
         .hidden { display: none !important; }
 
@@ -753,7 +754,7 @@
         .sc-symptom-chips button:hover { border-color: rgba(16, 185, 129, 0.32); }
         .sc-form-actions { display: flex; gap: 10px; margin-top: 14px; }
 
-        /* ── Result card ── */
+        /* â”€â”€ Result card â”€â”€ */
         .sc-result-card {
             padding: 16px;
             border-radius: 22px;
@@ -870,7 +871,7 @@
         .rec-list li.is-done::after {
             content: "\f00c"; /* Remix-style check would use icon; use unicode fallback */
         }
-        /* Use ri-check-line via pseudo only on .is-done — simpler: replace ::before with icon */
+        /* Use ri-check-line via pseudo only on .is-done â€” simpler: replace ::before with icon */
         .rec-list li.is-done::before {
             background: rgba(16, 185, 129, 0.35);
             border-color: rgba(16, 185, 129, 0.75);
@@ -951,7 +952,7 @@
             <div class="sc-ai-orb">AI</div>
             <div class="sc-progress-body">
                 <div class="sc-progress-title"><span class="em">AI Scanning</span> <span class="dim">in progress</span></div>
-                <div class="sc-progress-sub">Detecting issues and assessing risk…</div>
+                <div class="sc-progress-sub">Detecting issues and assessing riskâ€¦</div>
                 <div class="sc-progress-bar"><span></span></div>
             </div>
             <div class="sc-progress-pct">Live</div>
@@ -983,12 +984,12 @@
             <div class="cam-assist-badge" id="cam-assist-badge" hidden>
                 <i class="ri-contrast-2-line"></i><span id="cam-assist-text"></span>
             </div>
-            <!-- Live Gemini detection badge — populated by startLiveGeminiScan
+            <!-- Live Gemini detection badge â€” populated by startLiveGeminiScan
                  once every ~6s while the Detect toggle is on. Hidden otherwise. -->
             <div class="sc-live-badge" id="sc-live-badge" hidden>
                 <div class="sc-live-pulse"></div>
                 <div class="sc-live-body">
-                    <div class="sc-live-title" id="sc-live-title">AI watching…</div>
+                    <div class="sc-live-title" id="sc-live-title">AI watchingâ€¦</div>
                     <div class="sc-live-sub" id="sc-live-sub">Hold steady on a leaf</div>
                 </div>
             </div>
@@ -998,7 +999,7 @@
             </div>
         </div>
 
-        <!-- AI Review panel — appears once the AI has produced a verdict
+        <!-- AI Review panel â€” appears once the AI has produced a verdict
              (live detect tick, capture, or upload). Sits between the
              viewfinder and the ready-state buttons so it's always above
              the bottom dock and easy to read. -->
@@ -1021,7 +1022,7 @@
             <div class="sc-ai-rev-recs">
                 <div class="sc-ai-rev-recs-head"><i class="ri-sparkling-line"></i> <span data-i18n="whatToDo">What to do</span></div>
                 <ul id="sc-ai-rev-recs-list">
-                    <li>Loading recommendations…</li>
+                    <li>Loading recommendationsâ€¦</li>
                 </ul>
             </div>
         </section>
@@ -1030,7 +1031,7 @@
         <div id="ready-state" class="sc-state">
             <p class="sc-state-help">Point at a leaf, then capture or upload.</p>
             <div class="sc-live-detect-row">
-                <!-- Captures current video frame → uploads → opens Google Lens -->
+                <!-- Captures current video frame â†’ uploads â†’ opens Google Lens -->
                 <button class="sc-lens-live-btn" id="sc-open-lens-btn" aria-label="Scan to Search">
                     <span class="sc-lens-g"><i class="ri-search-eye-line"></i></span>
                     <span class="sc-lens-text-wrap">
@@ -1048,7 +1049,7 @@
                 </label>
             </div>
 
-            <!-- Inline result card for Scan to Search — hidden until tapped -->
+            <!-- Inline result card for Scan to Search â€” hidden until tapped -->
             <div class="sc-search-box hidden" id="sc-search-box">
                 <div class="sc-search-head">
                     <div class="sc-search-head-dot"></div>
@@ -1146,11 +1147,11 @@
         </div>
 
         <div class="sc-privacy">
-            <i class="ri-lock-2-line"></i> <span data-i18n="allPrivate">All analysis runs on-device • Your data stays private</span>
+            <i class="ri-lock-2-line"></i> <span data-i18n="allPrivate">All analysis runs on-device â€¢ Your data stays private</span>
         </div>
     </div>
 
-    <!-- Shared floating dock — same as every other page -->
+    <!-- Shared floating dock â€” same as every other page -->
     <nav class="bottom-nav">
         <a href="index.html" class="b-nav-item"><i class="ri-home-5-line"></i><span data-i18n="navHome">Home</span></a>
         <a href="fields.html" class="b-nav-item"><i class="ri-leaf-line"></i><span data-i18n="navFields">Fields</span></a>
@@ -1161,7 +1162,7 @@
 
     <!-- Tiny state observer: reflects the active state on <body data-sc-state>
          so CSS can show/hide the progress card and tune the subtitle.
-         Doesn't change any wired behavior — purely watches existing .hidden
+         Doesn't change any wired behavior â€” purely watches existing .hidden
          class toggles on the three state divs. -->
     <script>
     (function () {
@@ -1196,3 +1197,4 @@
     <script type="module" src="js/interaction-engine.js?v=20"></script>
 </body>
 </html>
+

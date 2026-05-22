@@ -16,9 +16,15 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
+
+# Add project root to path so ml.* modules resolve when server runs from server/
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -27,9 +33,10 @@ from starlette.concurrency import run_in_threadpool
 
 from inference.yolo_engine import YOLOVisionEngine
 from ml_metadata import load_vision_metadata
-from server.feedback_routes import router as feedback_router
-from server.chat_routes import router as chat_router
-from server.inference.agronet_engine import AgroNetEngine
+from feedback_routes import router as feedback_router
+from chat_routes import router as chat_router
+from inference.agronet_engine import AgroNetEngine
+from inference.plantnet_engine import PlantNetEngine
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
@@ -39,8 +46,9 @@ MAX_IMAGE_BYTES = int(os.environ.get("AGRI_MAX_IMAGE_MB", "12")) * 1024 * 1024
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.vision_engine   = YOLOVisionEngine()
-    app.state.agronet_engine  = AgroNetEngine()
+    app.state.vision_engine    = YOLOVisionEngine()
+    app.state.agronet_engine   = AgroNetEngine()
+    app.state.plantnet_engine  = PlantNetEngine()
     yield
 
 
@@ -62,19 +70,22 @@ app.add_middleware(
 @app.post("/v1/scan")
 async def scan_crop(file: UploadFile = File(...)) -> dict[str, Any]:
     """
-    Primary AgroNet crop scanner.
+    2-stage plant scanner:
+      Stage 1 — PlantNet:  identify what plant/crop is in the photo
+      Stage 2 — AgroNet:   detect disease + health score
 
-    Upload a crop leaf/plant photo → get:
+    Upload any plant photo → get:
+      - plant identification (species + common name)
       - disease label + confidence
       - health score 0-100
-      - full disease description and symptoms
-      - pesticide recommendations with dosage and PHI
-      - organic alternatives
-      - prevention tips
+      - symptoms, pesticide recommendations, prevention tips
 
-    Falls back to a 503 if AGRI_AGRONET_WEIGHTS is not configured.
+    AgroNet requires AGRI_AGRONET_WEIGHTS in server/.env.
+    PlantNet requires PLANTNET_API_KEY in server/.env (optional — enhances results).
     """
-    eng: AgroNetEngine = app.state.agronet_engine
+    eng:      AgroNetEngine    = app.state.agronet_engine
+    plantnet: PlantNetEngine   = app.state.plantnet_engine
+
     if not eng.ok:
         raise HTTPException(
             status_code=503,
@@ -88,9 +99,28 @@ async def scan_crop(file: UploadFile = File(...)) -> dict[str, Any]:
         raise HTTPException(status_code=413, detail="Image exceeds size limit.")
 
     try:
-        def _run():
+        # Stage 1: Plant identification (runs in parallel with Stage 2)
+        async def _identify():
+            if plantnet.ok:
+                return await run_in_threadpool(plantnet.identify, raw)
+            return {"identified": False, "reason": "PlantNet not configured"}
+
+        # Stage 2: Disease detection
+        def _scan():
             return eng.scan(raw)
-        return await run_in_threadpool(_run)
+
+        import asyncio
+        plant_result, scan_result = await asyncio.gather(
+            _identify(),
+            run_in_threadpool(_scan),
+        )
+
+        # Merge results
+        return {
+            **scan_result,
+            "plant_identification": plant_result,
+        }
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except RuntimeError as e:

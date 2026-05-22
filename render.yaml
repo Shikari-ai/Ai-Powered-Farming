@@ -1,0 +1,24 @@
+# Render.com deployment config
+# Docs: https://render.com/docs/infrastructure-as-code
+#
+# Connect repo at: https://dashboard.render.com/select-repo
+# After deploy, add env var in Render Dashboard → Environment:
+#   PLANTNET_API_KEY = <your key>
+#   GEMINI_API_KEY   = <your key>  (optional — for /v1/chat)
+
+services:
+  - type: web
+    name: smart-agri-api
+    runtime: python
+    rootDir: server
+    buildCommand: pip install -r requirements-prod.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: AGRI_AGRONET_WEIGHTS
+        value: ml/runs/agronet_v3/agronet_best.pth
+      - key: AGRI_DEVICE
+        value: cpu
+      - key: PLANTNET_API_KEY
+        sync: false        # set manually in Render Dashboard → Environment
+      - key: GEMINI_API_KEY
+        sync: false        # set manually in Render Dashboard → Environment

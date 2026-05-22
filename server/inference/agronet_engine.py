@@ -26,7 +26,7 @@ import yaml
 
 log = logging.getLogger(__name__)
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[2]  # server/inference/ → server/ → project root
 KB_PATH = ROOT / "ml" / "config" / "disease_kb.yaml"
 
 # ── Knowledge Base loader (singleton) ────────────────────────────────────────
@@ -152,6 +152,8 @@ class AgroNetEngine:
             log.info(self.load_error)
             return
         p = Path(weights)
+        if not p.is_absolute():
+            p = ROOT / p          # resolve relative to project root
         if not p.is_file():
             self.load_error = f"AgroNet weights not found: {p}"
             log.warning(self.load_error)
