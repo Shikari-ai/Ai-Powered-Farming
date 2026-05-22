@@ -46,9 +46,37 @@ MAX_IMAGE_BYTES = int(os.environ.get("AGRI_MAX_IMAGE_MB", "12")) * 1024 * 1024
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.vision_engine    = YOLOVisionEngine()
-    app.state.agronet_engine   = AgroNetEngine()
-    app.state.plantnet_engine  = PlantNetEngine()
+    import logging as _log
+    _l = _log.getLogger("startup")
+    try:
+        _l.info("Loading YOLOVisionEngine…")
+        app.state.vision_engine = YOLOVisionEngine()
+    except Exception as e:
+        _l.error("YOLOVisionEngine init failed (non-fatal): %s", e)
+        from inference.yolo_engine import YOLOVisionEngine as _Y
+        app.state.vision_engine = object.__new__(_Y)
+        app.state.vision_engine.ok = False
+        app.state.vision_engine.load_error = str(e)
+        app.state.vision_engine.weights = ""
+    try:
+        _l.info("Loading AgroNetEngine…")
+        app.state.agronet_engine = AgroNetEngine()
+    except Exception as e:
+        _l.error("AgroNetEngine init failed (non-fatal): %s", e)
+        from inference.agronet_engine import AgroNetEngine as _A
+        app.state.agronet_engine = object.__new__(_A)
+        app.state.agronet_engine.ok = False
+        app.state.agronet_engine.load_error = str(e)
+        app.state.agronet_engine.weights = ""
+    try:
+        _l.info("Loading PlantNetEngine…")
+        app.state.plantnet_engine = PlantNetEngine()
+    except Exception as e:
+        _l.error("PlantNetEngine init failed (non-fatal): %s", e)
+        from inference.plantnet_engine import PlantNetEngine as _P
+        app.state.plantnet_engine = object.__new__(_P)
+        app.state.plantnet_engine.ok = False
+    _l.info("Startup complete. AgroNet ok=%s", app.state.agronet_engine.ok)
     yield
 
 

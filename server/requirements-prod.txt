@@ -1,6 +1,6 @@
-# Production requirements — CPU-only PyTorch (no CUDA, smaller install ~400 MB vs ~2 GB)
-# Ultralytics/YOLO excluded — AgroNet only on production.
---extra-index-url https://download.pytorch.org/whl/cpu
+# Production requirements — CPU-only PyTorch (no CUDA, no ultralytics/YOLO).
+# torch + torchvision are installed separately in render.yaml buildCommand
+# using --index-url https://download.pytorch.org/whl/cpu to get CPU-only wheels.
 
 python-dotenv>=1.0.0,<2
 fastapi>=0.109.0,<1
@@ -11,5 +11,4 @@ opencv-python-headless>=4.8.0
 numpy>=1.24.0
 PyYAML>=6.0.1
 google-generativeai>=0.8.0
-torch>=2.1.0
-torchvision>=0.16.0
+requests>=2.31.0

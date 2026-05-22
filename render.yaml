@@ -11,7 +11,12 @@ services:
     name: smart-agri-api
     runtime: python
     rootDir: server
-    buildCommand: pip install -r requirements-prod.txt
+    # Install CPU-only torch FIRST (avoids pulling 2 GB CUDA wheel from PyPI),
+    # then install the rest of the server deps.
+    buildCommand: >
+      pip install torch torchvision
+      --index-url https://download.pytorch.org/whl/cpu
+      && pip install -r requirements-prod.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: AGRI_AGRONET_WEIGHTS
