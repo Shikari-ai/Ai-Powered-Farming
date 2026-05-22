@@ -921,10 +921,14 @@ document.addEventListener("DOMContentLoaded", () => {
             startAiVision(currentBlob);
           };
 
-          if (result.error === "rate_limited" && !isRetry) {
-            setTimeout(() => {
-              if (currentBlob === blob) startAiVision(blob, /*isRetry*/ true);
-            }, 30000);
+          if (!isRetry) {
+            if (result.error === "rate_limited") {
+              showScannerStatus("Rate limited — retrying in 30s…", true, 32000);
+              setTimeout(() => { if (currentBlob === blob) startAiVision(blob, true); }, 30000);
+            } else if (result.error === "could_not_parse_json") {
+              showScannerStatus("Format glitch — retrying…", false, 4000);
+              setTimeout(() => { if (currentBlob === blob) startAiVision(blob, true); }, 1500);
+            }
           }
           return;
         }

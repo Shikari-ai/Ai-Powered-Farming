@@ -47,19 +47,48 @@ function blobToBase64(blob) {
 function extractJsonObject(text) {
   if (!text) return null;
   let s = String(text).trim();
-  const fenceMatch = s.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  if (fenceMatch) s = fenceMatch[1].trim();
-  const first = s.indexOf("{");
-  const last = s.lastIndexOf("}");
-  if (first < 0 || last < first) return null;
-  const candidate = s.slice(first, last + 1);
-  try { return JSON.parse(candidate); }
-  catch {
-    const cleaned = candidate
-      .replace(/[""]/g, '"').replace(/['']/g, "'")
-      .replace(/,\s*([}\]])/g, "$1");
-    try { return JSON.parse(cleaned); } catch { return null; }
+
+  // Strip ALL markdown code fences (Gemini often wraps with ```json ... ```)
+  s = s.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+
+  // Drop any prose before the first opening brace
+  const firstBrace = s.indexOf("{");
+  if (firstBrace < 0) return null;
+  s = s.slice(firstBrace);
+
+  // Bracket-balanced extraction — finds the outermost complete JSON object
+  // even when there is trailing text after it.
+  let depth = 0, end = -1, inStr = false, esc = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (esc)        { esc = false; continue; }
+    if (c === "\\") { esc = true;  continue; }
+    if (c === '"')  { inStr = !inStr; continue; }
+    if (inStr)      continue;
+    if (c === "{")  depth++;
+    else if (c === "}") { if (--depth === 0) { end = i; break; } }
   }
+  if (end < 0) return null;
+  const candidate = s.slice(0, end + 1);
+
+  // Attempt 1 — raw parse
+  try { return JSON.parse(candidate); } catch {}
+
+  // Attempt 2 — common Gemini quirks: fancy quotes, trailing commas, JS comments
+  const fixed = candidate
+    .replace(/[“”„‟″‶]/g, '"') // curved double quotes
+    .replace(/[‘’‚‛′‵]/g, "'") // curved single quotes
+    .replace(/,(\s*[}\]])/g, "$1")                           // trailing commas
+    .replace(/\/\/[^\n\r"]*/g, "")                           // // comments
+    .replace(/\/\*[\s\S]*?\*\//g, "")                        // /* block comments */
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, " ");    // control chars
+  try { return JSON.parse(fixed); } catch {}
+
+  // Attempt 3 — replace single-quoted string values with double-quoted
+  try {
+    const reQuoted = fixed.replace(/'([^'\\]*(\\.[^'\\]*)*)'/g, '"$1"');
+    return JSON.parse(reQuoted);
+  } catch { return null; }
 }
 
 function normalizeDiagnosis(obj) {
