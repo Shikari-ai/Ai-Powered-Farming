@@ -683,6 +683,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (preview) preview.removeAttribute("src");
         resetVisionPanel();
         setLensButtonState("idle");
+        const staleRetry = document.getElementById("ai-retry-btn");
+        if (staleRetry) staleRetry.style.display = "none";
         const searchBox = document.getElementById("sc-search-box");
         if (searchBox) searchBox.classList.add("hidden");
         if (cropSel) cropSel.value = "";
@@ -802,9 +804,11 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!cfg.inferenceBaseUrl) return null;
       try {
         const fd = new FormData();
-        fd.append("file", new File([blob], "scan.jpg", { type: "image/jpeg" }));
+        const mime = (blob instanceof File ? blob.type : "") || "image/jpeg";
+        const ext  = mime === "image/png" ? "scan.png" : mime === "image/webp" ? "scan.webp" : "scan.jpg";
+        fd.append("file", new File([blob], ext, { type: mime }));
         const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 35000);
+        const t = setTimeout(() => ctrl.abort(), 20000);
         let res;
         try {
           res = await fetch(`${cfg.inferenceBaseUrl}/v1/scan`, { method: "POST", body: fd, signal: ctrl.signal });
@@ -862,14 +866,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function startAiVision(blob, isRetry = false) {
-      if (!blob || aiVisionInFlight) return;
+      if (!blob) return;
+      if (!isRetry) aiVisionInFlight = false;  // new scan always cancels stale in-flight guard
+      if (aiVisionInFlight) return;
       aiVisionInFlight = true;
+      showScannerStatus("AI scanning… hold on", false, 40000);
       try {
         // ── Stage 1: try AgroNet v3 (fast, trained, on-render) ──
         let result = await tryAgroNetScan(blob);
         if (result && result.ok) {
+          showScannerStatus("AgroNet scan complete ✓", false, 2000);
           console.info("[scanner] AgroNet v3 result:", result.diagnosis.diseaseName, result.diagnosis.confidence + "%");
         } else {
+          showScannerStatus("Trying backup AI…", false, 15000);
           // ── Stage 2: fall back to Gemini via Val Town ──
           const farmContext = {};
           if (fieldSel && fieldSel.value) {
@@ -884,12 +893,34 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         if (!result.ok) {
           console.warn("[scanner] AI vision failed:", result.error, result.raw?.slice(0, 200));
-          if (visionText) {
-            visionPanel?.classList.remove("hidden");
-            visionText.textContent = captureErrorMessage(result.error, result.raw);
+          showScannerStatus("Scan failed — tap Retry below", true, 8000);
+
+          // Show prominent error with retry inside the vision panel
+          if (visionPanel && visionText) {
+            visionPanel.classList.remove("hidden");
+            const msg = captureErrorMessage(result.error, result.raw);
+            visionText.innerHTML = `${msg} <button onclick="document.getElementById('ai-retry-btn').click()" style="margin-top:8px;display:block;padding:8px 16px;border-radius:10px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.45);color:#34d399;font-size:13px;cursor:pointer;font-family:inherit;">⟳ Retry scan</button>`;
           }
-          // Auto-retry once on a rate limit — Gemini's per-minute quota
-          // resets every 60s, so a single retry 30s later usually clears it.
+
+          // Wire up retry button (created in analyze-state HTML or added dynamically)
+          let retryBtn = document.getElementById("ai-retry-btn");
+          if (!retryBtn) {
+            retryBtn = document.createElement("button");
+            retryBtn.id = "ai-retry-btn";
+            retryBtn.className = "sc-btn sc-btn-outline";
+            retryBtn.style.cssText = "margin-top:12px;width:100%;";
+            retryBtn.innerHTML = '<i class="ri-restart-line"></i> Retry AI Scan';
+            const formActions = document.querySelector("#analyze-state .sc-form-actions");
+            if (formActions) formActions.parentNode.insertBefore(retryBtn, formActions);
+          }
+          retryBtn.style.display = "";
+          retryBtn.onclick = () => {
+            if (!currentBlob) return;
+            retryBtn.style.display = "none";
+            if (visionPanel) visionPanel.classList.add("hidden");
+            startAiVision(currentBlob);
+          };
+
           if (result.error === "rate_limited" && !isRetry) {
             setTimeout(() => {
               if (currentBlob === blob) startAiVision(blob, /*isRetry*/ true);
@@ -1053,8 +1084,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 currentPreviewUrl = URL.createObjectURL(blob);
                 if (preview) preview.src = currentPreviewUrl;
                 toAnalyzeState();
-                startBackgroundVision(blob);
-                startAiVision(blob); // Gemini vision → auto-populate result
+                const _cfg = getAiConfig();
+                if (!_cfg.inferenceBaseUrl) startBackgroundVision(blob);
+                startAiVision(blob);
             } catch (e) {
                 console.error(e);
                 alert("Could not capture from camera. Try Upload instead.");
@@ -1073,9 +1105,10 @@ document.addEventListener("DOMContentLoaded", () => {
             currentPreviewUrl = URL.createObjectURL(file);
             if (preview) preview.src = currentPreviewUrl;
             toAnalyzeState();
-            setLensButtonState("ready");
-            startBackgroundVision(file);
-            startAiVision(file); // Gemini vision → auto-populate result
+            setLensButtonState("idle");
+            const _cfg2 = getAiConfig();
+            if (!_cfg2.inferenceBaseUrl) startBackgroundVision(file);
+            startAiVision(file);
         });
     }
 
