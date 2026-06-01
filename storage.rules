@@ -1,0 +1,31 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isUid(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // Avatars: only the authenticated user can access their folder
+    match /avatars/{uid}/{allPaths=**} {
+      allow read, write: if isUid(uid);
+    }
+
+    // Crop scans: only the authenticated user can access their folder
+    match /crop_scans/{uid}/{allPaths=**} {
+      allow read, write: if isUid(uid);
+    }
+
+    match /field_covers/{uid}/{allPaths=**} {
+      allow read, write: if isUid(uid);
+    }
+
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

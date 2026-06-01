@@ -1,0 +1,34 @@
+# Tunables for contextual agricultural reasoning (server-side). Safe defaults; tune per region in prod.
+schema_version: 1
+recurrence:
+  window_days: 42
+  confidence_boost: 0.055
+  max_boosted_confidence: 0.93
+environment:
+  humidity_fungal_threshold: 78
+  rain_mm_strong: 8.0
+  rain_mm_moderate: 4.0
+suppression:
+  wrong_crop_class_multiplier: 0.42
+  unlikely_stage_multiplier: 0.48
+  low_image_quality_multiplier: 0.88
+risk:
+  # Weights 0..1 contributing to aggregate risk_score_0_100
+  weight_model_confidence: 38
+  weight_detection_count: 6
+  weight_fungal_environment: 18
+  weight_recurrence: 16
+  weight_stability_inverse: 12
+  weight_monsoon_profile: 10
+seasonality:
+  # Optional climate_profile keys from client context (e.g. south_asia_monsoon)
+  south_asia_monsoon:
+    monsoon_months: [6, 7, 8, 9]
+    fungal_pressure_multiplier: 1.08
+  temperate:
+    monsoon_months: []
+    fungal_pressure_multiplier: 1.0
+user_behavior:
+  # Non-invasive: only aggregates already on field_memory; no raw click tracking
+  high_scan_frequency_days: 14
+  high_scan_threshold: 5

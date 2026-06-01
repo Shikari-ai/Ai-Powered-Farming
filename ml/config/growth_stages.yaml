@@ -1,0 +1,161 @@
+# Crop growth stages for contextual suppression / priors (not a substitute for in-field scouting).
+# `unlikely_diseases`: class slugs from disease_classes.yaml that are *unlikely* at this stage (confidence damped).
+schema_version: 1
+default_stage: vegetative
+crops:
+  wheat:
+    stages:
+      - key: germination
+        order: 0
+        day_range: [0, 18]
+        unlikely_diseases: [leaf_rust, powdery_mildew, general_lesion]
+      - key: vegetative
+        order: 1
+        day_range: [18, 90]
+        unlikely_diseases: []
+      - key: flowering
+        order: 2
+        day_range: [90, 118]
+        unlikely_diseases: []
+      - key: grain_filling
+        order: 3
+        day_range: [118, 155]
+        unlikely_diseases: []
+      - key: harvest_ready
+        order: 4
+        day_range: [155, 210]
+        unlikely_diseases: []
+  rice:
+    stages:
+      - key: germination
+        order: 0
+        day_range: [0, 14]
+        unlikely_diseases: [leaf_rust, bacterial_spot]
+      - key: vegetative
+        order: 1
+        day_range: [14, 70]
+        unlikely_diseases: []
+      - key: flowering
+        order: 2
+        day_range: [70, 95]
+        unlikely_diseases: []
+      - key: grain_filling
+        order: 3
+        day_range: [95, 125]
+        unlikely_diseases: []
+      - key: harvest_ready
+        order: 4
+        day_range: [125, 180]
+        unlikely_diseases: []
+  tomato:
+    stages:
+      - key: germination
+        order: 0
+        day_range: [0, 14]
+        unlikely_diseases: [late_blight, early_blight]
+      - key: vegetative
+        order: 1
+        day_range: [14, 45]
+        unlikely_diseases: []
+      - key: flowering
+        order: 2
+        day_range: [45, 85]
+        unlikely_diseases: []
+      - key: harvest_ready
+        order: 3
+        day_range: [85, 140]
+        unlikely_diseases: []
+  potato:
+    stages:
+      - key: germination
+        order: 0
+        day_range: [0, 21]
+        unlikely_diseases: [late_blight]
+      - key: vegetative
+        order: 1
+        day_range: [21, 65]
+        unlikely_diseases: []
+      - key: flowering
+        order: 2
+        day_range: [65, 95]
+        unlikely_diseases: []
+      - key: harvest_ready
+        order: 3
+        day_range: [95, 130]
+        unlikely_diseases: []
+  maize:
+    stages:
+      - key: germination
+        order: 0
+        day_range: [0, 16]
+        unlikely_diseases: [leaf_rust]
+      - key: vegetative
+        order: 1
+        day_range: [16, 70]
+        unlikely_diseases: []
+      - key: flowering
+        order: 2
+        day_range: [70, 100]
+        unlikely_diseases: []
+      - key: grain_filling
+        order: 3
+        day_range: [100, 140]
+        unlikely_diseases: []
+      - key: harvest_ready
+        order: 4
+        day_range: [140, 190]
+        unlikely_diseases: []
+  cotton:
+    stages:
+      - key: germination
+        order: 0
+        day_range: [0, 18]
+        unlikely_diseases: [bacterial_spot]
+      - key: vegetative
+        order: 1
+        day_range: [18, 70]
+        unlikely_diseases: []
+      - key: flowering
+        order: 2
+        day_range: [70, 120]
+        unlikely_diseases: []
+      - key: harvest_ready
+        order: 3
+        day_range: [120, 200]
+        unlikely_diseases: []
+  soybean:
+    stages:
+      - key: germination
+        order: 0
+        day_range: [0, 18]
+        unlikely_diseases: [leaf_rust]
+      - key: vegetative
+        order: 1
+        day_range: [18, 55]
+        unlikely_diseases: []
+      - key: flowering
+        order: 2
+        day_range: [55, 95]
+        unlikely_diseases: []
+      - key: grain_filling
+        order: 3
+        day_range: [95, 125]
+        unlikely_diseases: []
+      - key: harvest_ready
+        order: 4
+        day_range: [125, 170]
+        unlikely_diseases: []
+  sugarcane:
+    stages:
+      - key: germination
+        order: 0
+        day_range: [0, 35]
+        unlikely_diseases: [potassium_deficiency]
+      - key: vegetative
+        order: 1
+        day_range: [35, 210]
+        unlikely_diseases: []
+      - key: harvest_ready
+        order: 2
+        day_range: [210, 410]
+        unlikely_diseases: []

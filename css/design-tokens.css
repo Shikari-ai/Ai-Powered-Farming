@@ -1,0 +1,132 @@
+/**
+ * Smart Agri — centralized design tokens (spacing, type rhythm, radii, glass, motion).
+ * Feature shells may keep thin :root aliases that map to these variables.
+ *
+ * Breakpoints (reference — use in @media, not as var()):
+ *   xs ~380px   small phones
+ *   sm 480px    app shell max-width / thumb column
+ *   md 768px    tablet
+ *   lg 1024px   desktop “phone preview”
+ *
+ * Z-index stack (content → chrome):
+ *   0–48   in-flow UI
+ *   50–90  sticky headers / FABs inside shell
+ *   1000   bottom nav (--z-bottom-nav)
+ *   1060   slide panels / drawers (--z-side-panel)
+ *   1100   composer & docked inputs above nav (--z-composer)
+ *   2000+  modals / fullscreen overlays
+ *   99999  emergency banners only
+ *
+ * Keyboard / dynamic viewport: pairing min-height with VisualViewport is larger
+ * than a CSS-only fix — shells use --layout-min-height-fill for dvh-safe baseline.
+ */
+
+:root {
+  /* ── Layout ── */
+  --layout-max-width: 480px;
+  --layout-content-pad-x: clamp(14px, 3.6vw, 18px);
+  --layout-scroll-bottom-pad: calc(100px + env(safe-area-inset-bottom, 0px));
+  --layout-min-height-fill: min(100vh, 100dvh);
+
+  /* ── Spacing ── */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+
+  /* ── Radius ── */
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
+  --radius-2xl: 24px;
+  --radius-pill: 999px;
+
+  /* ── Color — premium emerald lane (hex sources of truth) ── */
+  --color-bg-deep: #030609;
+  --color-bg-farm: #070c09;
+  --color-bg-slate: #0f172a;
+  --color-bg-ink: #020617;
+  --color-surface: #0a1118;
+  --color-primary: #10b981;
+  --color-primary-rgb: 16, 185, 129;
+  --color-blue: #3b82f6;
+  --color-warn: #f59e0b;
+  --color-danger: #ef4444;
+  --color-text: #f8fafc;
+  --color-text-muted: #94a3b8;
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  --color-border-medium: rgba(255, 255, 255, 0.1);
+
+  /* ── Glass / elevation ── */
+  --glass-bg-nav: rgba(3, 6, 9, 0.95);
+  --glass-bg-composer: rgba(3, 6, 9, 0.94);
+  --glass-bg-card: rgba(10, 17, 24, 0.72);
+  --glass-blur-strong: 20px;
+  --glass-blur-medium: 12px;
+  --shadow-shell: 0 0 50px rgba(0, 0, 0, 0.55);
+  --shadow-neon: 0 0 20px rgba(var(--color-primary-rgb), 0.2);
+
+  /* Legacy aliases (shared with older css/style.css naming) */
+  --glass-bg: rgba(30, 41, 59, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --accent-green: var(--color-primary);
+  --accent-blue: #3b82f6;
+  --accent-orange: #f59e0b;
+  --accent-red: #ef4444;
+  --text-main: var(--color-text);
+  --text-muted: var(--color-text-muted);
+
+  /* ── Typography (fluid steps — use on headings / hero numbers) ── */
+  --font-hero-display: clamp(2.75rem, 8vw + 1.5rem, 3.375rem);
+  --font-title-lg: clamp(1.0625rem, 2vw + 0.85rem, 1.125rem);
+  --font-body-md: clamp(0.8125rem, 1vw + 0.72rem, 0.9375rem);
+  --font-caption: clamp(0.625rem, 0.35vw + 0.58rem, 0.6875rem);
+
+  /* ── Motion ── */
+  --motion-intensity: 1;
+  /* Tier density (device-adaptive-shell.js may raise on large screens) */
+  --agri-density-scale: 1;
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --ease-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Z-index ── */
+  --z-bottom-nav: 1000;
+  --z-composer: 1100;
+  --z-side-panel: 1060;
+  --z-modal: 3000;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-intensity: 0;
+  }
+}
+
+/* ═══════════════ Responsive helpers (opt-in classes) ═══════════════ */
+
+.agri-container {
+  width: 100%;
+  max-width: var(--layout-max-width);
+  margin-inline: auto;
+  padding-inline: var(--layout-content-pad-x);
+  box-sizing: border-box;
+}
+
+.agri-safe-x {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+.agri-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.agri-shell-pad-bottom {
+  padding-bottom: var(--layout-scroll-bottom-pad);
+}

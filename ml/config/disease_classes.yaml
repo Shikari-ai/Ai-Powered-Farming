@@ -1,0 +1,48 @@
+# Central class registry for YOLO (names[] order = class index).
+# Training/validation/export MUST match this order.nc and names
+schema_version: 1
+nc: 10
+names:
+  - leaf_rust
+  - early_blight
+  - late_blight
+  - powdery_mildew
+  - bacterial_spot
+  - nitrogen_deficiency
+  - potassium_deficiency
+  - healthy_leaf
+  - pest_damage
+  - general_lesion
+
+# Human metadata per class (UI, reasoning, analytics — not required by YOLO)
+classes:
+  leaf_rust:
+    category: fungal
+    crops: [wheat, maize, soybean]
+  early_blight:
+    category: fungal
+    crops: [tomato, potato]
+  late_blight:
+    category: fungal
+    crops: [tomato, potato]
+  powdery_mildew:
+    category: fungal
+    crops: [wheat, tomato, soybean]
+  bacterial_spot:
+    category: bacterial
+    crops: [tomato, cotton, soybean]
+  nitrogen_deficiency:
+    category: physiological
+    crops: [rice, maize, wheat, cotton]
+  potassium_deficiency:
+    category: physiological
+    crops: [potato, tomato, sugarcane]
+  healthy_leaf:
+    category: healthy
+    crops: [wheat, rice, tomato, potato, maize, cotton, soybean, sugarcane]
+  pest_damage:
+    category: pest
+    crops: [cotton, soybean, tomato, maize]
+  general_lesion:
+    category: ambiguous
+    crops: [wheat, rice, tomato, potato, maize, cotton, soybean, sugarcane]

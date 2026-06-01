@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Regional Intelligence — AgriTech AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4/dist/maplibre-gl.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4/dist/maplibre-gl.js"></script>
+  <link rel="stylesheet" href="css/design-tokens.css?v=2">
+  <script src="js/device-adaptive-shell.js?v=1"></script>
+  <link rel="stylesheet" href="css/adaptive-shell.css?v=1">
+  <link rel="stylesheet" href="css/nav.css?v=21">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:'Outfit',sans-serif;}
+    html,body{height:100%;background:#060d14;color:#ecfdf5;}
+    #reg-map-canvas{position:fixed;inset:0;}
+    .reg-hud{
+      position:fixed;top:0;left:0;right:0;z-index:120;
+      padding:calc(12px + env(safe-area-inset-top,0px)) 14px 10px;
+      background:linear-gradient(180deg,rgba(4,8,14,0.94) 0%,transparent 100%);
+      pointer-events:none;
+    }
+    .reg-hud > *{pointer-events:auto;}
+    .reg-title{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px;}
+    .reg-title i{color:#22d3ee;}
+    .reg-sub{ font-size:11px;color:rgba(255,255,255,0.45);margin-top:4px;max-width:720px;line-height:1.4;}
+    .reg-sheet{
+      position:fixed;bottom:calc(64px + env(safe-area-inset-bottom,0px));left:12px;right:12px;z-index:130;
+      max-width:520px;margin:0 auto;
+      background:rgba(6,10,18,0.94);backdrop-filter:blur(16px);
+      border:1px solid rgba(34,211,238,0.14);border-radius:18px;
+      padding:14px 16px 16px;box-shadow:0 8px 40px rgba(0,0,0,0.55);
+    }
+    .reg-brief{font-size:12px;line-height:1.5;color:rgba(236,253,245,0.88);max-height:120px;overflow-y:auto;}
+    .reg-actions{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+    .reg-actions select{
+      flex:1;min-width:160px;padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);
+      background:rgba(0,0,0,0.35);color:#e2e8f0;font-size:12px;
+    }
+    .reg-btn{
+      padding:8px 12px;border-radius:10px;border:none;cursor:pointer;font-size:12px;font-weight:600;
+      background:rgba(34,211,238,0.15);color:#67e8f9;border:1px solid rgba(34,211,238,0.35);
+    }
+    .reg-btn.secondary{background:rgba(255,255,255,0.06);color:rgba(226,232,240,0.9);border-color:rgba(255,255,255,0.12);}
+    .reg-meta{font-size:10px;color:rgba(148,163,184,0.9);margin-top:10px;line-height:1.4;}
+  </style>
+</head>
+<body>
+  <div id="reg-map-canvas" aria-label="Regional map"></div>
+  <div class="reg-hud">
+    <a href="index.html" class="reg-title" style="text-decoration:none;color:inherit;">
+      <i class="ri-arrow-left-line"></i>
+      Regional intelligence
+    </a>
+    <p class="reg-sub">Anonymized coarse-grid signals only. Observed vs inferred labels are shown in the assistant and briefings. Calibrate only to improve trust weighting — not a substitute for scouting.</p>
+  </div>
+  <div class="reg-sheet">
+    <p id="reg-brief" class="reg-brief">Loading…</p>
+    <div class="reg-actions">
+      <button type="button" class="reg-btn secondary" id="reg-refresh"><i class="ri-refresh-line"></i> Refresh</button>
+      <select id="reg-cell" aria-label="Coarse cell">
+        <option value="">Select cell…</option>
+      </select>
+      <button type="button" class="reg-btn" id="reg-vote-align">Signal matched reality</button>
+      <button type="button" class="reg-btn secondary" id="reg-vote-down">Too alarmist</button>
+    </div>
+    <p class="reg-meta">Community calibration is quota-limited per day and deduped per cell to reduce abuse. You never share farm identity or boundaries here.</p>
+  </div>
+  <nav class="bottom-nav">
+    <a href="index.html" class="b-nav-item"><i class="ri-home-5-line"></i><span>Home</span></a>
+    <a href="map.html" class="b-nav-item"><i class="ri-map-pin-line"></i><span>Map</span></a>
+    <a href="scanner.html" class="b-nav-scan"><i class="ri-leaf-fill"></i></a>
+    <a href="assistant.html" class="b-nav-item"><i class="ri-sparkling-line"></i><span>AI</span></a>
+    <a href="profile.html" class="b-nav-item"><i class="ri-user-smile-line"></i><span>Profile</span></a>
+  </nav>
+  <script type="module" src="js/regional-view.js?v=1"></script>
+</body>
+</html>

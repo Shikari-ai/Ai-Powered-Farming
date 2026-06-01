@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Smoke tests moved to the main assistant (same LLM stack). -->
+    <meta http-equiv="refresh" content="0;url=assistant.html" />
+    <title>Redirecting to Assistant…</title>
+    <script>
+        (function () {
+            var h = location.hostname || "";
+            var target = "assistant.html";
+            if (h.endsWith("github.io")) {
+                var path = location.pathname || "";
+                var parts = path.split("/").filter(Boolean);
+                var repo = parts[0];
+                if (repo && repo.indexOf(".") === -1) {
+                    target = "/" + repo + "/assistant.html";
+                }
+            }
+            location.replace(target);
+        })();
+    </script>
+</head>
+<body style="font-family: system-ui, sans-serif; background: #0a0f14; color: #94a3b8; padding: 24px; text-align: center;">
+    <p>Opening the AI Assistant…</p>
+    <p><a href="assistant.html" style="color: #34d399;">Continue to assistant</a></p>
+</body>
+</html>
