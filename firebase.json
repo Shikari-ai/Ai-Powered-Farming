@@ -26,7 +26,23 @@
       "firestore.rules",
       "storage.rules",
       "server/**",
-      "functions/**"
+      "functions/**",
+      "ml/**",
+      "android/**",
+      "scripts/**",
+      "val-town/**",
+      "audit-results/**",
+      "test-fixtures/**",
+      "*.pth",
+      "*.py",
+      "*.txt",
+      "*.sh",
+      "*.md"
+    ],
+    "rewrites": [
+      { "source": "/developers", "destination": "/developer.html" },
+      { "source": "/developers.html", "destination": "/developer.html" },
+      { "source": "/developer", "destination": "/developer.html" }
     ],
     "headers": [
       {
